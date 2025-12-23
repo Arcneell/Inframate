@@ -14,7 +14,7 @@ const translations = {
         accessDenied: "Access Denied",
         welcomeBack: "Welcome back.",
         authOnly: "Authorized Access Only",
-        
+
         // Sidebar
         dashboard: "Dashboard",
         network: "Network",
@@ -104,7 +104,7 @@ const translations = {
         invalidPasswordDetail: "The password you entered is incorrect.",
         confirmDeleteHistory: "Are you sure you want to delete the entire execution history?",
         confirmDeleteScript: "Are you sure you want to delete",
-        
+
         // Settings
         myProfile: "My Profile",
         updatePassword: "Update Password",
@@ -120,7 +120,30 @@ const translations = {
         viewTopo: "View Topology",
         runScripts: "Run Scripts",
         accessSettings: "Access Settings",
-        accessIpam: "Access IPAM"
+        accessIpam: "Access IPAM",
+
+        // User Management
+        deleteUser: "Delete User",
+        confirmDeleteUser: "Are you sure you want to delete user",
+        userDeleted: "User deleted successfully",
+        cannotDeleteSelf: "You cannot delete yourself",
+        cannotDeleteLastAdmin: "Cannot delete the last admin",
+
+        // Validation messages
+        validationError: "Validation Error",
+        usernameTooShort: "Username must be at least 3 characters",
+        passwordTooShort: "Password must be at least 8 characters",
+        fillRequiredFields: "Please fill all required fields",
+        userCreated: "User created successfully",
+        passwordUpdated: "Password updated successfully",
+        updateFailed: "Update Failed",
+
+        // 403 Unauthorized page
+        unauthorizedTitle: "Access Denied",
+        unauthorizedSubtitle: "You don't have permission to access this page",
+        unauthorizedMessage: "Please contact your administrator if you believe this is an error.",
+        goBack: "Go Back",
+        goHome: "Go to Dashboard"
     },
     fr: {
         // Auth
@@ -239,13 +262,43 @@ const translations = {
         viewTopo: "Voir Topologie",
         runScripts: "Lancer Scripts",
         accessSettings: "Accès Paramètres",
-        accessIpam: "Accès IPAM"
+        accessIpam: "Accès IPAM",
+
+        // User Management
+        deleteUser: "Supprimer l'utilisateur",
+        confirmDeleteUser: "Êtes-vous sûr de vouloir supprimer l'utilisateur",
+        userDeleted: "Utilisateur supprimé avec succès",
+        cannotDeleteSelf: "Vous ne pouvez pas vous supprimer vous-même",
+        cannotDeleteLastAdmin: "Impossible de supprimer le dernier administrateur",
+
+        // Validation messages
+        validationError: "Erreur de validation",
+        usernameTooShort: "Le nom d'utilisateur doit contenir au moins 3 caractères",
+        passwordTooShort: "Le mot de passe doit contenir au moins 8 caractères",
+        fillRequiredFields: "Veuillez remplir tous les champs obligatoires",
+        userCreated: "Utilisateur créé avec succès",
+        passwordUpdated: "Mot de passe mis à jour avec succès",
+        updateFailed: "Échec de la mise à jour",
+
+        // 403 Unauthorized page
+        unauthorizedTitle: "Accès Refusé",
+        unauthorizedSubtitle: "Vous n'avez pas la permission d'accéder à cette page",
+        unauthorizedMessage: "Veuillez contacter votre administrateur si vous pensez qu'il s'agit d'une erreur.",
+        goBack: "Retour",
+        goHome: "Aller au tableau de bord"
     }
 };
 
 // Returns a computed ref (use .value in script, or unwrap in template)
 export const t = (key) => {
     return computed(() => translations[currentLang.value][key] || key);
+};
+
+export const setLang = (lang) => {
+    if (lang === 'en' || lang === 'fr') {
+        currentLang.value = lang;
+        localStorage.setItem('lang', lang);
+    }
 };
 
 export const toggleLang = () => {
@@ -257,5 +310,7 @@ export const initLang = () => {
     const saved = localStorage.getItem('lang');
     if (saved) currentLang.value = saved;
 };
+
+export const getCurrentLang = () => currentLang.value;
 
 export const langIcon = computed(() => currentLang.value === 'en' ? '🇫🇷' : '🇺🇸');

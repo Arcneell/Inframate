@@ -309,8 +309,15 @@ const runScript = async () => {
         toast.add({ severity: 'warn', summary: t('passwordRequired').value, detail: t('confirmPasswordDetail').value });
         return;
     }
-    
-    const argsArray = scriptArgs.value ? scriptArgs.value.match(/(?:[^\s"]+|"[^"]*")+/g).map(s => s.replace(/^"|"$/g, '')) : [];
+
+    // Parse script arguments safely
+    let argsArray = [];
+    if (scriptArgs.value && scriptArgs.value.trim()) {
+        const matches = scriptArgs.value.match(/(?:[^\s"]+|"[^"]*")+/g);
+        if (matches) {
+            argsArray = matches.map(s => s.replace(/^"|"$/g, ''));
+        }
+    }
 
     try {
         await api.post(`/scripts/${selectedScript.value.id}/run`, {

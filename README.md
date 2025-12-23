@@ -20,6 +20,17 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 - Execution status tracking (pending, running, success, failure, cancelled)
 - Ability to stop running executions
 
+### Inventory Management (GLPI-like)
+- Complete equipment management: servers, switches, routers, firewalls, workstations, etc.
+- Manufacturer and brand management with website links
+- Equipment models with specifications (JSON)
+- Equipment types with custom icons
+- Location hierarchy: Site → Building → Room
+- Supplier management with contact details
+- Full tracking: serial number, asset tag, purchase date, warranty expiry
+- Equipment status: In Service, In Stock, Retired, Maintenance
+- Bidirectional IP-Equipment linking with IPAM integration
+
 ### Network Topology
 - Visual network topology display showing subnets and IP addresses
 - Color-coded visualization (green for active IPs, gray for available)
@@ -32,7 +43,7 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 ### User Management
 - User authentication with JWT tokens
 - Role-based access control (admin/user)
-- Granular permissions (IPAM, Topology, Scripts, Settings)
+- Granular permissions (IPAM, Topology, Scripts, Settings, Inventory)
 - Admin can create and delete users
 - Password validation (minimum 8 characters)
 
@@ -87,7 +98,7 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 
 ### Application Login
 - **Username**: `admin`
-- **Password**: `password123`
+- **Password**: `admin`
 
 ### Database
 - **Username**: `netops`

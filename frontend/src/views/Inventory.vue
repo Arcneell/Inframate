@@ -722,8 +722,15 @@ const saveEquipment = async () => {
   }
   try {
     const data = { ...equipmentForm.value };
-    if (data.purchase_date) data.purchase_date = data.purchase_date.toISOString();
-    if (data.warranty_expiry) data.warranty_expiry = data.warranty_expiry.toISOString();
+    // Format dates properly for the API
+    if (data.purchase_date) {
+      const d = data.purchase_date instanceof Date ? data.purchase_date : new Date(data.purchase_date);
+      data.purchase_date = d.toISOString().split('T')[0];
+    }
+    if (data.warranty_expiry) {
+      const d = data.warranty_expiry instanceof Date ? data.warranty_expiry : new Date(data.warranty_expiry);
+      data.warranty_expiry = d.toISOString().split('T')[0];
+    }
 
     if (editingEquipment.value) {
       await api.put(`/inventory/equipment/${editingEquipment.value.id}`, data);

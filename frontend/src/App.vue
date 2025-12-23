@@ -105,7 +105,7 @@ const router = useRouter();
 const user = ref({ username: '', role: '', permissions: {} });
 const isDark = ref(false);
 
-const isLoginPage = computed(() => route.path === '/login');
+const isLoginPage = computed(() => route.path === '/login' || route.path === '/unauthorized');
 const userInitials = computed(() => (user.value.username ? user.value.username.substring(0, 2).toUpperCase() : '??'));
 
 const currentRouteName = computed(() => {
@@ -162,6 +162,7 @@ const fetchUser = async () => {
 const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('user');
     router.push('/login');
 };
 

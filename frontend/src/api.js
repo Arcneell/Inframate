@@ -28,6 +28,7 @@ api.interceptors.response.use(
             if (!window.location.pathname.includes('/login')) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
+                localStorage.removeItem('user');
                 window.location.href = '/login';
             }
         }

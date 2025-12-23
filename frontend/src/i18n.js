@@ -224,7 +224,14 @@ const translations = {
         allStatuses: "All statuses",
         allLocations: "All locations",
         noEquipment: "No equipment found",
-        totalEquipment: "Total Equipment"
+        totalEquipment: "Total Equipment",
+        configuration: "Configuration",
+        edit: "Edit",
+        details: "Details",
+        confirmDelete: "Confirm Delete",
+        confirmDeleteEquipment: "Are you sure you want to delete this equipment?",
+        confirmDeleteItem: "Are you sure you want to delete this item?",
+        noAvailableIps: "No available IPs to link"
     },
     fr: {
         // Auth
@@ -447,7 +454,14 @@ const translations = {
         allStatuses: "Tous les statuts",
         allLocations: "Tous les emplacements",
         noEquipment: "Aucun équipement trouvé",
-        totalEquipment: "Total Équipements"
+        totalEquipment: "Total Équipements",
+        configuration: "Configuration",
+        edit: "Modifier",
+        details: "Détails",
+        confirmDelete: "Confirmer la suppression",
+        confirmDeleteEquipment: "Êtes-vous sûr de vouloir supprimer cet équipement ?",
+        confirmDeleteItem: "Êtes-vous sûr de vouloir supprimer cet élément ?",
+        noAvailableIps: "Aucune IP disponible à lier"
     }
 };
 

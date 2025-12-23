@@ -114,7 +114,7 @@ const handleLogin = async () => {
         localStorage.setItem('username', username.value);
 
         // Fetch user data and store it for permission checks
-        const userRes = await axios.get(`${apiUrl}/users/me`, {
+        const userRes = await axios.get(`${apiUrl}/me`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         localStorage.setItem('user', JSON.stringify(userRes.data));

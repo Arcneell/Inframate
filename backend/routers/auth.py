@@ -21,7 +21,7 @@ from backend import models, schemas
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(tags=["Authentication"])
 
 
 class PasswordChange(BaseModel):

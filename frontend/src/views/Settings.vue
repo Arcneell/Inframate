@@ -133,7 +133,7 @@ const newUser = ref({
 
 const loadData = async () => {
     try {
-        const meRes = await api.get('/users/me');
+        const meRes = await api.get('/me');
         currentUser.value = meRes.data;
 
         if (currentUser.value.role === 'admin') {
@@ -153,7 +153,7 @@ const updateMyPassword = async () => {
     }
     updatingPwd.value = true;
     try {
-        await api.put('/users/me/password', { password: newPassword.value });
+        await api.put('/me/password', { password: newPassword.value });
         toast.add({ severity: 'success', summary: t('success').value, detail: t('passwordUpdated').value });
         newPassword.value = '';
     } catch (e) {

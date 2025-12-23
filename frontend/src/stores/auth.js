@@ -72,7 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
 
     try {
-      const response = await api.get('/users/me')
+      const response = await api.get('/me')
       user.value = response.data
 
       if (!user.value.permissions) {
@@ -111,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      await api.put('/users/me/password', { password: newPassword })
+      await api.put('/me/password', { password: newPassword })
       return { success: true }
     } catch (err) {
       const message = err.response?.data?.detail || 'Password update failed'

@@ -151,7 +151,7 @@ const hasPerm = (perm) => {
 
 const fetchUser = async () => {
     try {
-        const res = await api.get('/users/me');
+        const res = await api.get('/me');
         user.value = res.data;
         if (!user.value.permissions) user.value.permissions = {};
     } catch (e) {

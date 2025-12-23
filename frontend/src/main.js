@@ -1,12 +1,11 @@
 /**
  * Vue 3 Application Entry Point
- * Initializes Vue app with Pinia, Vue Router, PrimeVue, and i18n.
  */
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import i18n from './i18n'
+import { initLang } from './i18n'
 import './style.css'
 
 // PrimeVue
@@ -38,10 +37,6 @@ import TabPanel from 'primevue/tabpanel'
 import ProgressBar from 'primevue/progressbar'
 import Skeleton from 'primevue/skeleton'
 
-// Stores
-import { useAuthStore } from './stores/auth'
-import { useUIStore } from './stores/ui'
-
 // Create Vue app
 const app = createApp(App)
 
@@ -51,7 +46,6 @@ const pinia = createPinia()
 // Use plugins
 app.use(pinia)
 app.use(router)
-app.use(i18n)
 app.use(PrimeVue, { ripple: true })
 app.use(ToastService)
 
@@ -79,17 +73,13 @@ app.component('TabPanel', TabPanel)
 app.component('ProgressBar', ProgressBar)
 app.component('Skeleton', Skeleton)
 
-// Initialize stores
-const authStore = useAuthStore()
-const uiStore = useUIStore()
-authStore.init()
-uiStore.init()
+// Initialize language
+initLang()
 
 // Mount app
 app.mount('#app')
 
 // Make toast service globally available for API interceptor
-app.config.globalProperties.$toast = app.config.globalProperties.$toast
 window.$toast = {
   add: (options) => {
     const toastEl = document.querySelector('.p-toast')

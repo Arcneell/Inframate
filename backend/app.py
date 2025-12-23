@@ -64,9 +64,9 @@ def create_app() -> FastAPI:
         title="NetOps-Flow API",
         description="Enterprise Network Automation Platform",
         version="2.0.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json"
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json"
     )
 
     # CORS Middleware

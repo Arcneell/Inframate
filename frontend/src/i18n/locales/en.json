@@ -297,7 +297,8 @@
     "add": "Add",
     "days": "days",
     "overview": "Overview",
-    "name": "Name"
+    "name": "Name",
+    "current": "Current"
   },
   "dcim": {
     "title": "DCIM",
@@ -337,7 +338,15 @@
     "position": "Position",
     "place": "Place",
     "selectPosition": "Select position (1-{max}U)",
-    "equipmentPlaced": "Equipment placed successfully"
+    "equipmentPlaced": "Equipment placed successfully",
+    "viewDetails": "View Details",
+    "changePosition": "Change Position",
+    "removeFromRack": "Remove from Rack",
+    "editPosition": "Edit Position",
+    "newPosition": "New Position",
+    "positionUpdated": "Position updated successfully",
+    "confirmRemoveEquipment": "Remove {name} from this rack?",
+    "equipmentRemoved": "Equipment removed from rack"
   },
   "contracts": {
     "title": "Contracts",

@@ -32,12 +32,13 @@ Plateforme de gestion des opérations réseau auto-hébergée, entièrement gén
 ```
 frontend/          # Vue.js 3 SPA
 ├── src/
-│   ├── components/shared/   # Composants réutilisables
+│   ├── components/shared/   # Composants réutilisables (StatusTag avec gradients)
 │   ├── stores/              # Pinia stores (auth, ui, dcim, contracts, software, networkPorts, attachments)
 │   ├── views/               # Pages principales
 │   ├── i18n/                # Traductions EN/FR
 │   ├── api.js               # Client Axios
-│   └── router.js            # Routes avec guards de permissions
+│   ├── router.js            # Routes avec guards de permissions
+│   └── style.css            # Design System Modern Slate (Anthracite, Zinc, Bleu électrique)
 
 backend/           # FastAPI API
 ├── core/
@@ -52,9 +53,9 @@ backend/           # FastAPI API
 │   ├── ipam.py             # Subnets, IPs, scan nmap
 │   ├── topology.py         # Données visualisation réseau + topologie physique
 │   ├── scripts.py          # Upload, exécution scripts
-│   ├── inventory.py        # Équipements, fabricants, fournisseurs
+│   ├── inventory.py        # Équipements, fabricants, fournisseurs (avec isolation entity_id)
 │   ├── dashboard.py        # Statistiques
-│   ├── dcim.py             # Gestion Racks et PDUs
+│   ├── dcim.py             # Gestion Racks et PDUs (optimisé avec joinedload)
 │   ├── contracts.py        # Contrats de maintenance/assurance
 │   ├── software.py         # Catalogue logiciels et licences
 │   ├── network_ports.py    # Ports réseau et connexions physiques
@@ -201,6 +202,20 @@ docker-compose exec db psql -U netops netops_flow
   - Clés hiérarchiques: `t('namespace.key')` (ex: `t('dashboard.totalSubnets')`)
   - Ne jamais utiliser `.value` sur `t()` - retourne directement une string
   - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`
+
+### Design System (Modern Slate)
+- **Palette de couleurs**:
+  - Light: Zinc 50 (#fafafa) + Zinc 900 (#18181b) + Electric Blue (#0ea5e9)
+  - Dark: Slate 950 (#0f172a) + Slate 50 (#f8fafc) + Electric Blue (#0ea5e9)
+- **Composants**:
+  - Cards: `rounded-xl` + `backdrop-blur` + ombre progressive au hover
+  - Dialogs: `rounded-xl` + `backdrop-blur(12px)` + ombre profonde
+  - Sidebar: Width 16rem + gradient header + sliding accent bar (3px electric blue)
+  - StatusTag: Gradients avec icônes contextuelles (check-circle, wrench, shield, etc.)
+- **Animations**:
+  - Transitions: `cubic-bezier(0.4, 0, 0.2, 1)` à 0.15s
+  - Hover: `translateY(-1px)` ou `translateX(2px)` selon contexte
+  - Micro-animations sur sidebar links avec `scaleY()` pour accent bar
 
 ### Git
 - Messages clairs commençant par verbe (Add, Fix, Update)

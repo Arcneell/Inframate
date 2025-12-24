@@ -114,6 +114,15 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 - Namespaced translation keys for maintainability (e.g., `dashboard.*`, `ipam.*`, `common.*`)
 - Global injection enabled for seamless `t()` function access in all components
 
+### Modern Design System
+- **Modern Slate** color palette with Anthracite, Zinc, and Electric Blue accents
+- Glass-morphism effects with backdrop-blur on cards and dialogs
+- Minimalist sidebar with micro-animations and sliding accent indicators
+- Rounded-xl borders throughout for contemporary look
+- Gradient-based StatusTag component with contextual icons
+- Hover transitions using cubic-bezier easing for smooth interactions
+- Dark mode with deep slate and electric blue highlights
+
 ## Architecture
 
 ### Technology Stack

@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-screen overflow-hidden flex bg-[var(--bg-app)] text-[var(--text-main)]" v-if="!isLoginPage">
-    
+
     <aside class="w-64 sidebar-container flex-shrink-0 flex flex-col z-20">
       <div class="sidebar-header">
         <i class="pi pi-bolt text-blue-500 text-xl mr-3"></i>
@@ -11,59 +11,59 @@
         <nav class="flex flex-col space-y-1">
             <router-link to="/" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-home mr-3"></i> {{ t('dashboard') }}
+                    <i class="pi pi-home mr-3"></i> {{ t('nav.dashboard') }}
                 </div>
             </router-link>
-            
-            <div v-if="hasPerm('ipam') || hasPerm('topology')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('network') }}</div>
-            
+
+            <div v-if="hasPerm('ipam') || hasPerm('topology')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('nav.network') }}</div>
+
             <router-link v-if="hasPerm('ipam')" to="/ipam" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-table mr-3"></i> {{ t('ipam') }}
+                    <i class="pi pi-table mr-3"></i> {{ t('nav.ipam') }}
                 </div>
             </router-link>
             <router-link v-if="hasPerm('topology')" to="/topology" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-share-alt mr-3"></i> {{ t('topology') }}
+                    <i class="pi pi-share-alt mr-3"></i> {{ t('nav.topology') }}
                 </div>
             </router-link>
 
-            <div v-if="hasPerm('scripts')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('automation') }}</div>
+            <div v-if="hasPerm('scripts')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('nav.automation') }}</div>
 
             <router-link v-if="hasPerm('scripts')" to="/scripts" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-code mr-3"></i> {{ t('scriptRunner') }}
+                    <i class="pi pi-code mr-3"></i> {{ t('nav.scriptRunner') }}
                 </div>
             </router-link>
 
-            <div v-if="hasPerm('inventory')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('inventory') }}</div>
+            <div v-if="hasPerm('inventory')" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('nav.inventory') }}</div>
 
             <router-link v-if="hasPerm('inventory')" to="/inventory" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-box mr-3"></i> {{ t('inventory') }}
+                    <i class="pi pi-box mr-3"></i> {{ t('nav.inventory') }}
                 </div>
             </router-link>
             <router-link v-if="hasPerm('inventory')" to="/dcim" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-server mr-3"></i> {{ t('dcim') }}
+                    <i class="pi pi-server mr-3"></i> {{ t('dcim.title') }}
                 </div>
             </router-link>
             <router-link v-if="hasPerm('inventory')" to="/contracts" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-file-edit mr-3"></i> {{ t('contracts') }}
+                    <i class="pi pi-file-edit mr-3"></i> {{ t('contracts.title') }}
                 </div>
             </router-link>
             <router-link v-if="hasPerm('inventory')" to="/software" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-desktop mr-3"></i> {{ t('software') }}
+                    <i class="pi pi-desktop mr-3"></i> {{ t('software.title') }}
                 </div>
             </router-link>
 
-            <div class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('system') }}</div>
+            <div class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">{{ t('nav.system') }}</div>
 
             <router-link v-if="hasPerm('settings') || user.role === 'admin'" to="/settings" custom v-slot="{ navigate, isActive }">
                 <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
-                    <i class="pi pi-cog mr-3"></i> {{ t('settings') }}
+                    <i class="pi pi-cog mr-3"></i> {{ t('nav.settings') }}
                 </div>
             </router-link>
         </nav>
@@ -80,7 +80,7 @@
                       <div class="text-gray-400 text-xs capitalize">{{ user.role }}</div>
                   </div>
               </div>
-              <Button icon="pi pi-sign-out" text rounded class="!text-gray-400 hover:!text-white" @click="logout" v-tooltip.top="t('logout')" />
+              <Button icon="pi pi-sign-out" text rounded class="!text-gray-400 hover:!text-white" @click="logout" v-tooltip.top="t('nav.logout')" />
           </div>
       </div>
     </aside>
@@ -89,7 +89,7 @@
       <header class="h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b" style="background-color: var(--bg-card); border-color: var(--border-color);">
           <h2 class="text-xl font-bold">{{ currentRouteName }}</h2>
           <div class="flex items-center gap-4">
-              <button @click="toggleLang" class="text-2xl hover:scale-110 transition-transform cursor-pointer focus:outline-none mr-2">
+              <button @click="handleToggleLang" class="text-2xl hover:scale-110 transition-transform cursor-pointer focus:outline-none mr-2">
                   {{ langIcon }}
               </button>
               <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded @click="toggleTheme" class="!text-slate-500 dark:!text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-700" />
@@ -103,7 +103,7 @@
       </div>
     </main>
   </div>
-  
+
   <div v-else class="h-screen w-screen bg-slate-900 flex items-center justify-center">
       <router-view />
   </div>
@@ -112,9 +112,11 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import api from './api';
-import { t, toggleLang, langIcon, initLang } from './i18n';
+import { toggleLang, langIcon, initLang } from './i18n/index.js';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const user = ref({ username: '', role: '', permissions: {} });
@@ -124,18 +126,22 @@ const isLoginPage = computed(() => route.path === '/login' || route.path === '/u
 const userInitials = computed(() => (user.value.username ? user.value.username.substring(0, 2).toUpperCase() : '??'));
 
 const currentRouteName = computed(() => {
-    // Map route names to translations keys roughly
-    if(route.name === 'Dashboard') return t('dashboard').value;
-    if(route.name === 'IP Address Management') return t('ipam').value;
-    if(route.name === 'Network Topology') return t('topology').value;
-    if(route.name === 'Script Automation') return t('scriptRunner').value;
-    if(route.name === 'Inventory') return t('inventory').value;
-    if(route.name === 'Settings') return t('settings').value;
-    if(route.name === 'DCIM') return t('dcim').value;
-    if(route.name === 'Contracts') return t('contracts').value;
-    if(route.name === 'Software') return t('software').value;
+    // Map route names to translation keys
+    if(route.name === 'Dashboard') return t('nav.dashboard');
+    if(route.name === 'IP Address Management') return t('nav.ipam');
+    if(route.name === 'Network Topology') return t('nav.topology');
+    if(route.name === 'Script Automation') return t('nav.scriptRunner');
+    if(route.name === 'Inventory') return t('nav.inventory');
+    if(route.name === 'Settings') return t('nav.settings');
+    if(route.name === 'DCIM') return t('dcim.title');
+    if(route.name === 'Contracts') return t('contracts.title');
+    if(route.name === 'Software') return t('software.title');
     return route.name;
 });
+
+const handleToggleLang = () => {
+    toggleLang();
+};
 
 const toggleTheme = () => {
     isDark.value = !isDark.value;

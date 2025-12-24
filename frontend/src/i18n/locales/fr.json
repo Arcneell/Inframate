@@ -177,7 +177,8 @@
     "retired": "Retiré",
     "maintenance": "En maintenance",
     "active": "Actif",
-    "available": "Disponible"
+    "available": "Disponible",
+    "warning": "Attention"
   },
   "ip": {
     "linkedIps": "IPs liées",

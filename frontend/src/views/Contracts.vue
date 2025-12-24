@@ -3,11 +3,11 @@
     <!-- Sidebar with alerts -->
     <div class="w-72 flex-shrink-0">
       <div class="card p-4 mb-4">
-        <h3 class="font-bold text-lg mb-4">{{ t('contracts').value }}</h3>
+        <h3 class="font-bold text-lg mb-4">{{ t('contracts.title') }}</h3>
 
         <!-- Expiring Alerts -->
         <div v-if="expiringAlerts.length" class="mb-4">
-          <h4 class="text-sm font-semibold opacity-70 mb-2">{{ t('expiringContracts').value }}</h4>
+          <h4 class="text-sm font-semibold opacity-70 mb-2">{{ t('contracts.expiringContracts') }}</h4>
           <div v-for="alert in expiringAlerts" :key="alert.item_id"
                class="p-3 rounded-lg mb-2 text-sm"
                :class="[
@@ -16,31 +16,31 @@
                  'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                ]">
             <div class="font-medium">{{ alert.item_name }}</div>
-            <div class="opacity-70">{{ alert.days_remaining }} {{ t('daysRemaining').value }}</div>
+            <div class="opacity-70">{{ alert.days_remaining }} {{ t('contracts.daysRemaining') }}</div>
           </div>
         </div>
 
         <!-- Filter by Type -->
         <div>
-          <label class="block text-sm font-medium mb-2">{{ t('filterByType').value }}</label>
-          <Dropdown v-model="filterType" :options="contractTypeOptions" optionLabel="label" optionValue="value" :placeholder="t('allTypes').value" showClear class="w-full" />
+          <label class="block text-sm font-medium mb-2">{{ t('filters.filterByType') }}</label>
+          <Dropdown v-model="filterType" :options="contractTypeOptions" optionLabel="label" optionValue="value" :placeholder="t('filters.allTypes')" showClear class="w-full" />
         </div>
       </div>
 
       <!-- Quick Stats -->
       <div class="card p-4">
-        <h4 class="text-sm font-semibold opacity-70 mb-3">{{ t('overview').value }}</h4>
+        <h4 class="text-sm font-semibold opacity-70 mb-3">{{ t('common.overview') }}</h4>
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span>{{ t('totalContracts').value }}</span>
+            <span>{{ t('contracts.totalContracts') }}</span>
             <span class="font-bold">{{ contracts.length }}</span>
           </div>
           <div class="flex justify-between">
-            <span>{{ t('activeContracts').value }}</span>
+            <span>{{ t('contracts.activeContracts') }}</span>
             <span class="font-bold text-green-500">{{ activeContracts.length }}</span>
           </div>
           <div class="flex justify-between">
-            <span>{{ t('expiringSoon').value }}</span>
+            <span>{{ t('contracts.expiringSoon') }}</span>
             <span class="font-bold text-yellow-500">{{ expiringAlerts.length }}</span>
           </div>
         </div>
@@ -51,39 +51,39 @@
     <div class="flex-1 overflow-hidden">
       <div class="card h-full flex flex-col">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold">{{ t('contractsList').value }}</h3>
-          <Button :label="t('newContract').value" icon="pi pi-plus" @click="openContractDialog()" />
+          <h3 class="text-lg font-bold">{{ t('contracts.contractsList') }}</h3>
+          <Button :label="t('contracts.newContract')" icon="pi pi-plus" @click="openContractDialog()" />
         </div>
 
         <div class="flex-1 overflow-auto">
           <DataTable :value="filteredContracts" stripedRows paginator :rows="10" v-model:expandedRows="expandedRows" dataKey="id" class="text-sm">
             <Column expander style="width: 3rem" />
-            <Column field="name" :header="t('name').value" sortable></Column>
-            <Column field="contract_type" :header="t('type').value">
+            <Column field="name" :header="t('common.name')" sortable></Column>
+            <Column field="contract_type" :header="t('inventory.type')">
               <template #body="slotProps">
                 <Tag :value="slotProps.data.contract_type" :severity="getTypeSeverity(slotProps.data.contract_type)" />
               </template>
             </Column>
-            <Column field="contract_number" :header="t('contractNumber').value"></Column>
-            <Column :header="t('supplier').value">
+            <Column field="contract_number" :header="t('contracts.contractNumber')"></Column>
+            <Column :header="t('inventory.supplier')">
               <template #body="slotProps">{{ slotProps.data.supplier?.name || '-' }}</template>
             </Column>
-            <Column :header="t('period').value">
+            <Column :header="t('contracts.period')">
               <template #body="slotProps">
                 {{ formatDate(slotProps.data.start_date) }} - {{ formatDate(slotProps.data.end_date) }}
               </template>
             </Column>
-            <Column field="annual_cost" :header="t('annualCost').value">
+            <Column field="annual_cost" :header="t('contracts.annualCost')">
               <template #body="slotProps">
                 {{ slotProps.data.annual_cost ? formatCurrency(slotProps.data.annual_cost) : '-' }}
               </template>
             </Column>
-            <Column :header="t('status').value">
+            <Column :header="t('status.active')">
               <template #body="slotProps">
                 <Tag :value="getContractStatus(slotProps.data)" :severity="getStatusSeverity(slotProps.data)" />
               </template>
             </Column>
-            <Column :header="t('actions').value" style="width: 100px">
+            <Column :header="t('common.actions')" style="width: 100px">
               <template #body="slotProps">
                 <div class="flex gap-1">
                   <Button icon="pi pi-pencil" text rounded size="small" @click="openContractDialog(slotProps.data)" />
@@ -95,14 +95,14 @@
             <template #expansion="slotProps">
               <div class="p-4 grid grid-cols-2 gap-6" style="background-color: var(--bg-app);">
                 <div>
-                  <h4 class="font-semibold mb-3 text-blue-500">{{ t('details').value }}</h4>
-                  <p class="mb-2"><span class="opacity-60">{{ t('renewalType').value }}:</span> {{ slotProps.data.renewal_type }}</p>
-                  <p class="mb-2"><span class="opacity-60">{{ t('renewalNotice').value }}:</span> {{ slotProps.data.renewal_notice_days }} {{ t('days').value }}</p>
-                  <p><span class="opacity-60">{{ t('notes').value }}:</span> {{ slotProps.data.notes || '-' }}</p>
+                  <h4 class="font-semibold mb-3 text-blue-500">{{ t('common.details') }}</h4>
+                  <p class="mb-2"><span class="opacity-60">{{ t('contracts.renewalType') }}:</span> {{ slotProps.data.renewal_type }}</p>
+                  <p class="mb-2"><span class="opacity-60">{{ t('contracts.renewalNotice') }}:</span> {{ slotProps.data.renewal_notice_days }} {{ t('common.days') }}</p>
+                  <p><span class="opacity-60">{{ t('inventory.notes') }}:</span> {{ slotProps.data.notes || '-' }}</p>
                 </div>
                 <div>
-                  <h4 class="font-semibold mb-3 text-blue-500">{{ t('coveredEquipment').value }}</h4>
-                  <Button :label="t('manageEquipment').value" icon="pi pi-link" size="small" @click="openEquipmentDialog(slotProps.data)" />
+                  <h4 class="font-semibold mb-3 text-blue-500">{{ t('contracts.coveredEquipment') }}</h4>
+                  <Button :label="t('contracts.manageEquipment')" icon="pi pi-link" size="small" @click="openEquipmentDialog(slotProps.data)" />
                 </div>
               </div>
             </template>
@@ -112,67 +112,67 @@
     </div>
 
     <!-- Contract Dialog -->
-    <Dialog v-model:visible="showContractDialog" modal :header="editingContract ? t('editContract').value : t('newContract').value" :style="{ width: '600px' }">
+    <Dialog v-model:visible="showContractDialog" modal :header="editingContract ? t('contracts.editContract') : t('contracts.newContract')" :style="{ width: '600px' }">
       <div class="grid grid-cols-2 gap-4">
         <div class="col-span-2">
-          <label class="block text-sm font-medium mb-1">{{ t('name').value }} <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('common.name') }} <span class="text-red-500">*</span></label>
           <InputText v-model="contractForm.name" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('type').value }} <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('inventory.type') }} <span class="text-red-500">*</span></label>
           <Dropdown v-model="contractForm.contract_type" :options="contractTypeOptions" optionLabel="label" optionValue="value" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('contractNumber').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.contractNumber') }}</label>
           <InputText v-model="contractForm.contract_number" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('supplier').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('inventory.supplier') }}</label>
           <Dropdown v-model="contractForm.supplier_id" :options="suppliers" optionLabel="name" optionValue="id" class="w-full" showClear />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('annualCost').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.annualCost') }}</label>
           <InputNumber v-model="contractForm.annual_cost" class="w-full" mode="currency" currency="EUR" locale="fr-FR" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('startDate').value }} <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.startDate') }} <span class="text-red-500">*</span></label>
           <Calendar v-model="contractForm.start_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('endDate').value }} <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.endDate') }} <span class="text-red-500">*</span></label>
           <Calendar v-model="contractForm.end_date" dateFormat="yy-mm-dd" class="w-full" showIcon />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('renewalType').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.renewalType') }}</label>
           <Dropdown v-model="contractForm.renewal_type" :options="renewalOptions" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('renewalNoticeDays').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('contracts.renewalNoticeDays') }}</label>
           <InputNumber v-model="contractForm.renewal_notice_days" class="w-full" :min="0" suffix=" days" />
         </div>
         <div class="col-span-2">
-          <label class="block text-sm font-medium mb-1">{{ t('notes').value }}</label>
+          <label class="block text-sm font-medium mb-1">{{ t('inventory.notes') }}</label>
           <Textarea v-model="contractForm.notes" rows="2" class="w-full" />
         </div>
       </div>
       <template #footer>
         <div class="flex justify-end gap-3">
-          <Button :label="t('cancel').value" severity="secondary" outlined @click="showContractDialog = false" />
-          <Button :label="t('save').value" icon="pi pi-check" @click="saveContract" />
+          <Button :label="t('common.cancel')" severity="secondary" outlined @click="showContractDialog = false" />
+          <Button :label="t('common.save')" icon="pi pi-check" @click="saveContract" />
         </div>
       </template>
     </Dialog>
 
     <!-- Equipment Linking Dialog -->
-    <Dialog v-model:visible="showEquipmentDialog" modal :header="t('manageEquipment').value" :style="{ width: '600px' }">
+    <Dialog v-model:visible="showEquipmentDialog" modal :header="t('contracts.manageEquipment')" :style="{ width: '600px' }">
       <div v-if="selectedContract">
         <div class="p-3 rounded-lg mb-4" style="background-color: var(--bg-app);">
-          <span class="opacity-60">{{ t('contract').value }}:</span>
+          <span class="opacity-60">{{ t('contracts.title') }}:</span>
           <strong class="ml-2">{{ selectedContract.name }}</strong>
         </div>
 
         <div v-if="contractEquipment.length" class="mb-4">
-          <h4 class="font-semibold mb-2">{{ t('linkedEquipment').value }}</h4>
+          <h4 class="font-semibold mb-2">{{ t('contracts.linkedEquipment') }}</h4>
           <div v-for="eq in contractEquipment" :key="eq.id" class="flex items-center justify-between p-3 rounded-lg mb-2" style="background-color: var(--bg-app);">
             <div>
               <span class="font-medium">{{ eq.name }}</span>
@@ -183,15 +183,15 @@
         </div>
 
         <div>
-          <h4 class="font-semibold mb-2">{{ t('addEquipment').value }}</h4>
+          <h4 class="font-semibold mb-2">{{ t('contracts.addEquipment') }}</h4>
           <div class="flex gap-2">
-            <Dropdown v-model="selectedEquipmentToLink" :options="availableEquipment" optionLabel="name" optionValue="id" :placeholder="t('selectEquipment').value" class="flex-1" showClear />
+            <Dropdown v-model="selectedEquipmentToLink" :options="availableEquipment" optionLabel="name" optionValue="id" :placeholder="t('contracts.selectEquipment')" class="flex-1" showClear />
             <Button icon="pi pi-plus" @click="linkEquipment" :disabled="!selectedEquipmentToLink" />
           </div>
         </div>
       </div>
       <template #footer>
-        <Button :label="t('close').value" @click="showEquipmentDialog = false" />
+        <Button :label="t('common.close')" @click="showEquipmentDialog = false" />
       </template>
     </Dialog>
   </div>
@@ -200,9 +200,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { useI18n } from 'vue-i18n';
 import api from '../api';
-import { t } from '../i18n';
 
+const { t } = useI18n();
 const toast = useToast();
 
 // Data
@@ -309,7 +310,7 @@ const loadData = async () => {
     equipment.value = equipmentRes.data;
     expiringAlerts.value = alertsRes.data;
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('error').value, detail: e.response?.data?.detail || 'Failed to load data' });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || 'Failed to load data' });
   }
 };
 
@@ -334,7 +335,7 @@ const openContractDialog = (contract = null) => {
 
 const saveContract = async () => {
   if (!contractForm.value.name || !contractForm.value.contract_type || !contractForm.value.start_date || !contractForm.value.end_date) {
-    toast.add({ severity: 'warn', summary: t('validationError').value, detail: t('fillRequiredFields').value });
+    toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.fillRequiredFields') });
     return;
   }
   try {
@@ -346,26 +347,26 @@ const saveContract = async () => {
 
     if (editingContract.value) {
       await api.put(`/contracts/${editingContract.value.id}`, data);
-      toast.add({ severity: 'success', summary: t('success').value, detail: t('contractUpdated').value });
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('contracts.contractUpdated') });
     } else {
       await api.post('/contracts/', data);
-      toast.add({ severity: 'success', summary: t('success').value, detail: t('contractCreated').value });
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('contracts.contractCreated') });
     }
     showContractDialog.value = false;
     loadData();
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('error').value, detail: e.response?.data?.detail || t('error').value });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
 };
 
 const confirmDeleteContract = async (contract) => {
-  if (!confirm(t('confirmDeleteItem').value)) return;
+  if (!confirm(t('common.confirmDeleteItem'))) return;
   try {
     await api.delete(`/contracts/${contract.id}`);
-    toast.add({ severity: 'success', summary: t('deleted').value, detail: t('contractDeleted').value });
+    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('contracts.contractDeleted') });
     loadData();
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('error').value, detail: e.response?.data?.detail || t('error').value });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
 };
 
@@ -389,9 +390,9 @@ const linkEquipment = async () => {
     const response = await api.get(`/contracts/${selectedContract.value.id}/equipment`);
     contractEquipment.value = response.data.equipment;
     selectedEquipmentToLink.value = null;
-    toast.add({ severity: 'success', summary: t('success').value, detail: t('equipmentLinked').value });
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('contracts.equipmentLinked') });
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('error').value, detail: e.response?.data?.detail || t('error').value });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
 };
 
@@ -399,9 +400,9 @@ const unlinkEquipment = async (equipmentId) => {
   try {
     await api.delete(`/contracts/${selectedContract.value.id}/equipment/${equipmentId}`);
     contractEquipment.value = contractEquipment.value.filter(e => e.id !== equipmentId);
-    toast.add({ severity: 'success', summary: t('success').value, detail: t('equipmentUnlinked').value });
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('contracts.equipmentUnlinked') });
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('error').value, detail: e.response?.data?.detail || t('error').value });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
 };
 

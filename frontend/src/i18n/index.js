@@ -1,8 +1,9 @@
 /**
  * Vue I18n Configuration
- * Standard internationalization using vue-i18n library.
+ * Single source of truth for internationalization.
  */
 import { createI18n } from 'vue-i18n'
+import { computed } from 'vue'
 import en from './locales/en.json'
 import fr from './locales/fr.json'
 
@@ -25,6 +26,17 @@ const i18n = createI18n({
 })
 
 /**
+ * Initialize language from localStorage.
+ */
+export function initLang() {
+  const saved = localStorage.getItem('lang')
+  if (saved && (saved === 'en' || saved === 'fr')) {
+    i18n.global.locale.value = saved
+    document.documentElement.setAttribute('lang', saved)
+  }
+}
+
+/**
  * Set the current locale.
  */
 export function setLocale(locale) {
@@ -38,7 +50,7 @@ export function setLocale(locale) {
 /**
  * Toggle between EN and FR.
  */
-export function toggleLocale() {
+export function toggleLang() {
   const newLocale = i18n.global.locale.value === 'en' ? 'fr' : 'en'
   setLocale(newLocale)
   return newLocale
@@ -50,5 +62,10 @@ export function toggleLocale() {
 export function getLocale() {
   return i18n.global.locale.value
 }
+
+/**
+ * Computed property for language icon (shows flag to switch TO).
+ */
+export const langIcon = computed(() => i18n.global.locale.value === 'en' ? '🇫🇷' : '🇺🇸')
 
 export default i18n

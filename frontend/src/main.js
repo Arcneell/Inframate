@@ -5,7 +5,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import { initLang } from './i18n'
+import i18n, { initLang } from './i18n/index.js'
 import './style.css'
 
 // PrimeVue
@@ -46,6 +46,7 @@ const pinia = createPinia()
 // Use plugins
 app.use(pinia)
 app.use(router)
+app.use(i18n)
 app.use(PrimeVue, { ripple: true })
 app.use(ToastService)
 

@@ -54,17 +54,19 @@ services:
       dockerfile: backend/Dockerfile
     container_name: netops-backend
     restart: unless-stopped
+    entrypoint: ["/bin/bash", "/app/backend/entrypoint.sh"]
     command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
       - scripts_storage:/scripts_storage
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-netops}:${POSTGRES_PASSWORD:-netopspassword}@db/${POSTGRES_DB:-netops_flow}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default_dev_secret_change_in_prod}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FORMAT=${LOG_FORMAT:-text}
@@ -74,6 +76,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -94,11 +102,11 @@ services:
       - scripts_storage:/scripts_storage
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-netops}:${POSTGRES_PASSWORD:-netopspassword}@db/${POSTGRES_DB:-netops_flow}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DOCKER_SANDBOX_ENABLED=${DOCKER_SANDBOX_ENABLED:-false}
       - SCRIPTS_DIR=/scripts_storage
@@ -108,7 +116,13 @@ services:
       redis:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker.tasks.celery_app inspect ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - netops-network
 

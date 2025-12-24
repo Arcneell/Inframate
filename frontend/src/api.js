@@ -3,6 +3,7 @@
  * Handles token management, refresh, and global error notifications.
  */
 import axios from 'axios'
+import { useNotificationStore } from './stores/notification'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -105,20 +106,26 @@ api.interceptors.response.use(
 )
 
 /**
+ * Get notification store instance.
+ * Wrapped in a function to avoid circular dependencies.
+ */
+function getNotificationStore() {
+  try {
+    return useNotificationStore()
+  } catch (e) {
+    console.error('Notification store not available:', e)
+    return null
+  }
+}
+
+/**
  * Show error toast notification.
- * Uses PrimeVue Toast if available.
  */
 function showErrorToast(summary, detail) {
-  // Try to use PrimeVue toast service if available
-  if (window.$toast) {
-    window.$toast.add({
-      severity: 'error',
-      summary,
-      detail,
-      life: 5000
-    })
+  const notificationStore = getNotificationStore()
+  if (notificationStore) {
+    notificationStore.error(summary, detail, 5000)
   } else {
-    // Fallback to console
     console.error(`${summary}: ${detail}`)
   }
 }
@@ -127,13 +134,9 @@ function showErrorToast(summary, detail) {
  * Show success toast notification.
  */
 export function showSuccessToast(summary, detail) {
-  if (window.$toast) {
-    window.$toast.add({
-      severity: 'success',
-      summary,
-      detail,
-      life: 3000
-    })
+  const notificationStore = getNotificationStore()
+  if (notificationStore) {
+    notificationStore.success(summary, detail, 3000)
   }
 }
 
@@ -141,13 +144,9 @@ export function showSuccessToast(summary, detail) {
  * Show info toast notification.
  */
 export function showInfoToast(summary, detail) {
-  if (window.$toast) {
-    window.$toast.add({
-      severity: 'info',
-      summary,
-      detail,
-      life: 3000
-    })
+  const notificationStore = getNotificationStore()
+  if (notificationStore) {
+    notificationStore.info(summary, detail, 3000)
   }
 }
 
@@ -155,13 +154,9 @@ export function showInfoToast(summary, detail) {
  * Show warning toast notification.
  */
 export function showWarningToast(summary, detail) {
-  if (window.$toast) {
-    window.$toast.add({
-      severity: 'warn',
-      summary,
-      detail,
-      life: 4000
-    })
+  const notificationStore = getNotificationStore()
+  if (notificationStore) {
+    notificationStore.warning(summary, detail, 4000)
   }
 }
 

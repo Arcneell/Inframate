@@ -133,13 +133,13 @@ const handleLogin = async () => {
 
     try {
         // Login to get token
-        const res = await axios.post(`${apiUrl}/token`, formData);
+        const res = await axios.post(`${apiUrl}/api/v1/token`, formData);
         const token = res.data.access_token;
         localStorage.setItem('token', token);
         localStorage.setItem('username', username.value);
 
         // Fetch user data and store it for permission checks
-        const userRes = await axios.get(`${apiUrl}/me`, {
+        const userRes = await axios.get(`${apiUrl}/api/v1/me`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         localStorage.setItem('user', JSON.stringify(userRes.data));

@@ -68,4 +68,10 @@ export function getLocale() {
  */
 export const langIcon = computed(() => i18n.global.locale.value === 'en' ? '🇫🇷' : '🇺🇸')
 
+/**
+ * Translation function for use outside Vue components.
+ * Returns the translated string directly (not a ref).
+ */
+export const t = (key) => i18n.global.t(key)
+
 export default i18n

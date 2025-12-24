@@ -6,20 +6,20 @@
           <i class="pi pi-lock text-red-500 text-5xl"></i>
         </div>
         <h1 class="text-4xl font-bold text-gray-800 dark:text-white mb-2">403</h1>
-        <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">{{ t('unauthorizedTitle').value }}</h2>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-2">{{ t('unauthorizedSubtitle').value }}</p>
-        <p class="text-sm text-gray-500 dark:text-gray-500">{{ t('unauthorizedMessage').value }}</p>
+        <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">{{ t('unauthorizedTitle') }}</h2>
+        <p class="text-lg text-gray-600 dark:text-gray-400 mb-2">{{ t('unauthorizedSubtitle') }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-500">{{ t('unauthorizedMessage') }}</p>
       </div>
 
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <Button
-          :label="t('goBack').value"
+          :label="t('goBack')"
           icon="pi pi-arrow-left"
           class="p-button-outlined"
           @click="goBack"
         />
         <Button
-          :label="t('goHome').value"
+          :label="t('goHome')"
           icon="pi pi-home"
           @click="goHome"
         />
@@ -30,8 +30,9 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { t } from '../i18n';
+import { useI18n } from 'vue-i18n';
 
+const { t } = useI18n();
 const router = useRouter();
 
 const goBack = () => {

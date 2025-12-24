@@ -83,9 +83,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import api from '../api';
-import { t } from '../i18n';
 
+const { t } = useI18n();
 const stats = ref({ subnets: 0, ips: 0, scripts: 0, executions: 0, equipment: 0 });
 
 onMounted(async () => {

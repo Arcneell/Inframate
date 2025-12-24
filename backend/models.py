@@ -1,8 +1,13 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Date, Numeric, UniqueConstraint
 from sqlalchemy.dialects.postgresql import INET, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from backend.core.database import Base
+
+
+def utc_now():
+    """Get current UTC time with timezone awareness."""
+    return datetime.now(timezone.utc)
 
 
 # ==================== MULTI-ENTITY MODEL ====================
@@ -18,7 +23,7 @@ class Entity(Base):
     name = Column(String, unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     # Relationships
     users = relationship("User", back_populates="entity")
@@ -78,7 +83,7 @@ class Script(Base):
     filename = Column(String, nullable=False)
     script_type = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     executions = relationship("ScriptExecution", back_populates="script")
 
@@ -92,7 +97,7 @@ class ScriptExecution(Base):
     status = Column(String, default="pending")
     stdout = Column(Text, nullable=True)
     stderr = Column(Text, nullable=True)
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=utc_now)
     completed_at = Column(DateTime, nullable=True)
 
     script = relationship("Script", back_populates="executions")
@@ -180,8 +185,8 @@ class Equipment(Base):
     asset_tag = Column(String, unique=True, nullable=True, index=True)
     status = Column(String, default="in_service")  # in_service, in_stock, retired, maintenance
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Financial & Lifecycle fields
     purchase_date = Column(DateTime, nullable=True)
@@ -249,7 +254,7 @@ class Rack(Base):
     depth_mm = Column(Integer, default=1000)
     max_power_kw = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     location = relationship("Location", back_populates="racks")
     entity = relationship("Entity", back_populates="racks")
@@ -272,7 +277,7 @@ class PDU(Base):
     voltage = Column(Integer, default=230)  # 230V or 120V
     phase = Column(String, default="single")  # single, three
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     rack = relationship("Rack", back_populates="pdus")
     equipment = relationship("Equipment", back_populates="pdu", foreign_keys="Equipment.pdu_id")
@@ -298,7 +303,7 @@ class Contract(Base):
     renewal_type = Column(String, default="manual")  # auto, manual, none
     renewal_notice_days = Column(Integer, default=30)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     supplier = relationship("Supplier", back_populates="contracts")
     entity = relationship("Entity", back_populates="contracts")
@@ -339,7 +344,7 @@ class Software(Base):
     category = Column(String, nullable=True)  # os, database, middleware, application, utility
     entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     entity = relationship("Entity", back_populates="software")
     licenses = relationship("SoftwareLicense", back_populates="software", cascade="all, delete-orphan")
@@ -362,7 +367,7 @@ class SoftwareLicense(Base):
     purchase_price = Column(Numeric(12, 2), nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     software = relationship("Software", back_populates="licenses")
     supplier = relationship("Supplier")
@@ -378,7 +383,7 @@ class SoftwareInstallation(Base):
     software_id = Column(Integer, ForeignKey("software.id"), nullable=False)
     equipment_id = Column(Integer, ForeignKey("equipment.id"), nullable=False)
     installed_version = Column(String, nullable=True)
-    installation_date = Column(DateTime, default=datetime.utcnow)
+    installation_date = Column(DateTime, default=utc_now)
     discovered_at = Column(DateTime, nullable=True)  # For auto-discovered software
     notes = Column(Text, nullable=True)
 
@@ -428,6 +433,30 @@ class Attachment(Base):
     category = Column(String, nullable=True)  # invoice, diagram, manual, photo, other
     description = Column(Text, nullable=True)
     uploaded_by = Column(String, nullable=True)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=utc_now)
 
     equipment = relationship("Equipment", back_populates="attachments")
+
+
+# ==================== AUDIT LOG MODEL ====================
+
+class AuditLog(Base):
+    """
+    System audit log for tracking critical operations.
+    Logs all create, update, and delete operations on sensitive resources.
+    """
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=utc_now, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    username = Column(String, nullable=False)  # Denormalized for historical accuracy
+    action = Column(String, nullable=False)  # CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+    resource_type = Column(String, nullable=False, index=True)  # equipment, subnet, user, etc.
+    resource_id = Column(String, nullable=True)  # ID of the affected resource
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+    ip_address = Column(String, nullable=True)  # Client IP address
+    changes = Column(JSON, nullable=True)  # {"field": {"old": "value", "new": "value"}}
+    metadata = Column(JSON, nullable=True)  # Additional context
+
+    # Note: No relationship to User to preserve logs even after user deletion

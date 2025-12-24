@@ -79,16 +79,3 @@ initLang()
 
 // Mount app
 app.mount('#app')
-
-// Make toast service globally available for API interceptor
-window.$toast = {
-  add: (options) => {
-    const toastEl = document.querySelector('.p-toast')
-    if (toastEl && toastEl.__vueParentComponent) {
-      const toast = toastEl.__vueParentComponent.ctx
-      if (toast && toast.add) {
-        toast.add(options)
-      }
-    }
-  }
-}

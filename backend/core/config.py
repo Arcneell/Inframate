@@ -3,10 +3,9 @@ Centralized Configuration using Pydantic Settings.
 All environment variables are validated at startup.
 """
 from functools import lru_cache
-from typing import List, Optional
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
-import secrets
 
 
 class Settings(BaseSettings):
@@ -42,18 +41,18 @@ class Settings(BaseSettings):
     )
 
     # JWT & Security
-    jwt_secret_key: Optional[str] = Field(
-        default=None,
-        description="JWT secret key (generated if not provided)"
+    jwt_secret_key: str = Field(
+        ...,
+        description="JWT secret key (REQUIRED - must be set in environment)"
     )
     jwt_algorithm: str = Field(default="HS256")
     access_token_expire_minutes: int = Field(default=480, ge=5, le=1440)
     min_password_length: int = Field(default=8, ge=6, le=128)
 
     # Encryption (Fernet key for encrypting sensitive data)
-    encryption_key: Optional[str] = Field(
-        default=None,
-        description="Fernet encryption key for sensitive data"
+    encryption_key: str = Field(
+        ...,
+        description="Fernet encryption key for sensitive data (REQUIRED - must be set in environment)"
     )
 
     # Rate Limiting
@@ -104,21 +103,12 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
     def get_jwt_secret(self) -> str:
-        """Get or generate JWT secret key."""
-        if self.jwt_secret_key:
-            return self.jwt_secret_key
-        import logging
-        logging.warning("JWT_SECRET_KEY not set! Using generated key. Set JWT_SECRET_KEY in production.")
-        return secrets.token_urlsafe(32)
+        """Get JWT secret key (always available since it's required)."""
+        return self.jwt_secret_key
 
     def get_encryption_key(self) -> bytes:
-        """Get or generate Fernet encryption key."""
-        from cryptography.fernet import Fernet
-        if self.encryption_key:
-            return self.encryption_key.encode()
-        import logging
-        logging.warning("ENCRYPTION_KEY not set! Using generated key. Set ENCRYPTION_KEY in production.")
-        return Fernet.generate_key()
+        """Get Fernet encryption key (always available since it's required)."""
+        return self.encryption_key.encode()
 
 
 @lru_cache

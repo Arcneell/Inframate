@@ -186,6 +186,10 @@ docker-compose exec db psql -U netops netops_flow
 - Composition API avec `<script setup>`
 - Pinia pour state management
 - Composants dans `components/shared/` pour réutilisation
+- **i18n**: Utiliser `useI18n()` hook avec `legacy: false`
+  - Clés hiérarchiques: `t('namespace.key')` (ex: `t('dashboard.totalSubnets')`)
+  - Ne jamais utiliser `.value` sur `t()` - retourne directement une string
+  - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`
 
 ### Git
 - Messages clairs commençant par verbe (Add, Fix, Update)

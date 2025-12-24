@@ -98,8 +98,10 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 - Input validation and sanitization
 
 ### Internationalization
-- Full support for English and French using vue-i18n
-- Language preference persisted across sessions
+- Full support for English and French using vue-i18n (Composition API mode)
+- Language preference persisted across sessions via localStorage
+- Namespaced translation keys for maintainability (e.g., `dashboard.*`, `ipam.*`, `common.*`)
+- Global injection enabled for seamless `t()` function access in all components
 
 ## Architecture
 

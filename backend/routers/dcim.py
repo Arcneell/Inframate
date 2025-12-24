@@ -216,6 +216,86 @@ def place_equipment_in_rack(
     return {"ok": True, "message": f"Equipment placed at U{position_u}"}
 
 
+@router.put("/equipment/{equipment_id}/rack-position")
+def update_equipment_position(
+    equipment_id: int,
+    rack_id: int,
+    position_u: int = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Update equipment rack assignment and/or position."""
+    check_dcim_permission(current_user)
+
+    equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    # If changing rack or position, validate
+    if rack_id:
+        rack = db.query(models.Rack).filter(models.Rack.id == rack_id).first()
+        if not rack:
+            raise HTTPException(status_code=404, detail="Rack not found")
+
+        if position_u is not None:
+            # Validate position
+            if position_u < 1 or position_u > rack.height_u:
+                raise HTTPException(status_code=400, detail=f"Position must be between 1 and {rack.height_u}")
+
+            if equipment.height_u and (position_u + equipment.height_u - 1) > rack.height_u:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Equipment height ({equipment.height_u}U) exceeds rack capacity at position {position_u}"
+                )
+
+            # Check conflicts
+            existing = db.query(models.Equipment).filter(
+                models.Equipment.rack_id == rack_id,
+                models.Equipment.position_u.isnot(None),
+                models.Equipment.id != equipment_id
+            ).all()
+
+            for eq in existing:
+                eq_end = eq.position_u + eq.height_u - 1
+                new_end = position_u + equipment.height_u - 1
+                if not (new_end < eq.position_u or position_u > eq_end):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Position conflicts with {eq.name} at U{eq.position_u}"
+                    )
+
+        equipment.rack_id = rack_id
+        equipment.position_u = position_u
+        db.commit()
+
+        logger.info(f"Equipment '{equipment.name}' rack/position updated by '{current_user.username}'")
+        return {"ok": True, "message": "Equipment position updated"}
+
+
+@router.delete("/equipment/{equipment_id}/rack-position")
+def remove_equipment_from_rack(
+    equipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Remove equipment from rack (unassign rack and position)."""
+    check_dcim_permission(current_user)
+
+    equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    old_rack_id = equipment.rack_id
+    old_position = equipment.position_u
+
+    equipment.rack_id = None
+    equipment.position_u = None
+    db.commit()
+
+    logger.info(f"Equipment '{equipment.name}' removed from rack (was rack_id={old_rack_id}, pos={old_position}) by '{current_user.username}'")
+    return {"ok": True, "message": "Equipment removed from rack"}
+
+
 @router.post("/racks/", response_model=schemas.Rack)
 def create_rack(
     rack: schemas.RackCreate,

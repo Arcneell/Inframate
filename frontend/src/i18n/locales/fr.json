@@ -297,7 +297,8 @@
     "add": "Ajouter",
     "days": "jours",
     "overview": "Vue d'ensemble",
-    "name": "Nom"
+    "name": "Nom",
+    "current": "Actuel"
   },
   "dcim": {
     "title": "DCIM",
@@ -337,7 +338,15 @@
     "position": "Position",
     "place": "Placer",
     "selectPosition": "Sélectionner la position (1-{max}U)",
-    "equipmentPlaced": "Équipement placé avec succès"
+    "equipmentPlaced": "Équipement placé avec succès",
+    "viewDetails": "Voir Détails",
+    "changePosition": "Changer Position",
+    "removeFromRack": "Retirer de la Baie",
+    "editPosition": "Modifier la Position",
+    "newPosition": "Nouvelle Position",
+    "positionUpdated": "Position mise à jour avec succès",
+    "confirmRemoveEquipment": "Retirer {name} de cette baie ?",
+    "equipmentRemoved": "Équipement retiré de la baie"
   },
   "contracts": {
     "title": "Contrats",

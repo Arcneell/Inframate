@@ -150,6 +150,7 @@
                         class="rack-slot"
                         :class="getSlotClass(slot)"
                         @click="handleSlotClick(slot)"
+                        @contextmenu="handleEquipmentContextMenu($event, slot.equipment)"
                         v-tooltip.right="getEquipmentTooltip(slot.equipment)"
                       >
                         <template v-if="slot.equipment?.is_start">
@@ -337,6 +338,30 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- Equipment Edit Position Dialog -->
+    <Dialog v-model:visible="showEditPositionDialog" modal :header="t('dcim.editPosition')" :style="{ width: '400px' }">
+      <div v-if="equipmentToEdit" class="flex flex-col gap-4">
+        <div class="p-3 border rounded-lg" style="border-color: var(--border-color); background: var(--surface-100);">
+          <div class="font-semibold">{{ equipmentToEdit.name }}</div>
+          <div class="text-sm opacity-70 mt-1">{{ equipmentToEdit.model_name }}</div>
+          <div class="text-sm mt-1">{{ t('common.current') }}: U{{ equipmentToEdit.position_u }} ({{ equipmentToEdit.height_u }}U)</div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">{{ t('dcim.newPosition') }} (U) <span class="text-red-500">*</span></label>
+          <InputNumber v-model="newPosition" class="w-full" :min="1" :max="rackLayout?.rack?.height_u || 42" />
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <Button :label="t('common.cancel')" severity="secondary" outlined @click="showEditPositionDialog = false" />
+          <Button :label="t('common.save')" icon="pi pi-check" @click="updateEquipmentPosition" />
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Context Menu for Equipment -->
+    <ContextMenu ref="equipmentMenu" :model="equipmentMenuItems" />
   </div>
 </template>
 
@@ -368,6 +393,7 @@ const filterLocation = ref(null);
 const showRackDialog = ref(false);
 const showPduDialog = ref(false);
 const showPlacementDialog = ref(false);
+const showEditPositionDialog = ref(false);
 
 // Editing states
 const editingRack = ref(null);
@@ -376,6 +402,12 @@ const editingPdu = ref(null);
 // Equipment placement
 const equipmentToPlace = ref(null);
 const placementPosition = ref(1);
+
+// Equipment editing
+const equipmentToEdit = ref(null);
+const newPosition = ref(1);
+const equipmentMenu = ref();
+const equipmentMenuItems = ref([]);
 
 // Forms
 const rackForm = ref({
@@ -576,6 +608,79 @@ const handleSlotClick = (slot) => {
   if (slot.equipment?.is_start && slot.equipment.id) {
     // Navigate to equipment details in inventory
     router.push({ name: 'Inventory', query: { equipmentId: slot.equipment.id } });
+  }
+};
+
+const handleEquipmentContextMenu = (event, equipment) => {
+  if (!equipment || !equipment.is_start) return;
+
+  event.preventDefault();
+  equipmentToEdit.value = equipment;
+
+  equipmentMenuItems.value = [
+    {
+      label: t('dcim.viewDetails'),
+      icon: 'pi pi-eye',
+      command: () => {
+        router.push({ name: 'Inventory', query: { equipmentId: equipment.id } });
+      }
+    },
+    {
+      label: t('dcim.changePosition'),
+      icon: 'pi pi-arrows-v',
+      command: () => {
+        openEditPositionDialog(equipment);
+      }
+    },
+    {
+      separator: true
+    },
+    {
+      label: t('dcim.removeFromRack'),
+      icon: 'pi pi-times',
+      command: () => {
+        confirmRemoveEquipment(equipment);
+      }
+    }
+  ];
+
+  equipmentMenu.value.show(event);
+};
+
+const openEditPositionDialog = (equipment) => {
+  equipmentToEdit.value = equipment;
+  newPosition.value = equipment.position_u || 1;
+  showEditPositionDialog.value = true;
+};
+
+const updateEquipmentPosition = async () => {
+  if (!equipmentToEdit.value || !newPosition.value) {
+    toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.fillRequiredFields') });
+    return;
+  }
+  try {
+    await api.put(`/dcim/equipment/${equipmentToEdit.value.id}/rack-position`, null, {
+      params: {
+        rack_id: selectedRackId.value,
+        position_u: newPosition.value
+      }
+    });
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('dcim.positionUpdated') });
+    showEditPositionDialog.value = false;
+    loadRackLayout();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  }
+};
+
+const confirmRemoveEquipment = async (equipment) => {
+  if (!confirm(t('dcim.confirmRemoveEquipment', { name: equipment.name }))) return;
+  try {
+    await api.delete(`/dcim/equipment/${equipment.id}/rack-position`);
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('dcim.equipmentRemoved') });
+    loadRackLayout();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
 };
 

@@ -96,7 +96,13 @@ worker/            # Celery worker
 - Gestion des baies (racks) par emplacement
 - Position U (1-42) et hauteur U des équipements
 - Gestion des PDUs avec ports et alimentation
-- Visualisation disposition des baies
+- Visualisation professionnelle des baies avec style hardware (bordures métalliques, numérotation U des deux côtés)
+- Couleurs par statut d'équipement (bleu=en service, orange=maintenance, gris=retiré, vert=stock)
+- Détails complets de l'équipement dans la vue rack (modèle, fabricant, S/N, asset tag, IP management)
+- Liste des équipements non assignés avec placement interactif
+- Validation des conflits de position lors du placement
+- Tooltips détaillés au survol des équipements
+- Navigation vers fiche équipement (Inventaire) au clic
 
 ### Gestion des Contrats
 - Contrats de maintenance, assurance, location
@@ -224,7 +230,8 @@ docker-compose exec db psql -U netops netops_flow
 | /api/v1/inventory/equipment/ | GET/POST | Équipements |
 | /api/v1/dashboard/stats | GET | Statistiques |
 | /api/v1/dcim/racks/ | GET/POST | Baies |
-| /api/v1/dcim/racks/{id}/layout | GET | Disposition baie |
+| /api/v1/dcim/racks/{id}/layout | GET | Disposition baie (détails complets équipements + non assignés) |
+| /api/v1/dcim/racks/{id}/place-equipment | POST | Placer équipement dans baie (avec validation conflits) |
 | /api/v1/dcim/pdus/ | GET/POST | PDUs |
 | /api/v1/contracts/ | GET/POST | Contrats |
 | /api/v1/contracts/{id}/equipment | GET/POST/DELETE | Équipements contrat |

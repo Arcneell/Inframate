@@ -90,9 +90,27 @@
           <h2 class="text-xl font-bold">{{ currentRouteName }}</h2>
           <div class="flex items-center gap-4">
               <div class="flex items-center gap-1 mr-2">
-                  <button @click="setLang('en')" :class="['text-xl transition-all cursor-pointer focus:outline-none', locale === 'en' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇬🇧</button>
+                  <button @click="setLang('en')" :class="['w-7 h-5 rounded overflow-hidden transition-all cursor-pointer focus:outline-none border', locale === 'en' ? 'scale-110 opacity-100 border-blue-500' : 'scale-90 opacity-50 hover:opacity-80 border-transparent']">
+                      <svg viewBox="0 0 60 30" class="w-full h-full">
+                          <clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+                          <clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath>
+                          <g clip-path="url(#s)">
+                              <path d="M0,0 v30 h60 v-30 z" fill="#012169"/>
+                              <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>
+                              <path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/>
+                              <path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/>
+                              <path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/>
+                          </g>
+                      </svg>
+                  </button>
                   <span class="text-gray-400 text-sm">/</span>
-                  <button @click="setLang('fr')" :class="['text-xl transition-all cursor-pointer focus:outline-none', locale === 'fr' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇫🇷</button>
+                  <button @click="setLang('fr')" :class="['w-7 h-5 rounded overflow-hidden transition-all cursor-pointer focus:outline-none border', locale === 'fr' ? 'scale-110 opacity-100 border-blue-500' : 'scale-90 opacity-50 hover:opacity-80 border-transparent']">
+                      <svg viewBox="0 0 3 2" class="w-full h-full">
+                          <rect width="1" height="2" x="0" fill="#002395"/>
+                          <rect width="1" height="2" x="1" fill="#fff"/>
+                          <rect width="1" height="2" x="2" fill="#ED2939"/>
+                      </svg>
+                  </button>
               </div>
               <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded @click="toggleTheme" class="!text-slate-500 dark:!text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-700" />
           </div>

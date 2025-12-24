@@ -89,9 +89,11 @@
       <header class="h-16 flex items-center justify-between px-8 z-10 flex-shrink-0 border-b" style="background-color: var(--bg-card); border-color: var(--border-color);">
           <h2 class="text-xl font-bold">{{ currentRouteName }}</h2>
           <div class="flex items-center gap-4">
-              <button @click="handleToggleLang" class="text-2xl hover:scale-110 transition-transform cursor-pointer focus:outline-none mr-2">
-                  {{ langIcon }}
-              </button>
+              <div class="flex items-center gap-1 mr-2">
+                  <button @click="setLang('en')" :class="['text-xl transition-all cursor-pointer focus:outline-none', locale === 'en' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇬🇧</button>
+                  <span class="text-gray-400 text-sm">/</span>
+                  <button @click="setLang('fr')" :class="['text-xl transition-all cursor-pointer focus:outline-none', locale === 'fr' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇫🇷</button>
+              </div>
               <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded @click="toggleTheme" class="!text-slate-500 dark:!text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-700" />
           </div>
       </header>
@@ -123,7 +125,6 @@ const isDark = ref(false);
 
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/unauthorized');
 const userInitials = computed(() => (user.value.username ? user.value.username.substring(0, 2).toUpperCase() : '??'));
-const langIcon = computed(() => locale.value === 'fr' ? '🇫🇷' : '🇬🇧');
 
 const currentRouteName = computed(() => {
     // Map route names to translation keys
@@ -139,10 +140,9 @@ const currentRouteName = computed(() => {
     return route.name;
 });
 
-const handleToggleLang = () => {
-    const newLang = locale.value === 'fr' ? 'en' : 'fr';
-    locale.value = newLang;
-    localStorage.setItem('lang', newLang);
+const setLang = (lang) => {
+    locale.value = lang;
+    localStorage.setItem('lang', lang);
 };
 
 const toggleTheme = () => {

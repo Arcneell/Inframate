@@ -2,10 +2,10 @@
   <div class="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-900 font-sans text-slate-100">
 
     <!-- Language Toggle (Top Right) -->
-    <div class="absolute top-6 right-6 z-20">
-        <button @click="toggleLang" class="text-2xl hover:scale-110 transition-transform cursor-pointer focus:outline-none" title="Switch Language">
-            {{ langIcon }}
-        </button>
+    <div class="absolute top-6 right-6 z-20 flex items-center gap-2">
+        <button @click="setLang('en')" :class="['text-2xl transition-all cursor-pointer focus:outline-none', locale === 'en' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇬🇧</button>
+        <span class="text-slate-500">/</span>
+        <button @click="setLang('fr')" :class="['text-2xl transition-all cursor-pointer focus:outline-none', locale === 'fr' ? 'scale-110 opacity-100' : 'scale-90 opacity-50 hover:opacity-80']">🇫🇷</button>
     </div>
 
     <!-- Background -->
@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
@@ -88,12 +88,9 @@ const username = ref('');
 const password = ref('');
 const loading = ref(false);
 
-const langIcon = computed(() => locale.value === 'fr' ? '🇫🇷' : '🇬🇧');
-
-const toggleLang = () => {
-    const newLang = locale.value === 'fr' ? 'en' : 'fr';
-    locale.value = newLang;
-    localStorage.setItem('lang', newLang);
+const setLang = (lang) => {
+    locale.value = lang;
+    localStorage.setItem('lang', lang);
 };
 
 onMounted(() => {

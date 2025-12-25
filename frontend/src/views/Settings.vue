@@ -7,7 +7,7 @@
           <div class="flex items-end gap-4">
               <div class="flex-grow max-w-md">
                   <label class="block text-sm font-medium mb-1 opacity-70">{{ t('settings.newPassword') }}</label>
-                  <InputText v-model="newPassword" type="password" class="w-full" :placeholder="t('settings.newPassword') }}" />
+                  <InputText v-model="newPassword" type="password" class="w-full" :placeholder="t('settings.newPassword')" />
               </div>
               <Button :label="t('settings.updatePassword')" icon="pi pi-check" @click="updateMyPassword" :loading="updatingPwd" />
           </div>

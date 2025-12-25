@@ -5,15 +5,10 @@ Supports Docker secrets via *_FILE environment variables.
 """
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Annotated
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator, PostgresDsn, RedisDsn, BeforeValidator, model_validator
+from pydantic import Field, field_validator, model_validator
 import os
-
-
-def _coerce_to_str(v):
-    """Coerce Pydantic URL types to string for compatibility."""
-    return str(v) if v else v
 
 
 def _read_secret_file(file_path: str) -> str:
@@ -22,11 +17,6 @@ def _read_secret_file(file_path: str) -> str:
         return Path(file_path).read_text().strip()
     except Exception:
         return ""
-
-
-# Type aliases for URL fields that validate but store as string
-PostgresUrlStr = Annotated[PostgresDsn, BeforeValidator(lambda x: x)]
-RedisUrlStr = Annotated[RedisDsn, BeforeValidator(lambda x: x)]
 
 
 class Settings(BaseSettings):
@@ -39,24 +29,25 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    # Database - validated as PostgresDsn
-    database_url: PostgresDsn = Field(
+    # Database - stored as string to support special characters in passwords
+    # Format validation is done via field_validator
+    database_url: str = Field(
         default="postgresql://netops:netopspassword@localhost:5432/netops_flow",
         description="PostgreSQL connection URL"
     )
     db_pool_size: int = Field(default=5, ge=1, le=20)
     db_max_overflow: int = Field(default=10, ge=0, le=50)
 
-    # Redis - validated as RedisDsn
-    redis_url: RedisDsn = Field(
+    # Redis - stored as string to support flexibility
+    redis_url: str = Field(
         default="redis://localhost:6379/0",
         description="Redis connection URL"
     )
-    celery_broker_url: RedisDsn = Field(
+    celery_broker_url: str = Field(
         default="redis://localhost:6379/0",
         description="Celery broker URL"
     )
-    celery_result_backend: RedisDsn = Field(
+    celery_result_backend: str = Field(
         default="redis://localhost:6379/0",
         description="Celery result backend URL"
     )
@@ -156,6 +147,22 @@ class Settings(BaseSettings):
             )
         return self
 
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database URL format (basic check)."""
+        if not v.startswith(("postgresql://", "postgres://")):
+            raise ValueError("DATABASE_URL must start with postgresql:// or postgres://")
+        return v
+
+    @field_validator("redis_url", "celery_broker_url", "celery_result_backend")
+    @classmethod
+    def validate_redis_url(cls, v: str) -> str:
+        """Validate Redis URL format (basic check)."""
+        if not v.startswith("redis://"):
+            raise ValueError("Redis URL must start with redis://")
+        return v
+
     @field_validator("allowed_origins")
     @classmethod
     def parse_origins(cls, v: str) -> str:
@@ -170,25 +177,26 @@ class Settings(BaseSettings):
         """Get origins as a list."""
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
+    # Compatibility aliases (URLs are already strings)
     @property
     def database_url_str(self) -> str:
-        """Get database URL as string for SQLAlchemy compatibility."""
-        return str(self.database_url)
+        """Get database URL as string (alias for compatibility)."""
+        return self.database_url
 
     @property
     def redis_url_str(self) -> str:
-        """Get Redis URL as string."""
-        return str(self.redis_url)
+        """Get Redis URL as string (alias for compatibility)."""
+        return self.redis_url
 
     @property
     def celery_broker_url_str(self) -> str:
-        """Get Celery broker URL as string."""
-        return str(self.celery_broker_url)
+        """Get Celery broker URL as string (alias for compatibility)."""
+        return self.celery_broker_url
 
     @property
     def celery_result_backend_str(self) -> str:
-        """Get Celery result backend URL as string."""
-        return str(self.celery_result_backend)
+        """Get Celery result backend URL as string (alias for compatibility)."""
+        return self.celery_result_backend
 
     def get_jwt_secret(self) -> str:
         """Get JWT secret key (always available since it's required)."""

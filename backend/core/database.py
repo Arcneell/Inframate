@@ -48,7 +48,7 @@ def create_db_engine(url: str, retry: bool = True):
 
 
 # Create engine and session factory
-engine = create_db_engine(settings.database_url_str)
+engine = create_db_engine(settings.database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

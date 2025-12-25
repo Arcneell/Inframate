@@ -42,7 +42,7 @@ frontend/          # Vue.js 3 SPA
 
 backend/           # FastAPI API
 ├── core/
-│   ├── config.py           # Configuration Pydantic Settings (PostgresDsn/RedisDsn, Docker secrets support)
+│   ├── config.py           # Configuration Pydantic Settings (Docker secrets support, URL validation)
 │   ├── database.py         # SQLAlchemy engine + sessions
 │   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp), refresh tokens (timezone-aware)
 │   ├── rate_limiter.py     # Rate limiting Redis
@@ -158,7 +158,7 @@ worker/            # Celery worker
 - **Configuration Sécurisée**:
   - JWT_SECRET_KEY et ENCRYPTION_KEY obligatoires (validation Pydantic)
   - Support Docker secrets via *_FILE environment variables
-  - Validation PostgresDsn/RedisDsn pour les URLs de connexion
+  - Validation basique des URLs (supporte les mots de passe avec caractères spéciaux)
 - **Timezone-Aware**: Utilisation de `datetime.now(timezone.utc)` (Python 3.12+ compatible)
 - **Rate Limiting**: Redis-backed, 5 req/60s sur login
 - **RBAC**: Rôles admin/user + permissions granulaires (ipam, scripts, inventory, topology, settings)

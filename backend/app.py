@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize Redis client for health checks (stored in app.state)
     try:
         app.state.redis_client = redis.from_url(
-            settings.redis_url_str,
+            settings.redis_url,
             decode_responses=True,
             socket_timeout=5,
             socket_connect_timeout=5
@@ -216,7 +216,7 @@ def create_app() -> FastAPI:
                 health_status["services"]["redis"] = {"status": "healthy"}
             else:
                 # Fallback: try to connect
-                redis_client = redis.from_url(settings.redis_url_str, decode_responses=True)
+                redis_client = redis.from_url(settings.redis_url, decode_responses=True)
                 redis_client.ping()
                 health_status["services"]["redis"] = {"status": "healthy"}
         except Exception as e:

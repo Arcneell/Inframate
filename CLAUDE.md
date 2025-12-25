@@ -220,6 +220,9 @@ docker-compose exec db psql -U netops netops_flow
 ### Git
 - Messages clairs commençant par verbe (Add, Fix, Update)
 - Pas de secrets dans les commits
+- **IMPORTANT**: Toujours commit avec l'utilisateur `Arcneell` (arcneel.pro@gmail.com)
+  - Vérifier la configuration: `git config user.name` et `git config user.email`
+  - Si incorrecte, corriger avec: `git config --global user.name "Arcneell" && git config --global user.email "arcneel.pro@gmail.com"`
 
 ## Structure Base de Données
 

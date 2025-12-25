@@ -13,6 +13,8 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
   const isLoading = ref(false)
   const error = ref(null)
+  const mfaRequired = ref(false)
+  const mfaUserId = ref(null)
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
@@ -35,31 +37,106 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Login with username and password.
+   * Returns success, or mfaRequired flag if MFA is enabled.
    */
   async function login(username, password) {
     isLoading.value = true
     error.value = null
+    mfaRequired.value = false
 
     try {
       const formData = new FormData()
       formData.append('username', username)
       formData.append('password', password)
 
-      const response = await api.post('/token', formData)
+      const response = await api.post('/token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+      const data = response.data
+
+      // Check if MFA is required
+      if (data.mfa_required) {
+        mfaRequired.value = true
+        mfaUserId.value = data.user_id
+        return { success: false, mfaRequired: true, userId: data.user_id }
+      }
+
+      // No MFA - store token and fetch user
+      token.value = data.access_token
+      localStorage.setItem('token', data.access_token)
+
+      // Store user data if provided
+      if (data.user) {
+        user.value = data.user
+        localStorage.setItem('user', JSON.stringify(data.user))
+      } else {
+        await fetchUser()
+      }
+
+      return { success: true }
+    } catch (err) {
+      // Return error type for i18n translation in component
+      const detail = err.response?.data?.detail || ''
+
+      let errorType = 'loginFailed'
+      if (detail.includes('Incorrect username or password')) {
+        errorType = 'incorrectCredentials'
+      } else if (detail.includes('disabled')) {
+        errorType = 'accountDisabled'
+      } else if (detail.includes('Too many')) {
+        errorType = 'rateLimited'
+      }
+
+      error.value = errorType
+      return { success: false, errorType, errorDetail: detail }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Verify MFA code after password authentication.
+   */
+  async function verifyMfa(code) {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await api.post('/verify-mfa', {
+        user_id: mfaUserId.value,
+        code: code
+      })
       const data = response.data
 
       // Store token
       token.value = data.access_token
       localStorage.setItem('token', data.access_token)
 
-      // Fetch user details
-      await fetchUser()
+      // Store user data
+      if (data.user) {
+        user.value = data.user
+        localStorage.setItem('user', JSON.stringify(data.user))
+      } else {
+        await fetchUser()
+      }
+
+      // Reset MFA state
+      mfaRequired.value = false
+      mfaUserId.value = null
 
       return { success: true }
     } catch (err) {
-      const message = err.response?.data?.detail || 'Login failed'
-      error.value = message
-      return { success: false, error: message }
+      const detail = err.response?.data?.detail || ''
+
+      let errorType = 'mfaFailed'
+      if (detail.includes('Invalid MFA code')) {
+        errorType = 'invalidMfaCode'
+      }
+
+      error.value = errorType
+      return { success: false, errorType, errorDetail: detail }
     } finally {
       isLoading.value = false
     }
@@ -148,6 +225,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isLoading,
     error,
+    mfaRequired,
+    mfaUserId,
 
     // Getters
     isAuthenticated,
@@ -158,6 +237,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     hasPermission,
     login,
+    verifyMfa,
     fetchUser,
     logout,
     updatePassword,

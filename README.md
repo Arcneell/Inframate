@@ -93,7 +93,8 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 - Quick action buttons for common tasks
 
 ### User Management & Security
-- User authentication with JWT tokens
+- User authentication with JWT tokens (30-minute access tokens)
+- **Refresh Token System**: Secure token rotation with 7-day expiration
 - **Two-Factor Authentication (TOTP)**: Optional MFA with Google Authenticator, Authy, etc.
 - Role-based access control (admin/user)
 - Granular permissions (IPAM, Topology, Scripts, Settings, Inventory)
@@ -102,15 +103,23 @@ A self-hosted NetDevOps platform for network operations management, featuring IP
 - Secure MFA secret storage with Fernet encryption
 
 ### Security
-- JWT-based authentication with configurable secret
+- JWT-based authentication with short-lived access tokens (30 min) and refresh tokens (7 days)
 - **Two-Factor Authentication (MFA/TOTP)** using pyotp with encrypted secrets
+- **Automatic password encryption** via SQLAlchemy hooks for Equipment remote credentials
 - Fernet symmetric encryption for sensitive data (passwords, TOTP secrets)
 - CORS protection with configurable origins
 - Redis-based distributed rate limiting (5 requests per 60s on login)
 - Path traversal protection for file uploads
+- **MIME type validation** for script uploads (prevents disguised malicious files)
 - Docker sandboxing for script execution (256MB RAM, 0.5 CPU, network disabled)
+- **Enforced sandbox mode**: No fallback to direct execution when Docker is unavailable
 - Input validation and sanitization
+- **Automatic audit logging** for all modification actions (POST, PUT, DELETE)
 - Comprehensive audit logging for all MFA events
+
+### Performance & Caching
+- Redis caching for dashboard and topology endpoints (5-minute TTL)
+- Systematic API pagination for list endpoints (skip/limit parameters)
 
 ### Internationalization
 - Full support for English and French using vue-i18n (Composition API mode)
@@ -148,15 +157,17 @@ backend/
 ├── core/
 │   ├── config.py       # Pydantic Settings configuration
 │   ├── database.py     # SQLAlchemy engine & session
-│   ├── security.py     # JWT, hashing, Fernet encryption, TOTP
+│   ├── security.py     # JWT, hashing, Fernet encryption, TOTP, refresh tokens
 │   ├── rate_limiter.py # Redis-based rate limiting
-│   └── logging.py      # Structured JSON logging
+│   ├── logging.py      # Structured JSON logging
+│   ├── cache.py        # Redis caching utilities
+│   └── middleware.py   # Audit logging middleware
 ├── routers/
-│   ├── auth.py         # Authentication & MFA endpoints
+│   ├── auth.py         # Authentication, MFA & refresh token endpoints
 │   ├── users.py        # User management (admin)
 │   ├── ipam.py         # IP Address Management
 │   ├── inventory.py    # Equipment management
-│   ├── scripts.py      # Script upload & execution
+│   ├── scripts.py      # Script upload & execution (with MIME validation)
 │   ├── topology.py     # Network visualization
 │   ├── dashboard.py    # Statistics
 │   ├── dcim.py         # Racks and PDUs management

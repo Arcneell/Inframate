@@ -44,26 +44,28 @@ backend/           # FastAPI API
 ├── core/
 │   ├── config.py           # Configuration Pydantic Settings
 │   ├── database.py         # SQLAlchemy engine + sessions
-│   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp)
+│   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp), refresh tokens
 │   ├── rate_limiter.py     # Rate limiting Redis
-│   └── logging.py          # Logging structuré JSON/Text
+│   ├── logging.py          # Logging structuré JSON/Text
+│   ├── cache.py            # Cache Redis pour dashboard/topology (TTL 5min)
+│   └── middleware.py       # Audit middleware (log auto POST/PUT/DELETE)
 ├── routers/
-│   ├── auth.py             # POST /token, GET /me, MFA endpoints (/verify-mfa, /mfa/setup, /mfa/enable-with-secret, /mfa/disable)
+│   ├── auth.py             # POST /token, GET /me, MFA, refresh tokens (/refresh, /logout, /logout-all)
 │   ├── users.py            # CRUD utilisateurs (admin)
-│   ├── ipam.py             # Subnets, IPs, scan nmap
-│   ├── topology.py         # Données visualisation réseau + topologie physique
-│   ├── scripts.py          # Upload, exécution scripts
-│   ├── inventory.py        # Équipements, fabricants, fournisseurs (avec isolation entity_id)
-│   ├── dashboard.py        # Statistiques
+│   ├── ipam.py             # Subnets, IPs, scan nmap (paginé)
+│   ├── topology.py         # Données visualisation réseau + topologie physique (caché)
+│   ├── scripts.py          # Upload (validation MIME), exécution scripts (sandbox Docker obligatoire)
+│   ├── inventory.py        # Équipements, fabricants, fournisseurs (auto-encryption passwords)
+│   ├── dashboard.py        # Statistiques (caché Redis)
 │   ├── dcim.py             # Gestion Racks et PDUs (optimisé avec joinedload)
-│   ├── contracts.py        # Contrats de maintenance/assurance
-│   ├── software.py         # Catalogue logiciels et licences
+│   ├── contracts.py        # Contrats de maintenance/assurance (paginé)
+│   ├── software.py         # Catalogue logiciels et licences (paginé)
 │   ├── network_ports.py    # Ports réseau et connexions physiques
 │   ├── attachments.py      # Pièces jointes (documents)
 │   └── entities.py         # Entités multi-tenant
-├── models.py               # Modèles SQLAlchemy
-├── schemas.py              # Schémas Pydantic
-└── app.py                  # Application FastAPI
+├── models.py               # Modèles SQLAlchemy (+ UserToken pour refresh tokens)
+├── schemas.py              # Schémas Pydantic (+ TokenWithRefresh, RefreshTokenRequest)
+└── app.py                  # Application FastAPI (+ audit middleware)
 
 worker/            # Celery worker
 └── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels)
@@ -148,13 +150,18 @@ worker/            # Celery worker
 
 ## Sécurité
 
-- **Auth**: JWT (8h expiration) + bcrypt pour mots de passe
+- **Auth**: JWT (30min access token) + Refresh tokens (7 jours) + bcrypt pour mots de passe
+- **Refresh Tokens**: Rotation automatique, révocation individuelle ou globale, stockage haché (SHA256)
 - **MFA/TOTP**: Authentification à deux facteurs optionnelle avec pyotp (secrets chiffrés en base avec Fernet)
 - **Encryption**: Fernet pour données sensibles (remote passwords, TOTP secrets)
+- **Auto-Encryption**: Hooks SQLAlchemy pour chiffrer automatiquement Equipment.remote_password
 - **Rate Limiting**: Redis-backed, 5 req/60s sur login
 - **RBAC**: Rôles admin/user + permissions granulaires (ipam, scripts, inventory, topology, settings)
 - **Sandbox Docker**: Mémoire 256MB, CPU 0.5, network disabled, read-only filesystem
-- **Audit Log**: Traçabilité complète des événements MFA (LOGIN_FAILED, MFA_CHALLENGE, MFA_SUCCESS, MFA_FAILED, MFA_ENABLED, MFA_DISABLED)
+- **Sandbox Obligatoire**: Pas de fallback vers exécution directe quand DOCKER_SANDBOX_ENABLED=true
+- **Validation MIME**: Vérification du type MIME des scripts uploadés (anti-masquage)
+- **Audit Log**: Traçabilité complète via middleware (POST, PUT, DELETE) + événements MFA
+- **Cache Redis**: Dashboard et Topology cachés (TTL 5 minutes)
 
 ## Commandes
 
@@ -247,23 +254,28 @@ docker-compose exec db psql -U netops netops_flow
 
 **Tables principales:**
 - `users` - Utilisateurs avec rôles, permissions et MFA (colonnes: mfa_enabled, totp_secret chiffré)
+- `user_tokens` - Refresh tokens (token_hash SHA256, expires_at, revoked, device_info, ip_address)
 - `entities` - Entités multi-tenant
 - `subnets` / `ip_addresses` - IPAM
 - `scripts` / `script_executions` - Automatisation
 - `manufacturers` / `equipment_types` / `equipment_models` - Catalogue
-- `locations` / `suppliers` / `equipment` - Inventaire
+- `locations` / `suppliers` / `equipment` - Inventaire (remote_password auto-chiffré)
 - `racks` / `pdus` - DCIM
 - `contracts` / `contract_equipment` - Contrats
 - `software` / `software_licenses` / `software_installations` - Logiciels
 - `network_ports` - Ports réseau et connexions
 - `attachments` - Pièces jointes
+- `audit_logs` - Logs de modifications (remplis automatiquement par middleware)
 
 ## API Endpoints Principaux
 
 | Endpoint | Méthode | Description |
 |----------|---------|-------------|
-| /api/v1/auth/token | POST | Login, obtenir JWT ou challenge MFA |
-| /api/v1/auth/verify-mfa | POST | Vérifier code TOTP et obtenir JWT |
+| /api/v1/auth/token | POST | Login, obtenir access + refresh tokens ou challenge MFA |
+| /api/v1/auth/refresh | POST | Renouveler access token avec refresh token (rotation) |
+| /api/v1/auth/logout | POST | Révoquer refresh token (déconnexion) |
+| /api/v1/auth/logout-all | POST | Révoquer tous les refresh tokens (toutes sessions) |
+| /api/v1/auth/verify-mfa | POST | Vérifier code TOTP et obtenir tokens |
 | /api/v1/auth/mfa/setup | POST | Générer secret TOTP et URI QR code |
 | /api/v1/auth/mfa/enable-with-secret | POST | Activer MFA après vérification code |
 | /api/v1/auth/mfa/disable | POST | Désactiver MFA (requiert mot de passe) |

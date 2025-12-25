@@ -192,12 +192,41 @@ body {
     border-top: 1px solid var(--border-color) !important;
     background-color: var(--bg-app) !important;
     border-radius: 0 0 0.75rem 0.75rem !important;
-    display: flex !important;
+    display: block !important;
 }
 
-/* Ensure footer content takes full width for justify-between */
-.p-dialog-footer > div {
-    width: 100%;
+/* Force the inner div to use flexbox with space-between */
+.p-dialog-footer > * {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+/* Style for cancel button (left side) */
+.p-dialog-footer .cancel-btn {
+    font-weight: 500 !important;
+}
+
+/* Style for submit/confirm button (right side) - more prominent with ring */
+.p-dialog-footer .submit-btn,
+.p-dialog-footer .confirm-btn {
+    font-weight: 600 !important;
+    min-width: 120px !important;
+    box-shadow: 0 0 0 2px var(--primary), 0 2px 4px 0 rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.15s ease !important;
+}
+
+.p-dialog-footer .submit-btn:hover:not(:disabled),
+.p-dialog-footer .confirm-btn:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 0 0 2px var(--primary-hover), 0 4px 8px 0 rgba(0, 0, 0, 0.15) !important;
+}
+
+.p-dialog-footer .submit-btn:active:not(:disabled),
+.p-dialog-footer .confirm-btn:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 0 0 2px var(--primary), 0 1px 2px 0 rgba(0, 0, 0, 0.1) !important;
 }
 
 /* --- Terminal --- */

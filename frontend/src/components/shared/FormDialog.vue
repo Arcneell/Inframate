@@ -97,23 +97,4 @@ function handleCancel() {
 }
 </script>
 
-<style scoped>
-.cancel-btn {
-  font-weight: 500;
-}
-
-.submit-btn {
-  font-weight: 600;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.15s ease;
-}
-
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-}
-
-.submit-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-</style>
+<!-- Styles moved to global style.css for proper dialog footer targeting -->

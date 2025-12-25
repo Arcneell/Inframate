@@ -13,14 +13,14 @@
     </div>
 
     <!-- Alert Banner (if critical alerts exist) -->
-    <div v-if="criticalAlerts.length > 0" class="bg-gradient-to-r from-red-900/40 to-orange-900/40 border border-red-500/30 rounded-xl p-4">
+    <div v-if="criticalAlerts.length > 0" class="bg-red-50 dark:bg-gradient-to-r dark:from-red-900/40 dark:to-orange-900/40 border border-red-300 dark:border-red-500/30 rounded-xl p-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-          <i class="pi pi-exclamation-triangle text-red-400 text-xl"></i>
+        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center flex-shrink-0">
+          <i class="pi pi-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
         </div>
         <div class="flex-1">
-          <h3 class="font-semibold text-red-300">{{ t('dashboard.attentionRequired') }}</h3>
-          <p class="text-sm text-red-200/70">{{ criticalAlerts.length }} {{ t('dashboard.criticalItems') }}</p>
+          <h3 class="font-semibold text-red-700 dark:text-red-300">{{ t('dashboard.attentionRequired') }}</h3>
+          <p class="text-sm text-red-600/70 dark:text-red-200/70">{{ criticalAlerts.length }} {{ t('dashboard.criticalItems') }}</p>
         </div>
         <Button :label="t('dashboard.viewAlerts')" size="small" severity="danger" outlined @click="scrollToAlerts" />
       </div>
@@ -98,7 +98,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold">{{ stats.equipment_in_service }}</span>
-              <div class="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div class="h-full bg-green-500 rounded-full" :style="{ width: equipmentPercent('in_service') + '%' }"></div>
               </div>
             </div>
@@ -110,7 +110,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold">{{ stats.equipment_in_stock }}</span>
-              <div class="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div class="h-full bg-blue-500 rounded-full" :style="{ width: equipmentPercent('in_stock') + '%' }"></div>
               </div>
             </div>
@@ -122,7 +122,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold">{{ stats.equipment_maintenance }}</span>
-              <div class="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div class="h-full bg-yellow-500 rounded-full" :style="{ width: equipmentPercent('maintenance') + '%' }"></div>
               </div>
             </div>
@@ -134,7 +134,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-bold">{{ stats.equipment_retired }}</span>
-              <div class="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div class="h-full bg-gray-500 rounded-full" :style="{ width: equipmentPercent('retired') + '%' }"></div>
               </div>
             </div>
@@ -150,10 +150,10 @@
         </h3>
         <div class="flex items-center justify-center gap-8 py-4">
           <div class="text-center">
-            <div class="text-4xl font-bold text-white">{{ stats.recent_executions }}</div>
-            <div class="text-xs opacity-60 mt-1">{{ t('dashboard.last7Days') }}</div>
+            <div class="text-4xl font-bold" style="color: var(--text-main);">{{ stats.recent_executions }}</div>
+            <div class="text-xs mt-1" style="color: var(--text-muted);">{{ t('dashboard.last7Days') }}</div>
           </div>
-          <div class="h-16 w-px bg-gray-700"></div>
+          <div class="h-16 w-px bg-gray-200 dark:bg-gray-700"></div>
           <div class="space-y-2">
             <div class="flex items-center gap-2">
               <i class="pi pi-check-circle text-green-500"></i>
@@ -165,9 +165,9 @@
             </div>
           </div>
         </div>
-        <div class="mt-4 pt-4 border-t border-gray-700">
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div class="flex justify-between text-sm">
-            <span class="opacity-60">{{ t('dashboard.totalExecutions') }}</span>
+            <span style="color: var(--text-muted);">{{ t('dashboard.totalExecutions') }}</span>
             <span class="font-bold">{{ stats.executions }}</span>
           </div>
         </div>
@@ -180,23 +180,23 @@
           {{ t('dashboard.softwareLicenses') }}
         </h3>
         <div class="grid grid-cols-2 gap-4">
-          <div class="p-3 rounded-lg bg-gray-800/50">
+          <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
             <div class="text-2xl font-bold">{{ stats.software }}</div>
-            <div class="text-xs opacity-60">{{ t('dashboard.softwareItems') }}</div>
+            <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.softwareItems') }}</div>
           </div>
-          <div class="p-3 rounded-lg bg-gray-800/50">
+          <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
             <div class="text-2xl font-bold">{{ stats.licenses }}</div>
-            <div class="text-xs opacity-60">{{ t('dashboard.licenses') }}</div>
+            <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.licenses') }}</div>
           </div>
-          <div class="p-3 rounded-lg bg-gray-800/50">
+          <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
             <div class="text-2xl font-bold">{{ stats.installations }}</div>
-            <div class="text-xs opacity-60">{{ t('dashboard.installations') }}</div>
+            <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.installations') }}</div>
           </div>
-          <div class="p-3 rounded-lg" :class="stats.license_violations > 0 ? 'bg-red-900/30' : 'bg-green-900/30'">
-            <div class="text-2xl font-bold" :class="stats.license_violations > 0 ? 'text-red-400' : 'text-green-400'">
+          <div class="p-3 rounded-lg" :class="stats.license_violations > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'">
+            <div class="text-2xl font-bold" :class="stats.license_violations > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
               {{ stats.license_violations }}
             </div>
-            <div class="text-xs opacity-60">{{ t('dashboard.violations') }}</div>
+            <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.violations') }}</div>
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@
         <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
           <i class="pi pi-bell text-orange-400"></i>
           {{ t('dashboard.alerts') }}
-          <span v-if="alerts.length" class="ml-auto text-sm font-normal px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">
+          <span v-if="alerts.length" class="ml-auto text-sm font-normal px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400">
             {{ alerts.length }}
           </span>
         </h3>
@@ -218,18 +218,18 @@
             v-for="alert in alerts"
             :key="`${alert.type}-${alert.id}`"
             :to="alert.link"
-            class="flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-gray-800/50"
+            class="flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/50"
             :class="{
-              'bg-red-900/20 border border-red-500/20': alert.severity === 'danger',
-              'bg-orange-900/20 border border-orange-500/20': alert.severity === 'warning',
-              'bg-blue-900/20 border border-blue-500/20': alert.severity === 'info'
+              'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20': alert.severity === 'danger',
+              'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-500/20': alert.severity === 'warning',
+              'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/20': alert.severity === 'info'
             }"
           >
             <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
               :class="{
-                'bg-red-500/20 text-red-400': alert.severity === 'danger',
-                'bg-orange-500/20 text-orange-400': alert.severity === 'warning',
-                'bg-blue-500/20 text-blue-400': alert.severity === 'info'
+                'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400': alert.severity === 'danger',
+                'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400': alert.severity === 'warning',
+                'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400': alert.severity === 'info'
               }">
               <i :class="getAlertIcon(alert.type)"></i>
             </div>
@@ -257,7 +257,7 @@
             v-for="(activity, index) in activities"
             :key="index"
             :to="activity.link"
-            class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
+            class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
           >
             <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
               :class="`bg-${activity.color}-500/20 text-${activity.color}-400`"
@@ -331,34 +331,34 @@
           {{ t('dashboard.systemStatus') }}
         </h3>
         <div class="space-y-3">
-          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-800/30">
+          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-800/30">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
               <span class="text-sm">{{ t('dashboard.database') }}</span>
             </div>
-            <span class="text-xs text-green-400">{{ t('dashboard.online') }}</span>
+            <span class="text-xs text-green-600 dark:text-green-400">{{ t('dashboard.online') }}</span>
           </div>
-          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-800/30">
+          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-800/30">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
               <span class="text-sm">{{ t('dashboard.worker') }}</span>
             </div>
-            <span class="text-xs text-green-400">{{ t('dashboard.online') }}</span>
+            <span class="text-xs text-green-600 dark:text-green-400">{{ t('dashboard.online') }}</span>
           </div>
-          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-800/30">
+          <div class="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-800/30">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
               <span class="text-sm">Redis</span>
             </div>
-            <span class="text-xs text-green-400">{{ t('dashboard.online') }}</span>
+            <span class="text-xs text-green-600 dark:text-green-400">{{ t('dashboard.online') }}</span>
           </div>
-          <div class="mt-4 pt-4 border-t border-gray-700">
+          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div class="flex justify-between text-sm">
-              <span class="opacity-60">{{ t('dashboard.activeUsers') }}</span>
+              <span style="color: var(--text-muted);">{{ t('dashboard.activeUsers') }}</span>
               <span class="font-bold">{{ stats.users }}</span>
             </div>
             <div class="flex justify-between text-sm mt-2">
-              <span class="opacity-60">{{ t('dashboard.totalLocations') }}</span>
+              <span style="color: var(--text-muted);">{{ t('dashboard.totalLocations') }}</span>
               <span class="font-bold">{{ stats.locations }}</span>
             </div>
           </div>
@@ -479,7 +479,8 @@ onMounted(loadDashboard);
 }
 
 .stat-value {
-  @apply text-2xl font-bold text-white;
+  @apply text-2xl font-bold;
+  color: var(--text-main);
 }
 
 .stat-total {
@@ -487,11 +488,19 @@ onMounted(loadDashboard);
 }
 
 .stat-label {
-  @apply text-xs opacity-60 mt-1;
+  @apply text-xs mt-1;
+  color: var(--text-muted);
 }
 
 .action-btn {
-  @apply flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-gray-800/30 border border-gray-700/50 hover:border-blue-500/50 hover:bg-gray-800/50 transition-all cursor-pointer text-center;
+  @apply flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all cursor-pointer text-center;
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.action-btn:hover {
+  border-color: var(--primary);
+  background-color: var(--bg-card);
 }
 
 .action-btn i {
@@ -500,22 +509,21 @@ onMounted(loadDashboard);
 
 .action-btn span {
   @apply text-xs;
+  color: var(--text-main);
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+/* Progress bar backgrounds - theme aware */
+.progress-bar-bg {
+  background-color: var(--bg-secondary);
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+/* System status item background */
+.status-item {
+  background-color: var(--bg-secondary);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+/* Separator line */
+.separator {
+  background-color: var(--border-color);
 }
 </style>

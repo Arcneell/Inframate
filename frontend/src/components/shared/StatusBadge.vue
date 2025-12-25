@@ -1,5 +1,5 @@
 <template>
-  <Tag :severity="severity" :value="displayLabel" :class="customClass" />
+  <Tag :severity="severity" :value="displayLabel" :class="['status-badge', customClass]" />
 </template>
 
 <script setup>
@@ -58,3 +58,18 @@ const displayLabel = computed(() => {
   return props.status
 })
 </script>
+
+<style scoped>
+/* Ensure status badges have good contrast in both light and dark modes */
+.status-badge {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+}
+
+/* Light mode adjustments for better visibility on white backgrounds */
+:root:not(.dark) .status-badge :deep(.p-tag) {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+</style>

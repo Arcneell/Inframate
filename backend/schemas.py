@@ -49,6 +49,7 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: int
+    mfa_enabled: bool = False
     class Config:
         from_attributes = True
 

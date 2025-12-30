@@ -1,5 +1,5 @@
 # =============================================================================
-# NetOps-Flow Frontend Dockerfile - Multi-stage optimized build
+# Inframate Frontend Dockerfile - Multi-stage optimized build
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -38,8 +38,8 @@ RUN npm run build
 FROM nginx:alpine AS production
 
 # Labels
-LABEL maintainer="NetOps-Flow Team"
-LABEL description="NetOps-Flow Frontend"
+LABEL maintainer="Inframate Team"
+LABEL description="Inframate Frontend"
 LABEL version="2.0.0"
 
 # Copy nginx configuration

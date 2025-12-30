@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Handles startup and shutdown events with proper resource management.
     """
     # ===== STARTUP =====
-    logger.info("Starting NetOps-Flow API...")
+    logger.info("Starting Inframate API...")
 
     # Initialize Redis client for health checks (stored in app.state)
     try:
@@ -80,13 +80,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"Celery app not available: {e}")
         app.state.celery_app = None
 
-    logger.info("NetOps-Flow API started successfully.")
+    logger.info("Inframate API started successfully.")
     logger.info("Note: Database initialization is handled by entrypoint.sh")
 
     yield  # Application runs here
 
     # ===== SHUTDOWN =====
-    logger.info("Shutting down NetOps-Flow API...")
+    logger.info("Shutting down Inframate API...")
 
     # Close Redis connection
     if hasattr(app.state, 'redis_client') and app.state.redis_client:
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning(f"Error closing Redis connection: {e}")
 
-    logger.info("NetOps-Flow API shutdown complete.")
+    logger.info("Inframate API shutdown complete.")
 
 
 def create_default_admin():
@@ -137,7 +137,7 @@ def create_default_admin():
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
-        title="NetOps-Flow API",
+        title="Inframate API",
         description="Enterprise Network Automation Platform",
         version="2.0.0",
         docs_url="/docs",

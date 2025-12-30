@@ -1,11 +1,11 @@
 #!/bin/bash
-# NetOps-Flow Backend Entrypoint Script
+# Inframate Backend Entrypoint Script
 # Handles database migrations and initialization before starting the application
 
 set -e  # Exit on error
 
 echo "=================================================="
-echo "NetOps-Flow Backend Initialization"
+echo "Inframate Backend Initialization"
 echo "=================================================="
 
 # Wait for PostgreSQL to be ready

@@ -1,6 +1,6 @@
-# Contributing to NetOps Flow
+# Contributing to Inframate
 
-Thank you for your interest in contributing to NetOps Flow! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Inframate! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/Arcneell/NetOps-Flow/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/Arcneell/Inframate/issues)
 2. If not, create a new issue with:
    - A clear, descriptive title
    - Steps to reproduce the bug
@@ -49,8 +49,8 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 1. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/NetOps-Flow.git
-   cd NetOps-Flow
+   git clone https://github.com/YOUR_USERNAME/Inframate.git
+   cd Inframate
    ```
 
 2. Start the development environment:

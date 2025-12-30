@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the critical security improvements implemented in NetOps-Flow following professional security audit and refactoring.
+This document summarizes the critical security improvements implemented in Inframate following professional security audit and refactoring.
 
 ## Critical Security Fixes
 

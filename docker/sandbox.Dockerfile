@@ -1,13 +1,13 @@
 # =============================================================================
-# NetOps-Flow Sandbox Dockerfile
+# Inframate Sandbox Dockerfile
 # Secure, minimal container for script execution
 # =============================================================================
 
 FROM python:3.11-slim
 
 # Labels
-LABEL maintainer="NetOps-Flow Team"
-LABEL description="NetOps-Flow Script Sandbox"
+LABEL maintainer="Inframate Team"
+LABEL description="Inframate Script Sandbox"
 LABEL version="1.0.0"
 
 # Install minimal dependencies

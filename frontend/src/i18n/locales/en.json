@@ -576,7 +576,8 @@
     "historyReopened": "reopened this ticket",
     "historyAssigned": "assigned to",
     "historyStatusChanged": "changed status from",
-    "historyUpdated": "updated"
+    "historyUpdated": "updated",
+    "viewAll": "View all tickets"
   },
   "notifications": {
     "title": "Notifications",

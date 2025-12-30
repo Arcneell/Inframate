@@ -1,5 +1,5 @@
 # =============================================================================
-# NetOps-Flow Backend Dockerfile - Multi-stage optimized build
+# Inframate Backend Dockerfile - Multi-stage optimized build
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -25,12 +25,12 @@ RUN pip wheel --no-cache-dir --wheel-dir /build/wheels -r requirements.txt
 FROM python:3.11-slim-bookworm AS runtime
 
 # Labels
-LABEL maintainer="NetOps-Flow Team"
-LABEL description="NetOps-Flow Backend API"
+LABEL maintainer="Inframate Team"
+LABEL description="Inframate Backend API"
 LABEL version="2.0.0"
 
 # Create non-root user for security
-RUN groupadd -r netops && useradd -r -g netops netops
+RUN groupadd -r inframate && useradd -r -g inframate inframate
 
 WORKDIR /app
 
@@ -51,8 +51,9 @@ COPY worker/ /app/worker/
 COPY alembic/ /app/alembic/
 COPY alembic.ini /app/
 
-# Create scripts storage directory
-RUN mkdir -p /scripts_storage && chown netops:netops /scripts_storage
+# Create storage directories
+RUN mkdir -p /scripts_storage /uploads/avatars && \
+    chown -R inframate:inframate /scripts_storage /uploads
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -60,7 +61,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
 # Switch to non-root user
-USER netops
+USER inframate
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
@@ -106,7 +107,7 @@ RUN arch=$(dpkg --print-architecture) && \
         echo "Skipping PowerShell installation on $arch (not available)"; \
     fi
 
-USER netops
+USER inframate
 
 # Override command for development
 CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

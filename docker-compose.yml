@@ -62,6 +62,7 @@ services:
     volumes:
       - .:/app
       - scripts_storage:/scripts_storage
+      - uploads_storage:/uploads
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
@@ -164,4 +165,6 @@ volumes:
   redis_data:
     driver: local
   scripts_storage:
+    driver: local
+  uploads_storage:
     driver: local

@@ -204,6 +204,7 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  color: var(--text-primary);
 }
 
 .notification-header {

@@ -142,18 +142,15 @@
             <label class="input-label">
               {{ t('auth.mfaCode') }} <span style="color: var(--danger);">*</span>
             </label>
-            <div class="input-wrapper">
-              <i class="pi pi-key input-icon"></i>
-              <InputText
-                v-model="mfaCode"
-                type="text"
-                maxlength="6"
-                :placeholder="t('auth.mfaCodePlaceholder')"
-                class="login-input mfa-input"
-                @input="errorMessage = ''"
-                autofocus
-              />
-            </div>
+            <InputText
+              v-model="mfaCode"
+              type="text"
+              maxlength="6"
+              :placeholder="t('auth.mfaCodePlaceholder')"
+              class="login-input mfa-input"
+              @input="errorMessage = ''"
+              autofocus
+            />
           </div>
 
           <!-- MFA Buttons -->
@@ -178,14 +175,7 @@
       </div>
     </div>
 
-    <!-- Version badge -->
-    <div class="absolute bottom-6 left-6 z-20">
-      <span class="text-xs px-2 py-1 rounded-md"
-            style="background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-default);">
-        v2.0.0
-      </span>
     </div>
-  </div>
 </template>
 
 <script setup>
@@ -399,8 +389,9 @@ const backToLogin = () => {
   text-align: center;
   font-size: 1.5rem !important;
   font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.5em;
+  letter-spacing: 0.4em;
   font-weight: 600;
+  padding: 0.875rem 1.5rem !important;
 }
 
 /* Password field wrapper */

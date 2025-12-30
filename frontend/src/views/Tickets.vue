@@ -392,10 +392,14 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { useTicketsStore } from '../stores/tickets';
 import api from '../api';
+
+const route = useRoute();
+const router = useRouter();
 
 const { t } = useI18n();
 const toast = useToast();
@@ -650,6 +654,19 @@ const openTicketDetail = async (event) => {
   }
 };
 
+// Open ticket by ID (used when coming from notifications)
+const openTicketById = async (ticketId) => {
+  try {
+    const response = await api.get(`/tickets/${ticketId}`);
+    currentTicket.value = response.data;
+    showDetailDialog.value = true;
+    // Clear the query param after opening
+    router.replace({ path: '/tickets', query: {} });
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || 'Failed to load ticket' });
+  }
+};
+
 const refreshCurrentTicket = async () => {
   if (currentTicket.value) {
     const response = await api.get(`/tickets/${currentTicket.value.id}`);
@@ -736,9 +753,15 @@ const assignCurrentTicket = async () => {
   }
 };
 
-onMounted(() => {
-  loadTickets();
+onMounted(async () => {
+  await loadTickets();
   loadReferenceData();
+
+  // Check if there's a ticket ID in the URL query params (from notification click)
+  const ticketId = route.query.id;
+  if (ticketId) {
+    openTicketById(ticketId);
+  }
 });
 </script>
 

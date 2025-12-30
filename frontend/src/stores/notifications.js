@@ -135,7 +135,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     switch (notification.link_type) {
       case 'ticket':
-        return `/tickets/${notification.link_id}`
+        return `/tickets?id=${notification.link_id}`
       case 'equipment':
         return `/inventory?equipment=${notification.link_id}`
       case 'contract':

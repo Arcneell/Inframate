@@ -598,3 +598,296 @@ class ExpirationAlert(BaseModel):
     expiry_date: date
     days_remaining: int
     severity: str  # info, warning, critical
+
+
+# ==================== TICKET SCHEMAS ====================
+
+class TicketBase(BaseModel):
+    title: str
+    description: str
+    ticket_type: str = "incident"  # incident, request, problem, change
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    priority: str = "medium"  # critical, high, medium, low
+    impact: str = "medium"
+    urgency: str = "medium"
+    equipment_id: Optional[int] = None
+    entity_id: Optional[int] = None
+
+
+class TicketCreate(TicketBase):
+    assigned_to_id: Optional[int] = None
+    assigned_group: Optional[str] = None
+
+
+class TicketUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    ticket_type: Optional[str] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    impact: Optional[str] = None
+    urgency: Optional[str] = None
+    assigned_to_id: Optional[int] = None
+    assigned_group: Optional[str] = None
+    equipment_id: Optional[int] = None
+    resolution: Optional[str] = None
+    resolution_code: Optional[str] = None
+
+
+class TicketCommentBase(BaseModel):
+    content: str
+    is_internal: bool = False
+    is_resolution: bool = False
+
+
+class TicketCommentCreate(TicketCommentBase):
+    pass
+
+
+class TicketComment(TicketCommentBase):
+    id: int
+    ticket_id: int
+    user_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TicketCommentFull(TicketComment):
+    """Comment with user info"""
+    username: Optional[str] = None
+
+
+class TicketHistoryItem(BaseModel):
+    id: int
+    ticket_id: int
+    user_id: Optional[int] = None
+    action: str
+    field_name: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    created_at: datetime
+    username: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TicketAttachmentBase(BaseModel):
+    pass
+
+
+class TicketAttachment(BaseModel):
+    id: int
+    ticket_id: int
+    filename: str
+    original_filename: str
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    uploaded_by_id: Optional[int] = None
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class Ticket(TicketBase):
+    id: int
+    ticket_number: str
+    status: str
+    requester_id: Optional[int] = None
+    assigned_to_id: Optional[int] = None
+    assigned_group: Optional[str] = None
+    sla_due_date: Optional[datetime] = None
+    first_response_at: Optional[datetime] = None
+    first_response_due: Optional[datetime] = None
+    resolution_due: Optional[datetime] = None
+    sla_breached: bool = False
+    resolution: Optional[str] = None
+    resolution_code: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    resolved_at: Optional[datetime] = None
+    closed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TicketBrief(BaseModel):
+    """Brief ticket info for lists"""
+    id: int
+    ticket_number: str
+    title: str
+    status: str
+    priority: str
+    ticket_type: str
+    created_at: datetime
+    requester_name: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TicketFull(Ticket):
+    """Ticket with all relationships"""
+    requester_name: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    equipment_name: Optional[str] = None
+    comments: List[TicketCommentFull] = []
+    history: List[TicketHistoryItem] = []
+    attachments: List[TicketAttachment] = []
+
+
+class TicketStats(BaseModel):
+    """Dashboard statistics for tickets"""
+    total: int = 0
+    new: int = 0
+    open: int = 0
+    pending: int = 0
+    resolved: int = 0
+    closed: int = 0
+    sla_breached: int = 0
+    by_priority: Dict[str, int] = {}
+    by_type: Dict[str, int] = {}
+
+
+# ==================== NOTIFICATION SCHEMAS ====================
+
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+    notification_type: str = "info"  # info, warning, error, success, ticket
+    link_type: Optional[str] = None
+    link_id: Optional[int] = None
+
+
+class NotificationCreate(NotificationBase):
+    user_id: int
+    expires_at: Optional[datetime] = None
+
+
+class Notification(NotificationBase):
+    id: int
+    user_id: int
+    is_read: bool = False
+    read_at: Optional[datetime] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationCount(BaseModel):
+    total: int = 0
+    unread: int = 0
+
+
+# ==================== KNOWLEDGE BASE SCHEMAS ====================
+
+class KnowledgeArticleBase(BaseModel):
+    title: str
+    content: str
+    summary: Optional[str] = None
+    category: Optional[str] = None
+    tags: List[str] = []
+    is_published: bool = False
+    is_internal: bool = False
+
+
+class KnowledgeArticleCreate(KnowledgeArticleBase):
+    entity_id: Optional[int] = None
+
+
+class KnowledgeArticleUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    summary: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    is_published: Optional[bool] = None
+    is_internal: Optional[bool] = None
+
+
+class KnowledgeArticle(KnowledgeArticleBase):
+    id: int
+    slug: str
+    author_id: Optional[int] = None
+    last_editor_id: Optional[int] = None
+    view_count: int = 0
+    helpful_count: int = 0
+    not_helpful_count: int = 0
+    version: int = 1
+    created_at: datetime
+    updated_at: datetime
+    published_at: Optional[datetime] = None
+    entity_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeArticleBrief(BaseModel):
+    """Brief article info for lists"""
+    id: int
+    title: str
+    slug: str
+    summary: Optional[str] = None
+    category: Optional[str] = None
+    is_published: bool
+    view_count: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class KnowledgeArticleFull(KnowledgeArticle):
+    """Article with author info"""
+    author_name: Optional[str] = None
+    last_editor_name: Optional[str] = None
+
+
+class KnowledgeArticleFeedback(BaseModel):
+    helpful: bool
+
+
+# ==================== SLA POLICY SCHEMAS ====================
+
+class SLAPolicyBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    critical_response_time: int = 15
+    critical_resolution_time: int = 240
+    high_response_time: int = 60
+    high_resolution_time: int = 480
+    medium_response_time: int = 240
+    medium_resolution_time: int = 1440
+    low_response_time: int = 480
+    low_resolution_time: int = 2880
+    business_hours_only: bool = True
+    business_start: str = "09:00"
+    business_end: str = "18:00"
+    business_days: List[int] = [1, 2, 3, 4, 5]
+
+
+class SLAPolicyCreate(SLAPolicyBase):
+    is_default: bool = False
+    entity_id: Optional[int] = None
+
+
+class SLAPolicy(SLAPolicyBase):
+    id: int
+    is_default: bool
+    is_active: bool
+    entity_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -36,6 +36,9 @@ from backend.routers import (
 )
 from backend.routers.audit import router as audit_router
 from backend.routers.scripts import executions_router
+from backend.routers.tickets import router as tickets_router
+from backend.routers.notifications import router as notifications_router
+from backend.routers.knowledge import router as knowledge_router
 
 # Setup logging
 setup_logging()
@@ -181,6 +184,9 @@ def create_app() -> FastAPI:
     app.include_router(attachments_router, prefix=api_prefix)
     app.include_router(entities_router, prefix=api_prefix)
     app.include_router(audit_router, prefix=api_prefix)
+    app.include_router(tickets_router, prefix=api_prefix)
+    app.include_router(notifications_router, prefix=api_prefix)
+    app.include_router(knowledge_router, prefix=api_prefix)
 
     @app.get("/health")
     async def health_check():

@@ -32,9 +32,9 @@ Plateforme de gestion des opérations réseau auto-hébergée, entièrement gén
 ```
 frontend/          # Vue.js 3 SPA
 ├── src/
-│   ├── components/shared/   # Composants réutilisables (StatusTag avec gradients)
-│   ├── stores/              # Pinia stores (auth, ui, dcim, contracts, software, networkPorts, attachments)
-│   ├── views/               # Pages principales
+│   ├── components/shared/   # Composants réutilisables (StatusTag, NotificationBell)
+│   ├── stores/              # Pinia stores (auth, ui, dcim, contracts, software, networkPorts, attachments, tickets, notifications)
+│   ├── views/               # Pages principales (Tickets.vue, Knowledge.vue pour helpdesk)
 │   ├── i18n/                # Traductions EN/FR
 │   ├── api.js               # Client Axios
 │   ├── router.js            # Routes avec guards de permissions
@@ -62,7 +62,10 @@ backend/           # FastAPI API
 │   ├── software.py         # Catalogue logiciels et licences (paginé)
 │   ├── network_ports.py    # Ports réseau et connexions physiques
 │   ├── attachments.py      # Pièces jointes (documents)
-│   └── entities.py         # Entités multi-tenant
+│   ├── entities.py         # Entités multi-tenant
+│   ├── tickets.py          # Système de tickets helpdesk (ITIL workflow, SLA, commentaires)
+│   ├── notifications.py    # Notifications in-app (polling, mark read, broadcast)
+│   └── knowledge.py        # Base de connaissances (articles, catégories, feedback)
 ├── models.py               # Modèles SQLAlchemy (+ UserToken, auto-encryption hooks pour TOTP/passwords)
 ├── schemas.py              # Schémas Pydantic (+ TokenWithRefresh, RefreshTokenRequest)
 └── app.py                  # Application FastAPI (lifespan context manager, optimized health check)
@@ -148,6 +151,42 @@ worker/            # Celery worker
 - Désactivation sécurisée avec vérification du mot de passe
 - Audit complet des événements MFA dans AuditLog
 
+### Helpdesk - Système de Tickets
+- Workflow ITIL : new → open → pending → resolved → closed
+- Types de tickets : incident, request, problem, change
+- Priorités : low, medium, high, critical
+- Numérotation automatique : TKT-YYYYMMDD-XXXX
+- Assignation à un utilisateur ou équipe
+- SLA automatique basé sur la priorité (configurable via SLAPolicy)
+- Temps de réponse et résolution calculés
+- Commentaires avec distinction interne/public
+- Historique complet des modifications
+- Pièces jointes par ticket
+- Filtrage par statut, priorité, assigné, dates
+- Actions rapides : assigner, résoudre, fermer, rouvrir
+
+### Base de Connaissances
+- Articles avec éditeur Markdown
+- Catégorisation et tags
+- Recherche full-text (titre, contenu, résumé)
+- URL basée sur slug unique
+- Système de feedback (helpful/not helpful)
+- Compteur de vues
+- Versioning des articles
+- Workflow publication : brouillon → publié
+- Articles internes (admin/tech uniquement)
+- Articles populaires (top vues)
+
+### Notifications In-App
+- Cloche de notification dans le header
+- Badge compteur de non-lus
+- Types : info, success, warning, error, ticket
+- Polling automatique (30 secondes)
+- Marquer comme lu (individuel ou tous)
+- Lien vers ressource associée (ticket, article)
+- Suppression des notifications lues
+- Broadcast admin vers tous les utilisateurs
+
 ## Sécurité
 
 - **Auth**: JWT (30min access token) + Refresh tokens (7 jours) + bcrypt pour mots de passe
@@ -161,7 +200,7 @@ worker/            # Celery worker
   - Validation basique des URLs (supporte les mots de passe avec caractères spéciaux)
 - **Timezone-Aware**: Utilisation de `datetime.now(timezone.utc)` (Python 3.12+ compatible)
 - **Rate Limiting**: Redis-backed, 5 req/60s sur login
-- **RBAC**: Rôles admin/user + permissions granulaires (ipam, scripts, inventory, topology, settings)
+- **RBAC**: Rôles admin/user + permissions granulaires (ipam, scripts, inventory, topology, settings, tickets, knowledge)
 - **Sandbox Docker**: Mémoire 256MB, CPU 0.5, network disabled, read-only filesystem
 - **Sandbox Obligatoire**: Pas de fallback vers exécution directe quand DOCKER_SANDBOX_ENABLED=true
 - **Validation MIME**: Vérification du type MIME des scripts uploadés (anti-masquage)
@@ -249,7 +288,7 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - **i18n**: Utiliser `useI18n()` hook avec `legacy: false`
   - Clés hiérarchiques: `t('namespace.key')` (ex: `t('dashboard.totalSubnets')`)
   - Ne jamais utiliser `.value` sur `t()` - retourne directement une string
-  - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`
+  - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`, `tickets`, `knowledge`, `notifications`
 
 ### Design System (Modern Slate)
 - **Palette de couleurs**:
@@ -288,6 +327,13 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - `network_ports` - Ports réseau et connexions
 - `attachments` - Pièces jointes
 - `audit_logs` - Logs de modifications (remplis automatiquement par middleware)
+- `tickets` - Tickets helpdesk (ticket_number unique, workflow ITIL, SLA)
+- `ticket_comments` - Commentaires tickets (interne/public, is_resolution)
+- `ticket_history` - Historique modifications tickets
+- `ticket_attachments` - Pièces jointes par ticket
+- `notifications` - Notifications in-app (type, lu/non-lu, lien ressource)
+- `knowledge_articles` - Articles base de connaissances (slug, versioning, feedback)
+- `sla_policies` - Politiques SLA configurables par priorité
 
 **Hooks SQLAlchemy (before_insert/before_update):**
 - `Equipment.remote_password` → chiffré automatiquement avec Fernet
@@ -329,6 +375,29 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 | /api/v1/attachments/ | GET/POST | Pièces jointes |
 | /api/v1/entities/ | GET/POST | Entités |
 | /api/v1/topology/physical | GET | Topologie physique |
+| /api/v1/tickets/ | GET/POST | Liste/Créer tickets |
+| /api/v1/tickets/{id} | GET/PUT/DELETE | Détail/Modifier/Supprimer ticket |
+| /api/v1/tickets/{id}/comments | GET/POST | Commentaires ticket |
+| /api/v1/tickets/{id}/history | GET | Historique ticket |
+| /api/v1/tickets/{id}/assign | POST | Assigner ticket |
+| /api/v1/tickets/{id}/resolve | POST | Résoudre ticket |
+| /api/v1/tickets/{id}/close | POST | Fermer ticket |
+| /api/v1/tickets/{id}/reopen | POST | Rouvrir ticket |
+| /api/v1/tickets/stats | GET | Statistiques tickets |
+| /api/v1/notifications/ | GET | Liste notifications |
+| /api/v1/notifications/count | GET | Compteur non-lus |
+| /api/v1/notifications/{id}/read | POST | Marquer comme lu |
+| /api/v1/notifications/read-all | POST | Marquer tous comme lus |
+| /api/v1/notifications/delete-read | DELETE | Supprimer les lus |
+| /api/v1/notifications/broadcast | POST | Broadcast admin |
+| /api/v1/knowledge/articles | GET/POST | Liste/Créer articles KB |
+| /api/v1/knowledge/articles/{slug} | GET | Article par slug |
+| /api/v1/knowledge/articles/{id} | PUT/DELETE | Modifier/Supprimer article |
+| /api/v1/knowledge/articles/{id}/feedback | POST | Feedback article |
+| /api/v1/knowledge/articles/{id}/publish | POST | Publier article |
+| /api/v1/knowledge/articles/{id}/unpublish | POST | Dépublier article |
+| /api/v1/knowledge/articles/categories | GET | Liste catégories |
+| /api/v1/knowledge/articles/popular | GET | Articles populaires |
 
 ## Troubleshooting
 

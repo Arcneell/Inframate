@@ -10,11 +10,15 @@ import Inventory from './views/Inventory.vue'
 import Dcim from './views/Dcim.vue'
 import Contracts from './views/Contracts.vue'
 import Software from './views/Software.vue'
+import Tickets from './views/Tickets.vue'
+import Knowledge from './views/Knowledge.vue'
 
 const routes = [
   { path: '/login', component: Login, name: 'Login', meta: { public: true } },
   { path: '/unauthorized', component: Unauthorized, name: 'Unauthorized', meta: { public: true } },
   { path: '/', component: Dashboard, name: 'Dashboard' },
+  { path: '/tickets', component: Tickets, name: 'Tickets', meta: { permission: 'tickets' } },
+  { path: '/knowledge', component: Knowledge, name: 'Knowledge Base', meta: { permission: 'knowledge' } },
   { path: '/ipam', component: Ipam, name: 'IP Address Management', meta: { permission: 'ipam' } },
   { path: '/topology', component: Topology, name: 'Network Topology', meta: { permission: 'topology' } },
   { path: '/scripts', component: ScriptRunner, name: 'Script Automation', meta: { permission: 'scripts' } },

@@ -534,3 +534,231 @@ class AuditLog(Base):
     extra_data = Column(JSON, nullable=True)  # Additional context (renamed from metadata to avoid SQLAlchemy conflict)
 
     # Note: No relationship to User to preserve logs even after user deletion
+
+
+# ==================== HELPDESK TICKET MODELS ====================
+
+class Ticket(Base):
+    """
+    Helpdesk ticket for incident/request management.
+    Supports full ITIL-aligned workflow with SLA tracking.
+    """
+    __tablename__ = "tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_number = Column(String, unique=True, nullable=False, index=True)  # AUTO: TKT-YYYYMMDD-XXXX
+    title = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=False)
+
+    # Classification
+    ticket_type = Column(String, default="incident")  # incident, request, problem, change
+    category = Column(String, nullable=True)  # hardware, software, network, access, other
+    subcategory = Column(String, nullable=True)
+
+    # Status & Priority
+    status = Column(String, default="new", index=True)  # new, open, pending, resolved, closed
+    priority = Column(String, default="medium", index=True)  # critical, high, medium, low
+    impact = Column(String, default="medium")  # high, medium, low
+    urgency = Column(String, default="medium")  # high, medium, low
+
+    # Assignment
+    requester_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    assigned_to_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    assigned_group = Column(String, nullable=True)  # support_l1, support_l2, network, systems
+
+    # Related entities
+    equipment_id = Column(Integer, ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+
+    # SLA Tracking
+    sla_due_date = Column(DateTime, nullable=True)
+    first_response_at = Column(DateTime, nullable=True)
+    first_response_due = Column(DateTime, nullable=True)
+    resolution_due = Column(DateTime, nullable=True)
+    sla_breached = Column(Boolean, default=False)
+
+    # Resolution
+    resolution = Column(Text, nullable=True)
+    resolution_code = Column(String, nullable=True)  # fixed, workaround, cannot_reproduce, duplicate, user_error
+
+    # Timestamps
+    created_at = Column(DateTime, default=utc_now, index=True)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    resolved_at = Column(DateTime, nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    requester = relationship("User", foreign_keys=[requester_id], backref="requested_tickets")
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id], backref="assigned_tickets")
+    equipment = relationship("Equipment", backref="tickets")
+    entity = relationship("Entity", backref="tickets")
+    comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
+    history = relationship("TicketHistory", back_populates="ticket", cascade="all, delete-orphan")
+    attachments = relationship("TicketAttachment", back_populates="ticket", cascade="all, delete-orphan")
+
+
+class TicketComment(Base):
+    """
+    Comments/notes on tickets for communication tracking.
+    """
+    __tablename__ = "ticket_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    content = Column(Text, nullable=False)
+    is_internal = Column(Boolean, default=False)  # Internal note vs public reply
+    is_resolution = Column(Boolean, default=False)  # Marked as resolution
+    created_at = Column(DateTime, default=utc_now)
+
+    ticket = relationship("Ticket", back_populates="comments")
+    user = relationship("User", backref="ticket_comments")
+
+
+class TicketHistory(Base):
+    """
+    Audit trail for ticket changes.
+    """
+    __tablename__ = "ticket_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action = Column(String, nullable=False)  # created, updated, assigned, status_changed, commented, resolved, closed
+    field_name = Column(String, nullable=True)  # Which field changed
+    old_value = Column(String, nullable=True)
+    new_value = Column(String, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    ticket = relationship("Ticket", back_populates="history")
+    user = relationship("User", backref="ticket_history")
+
+
+class TicketAttachment(Base):
+    """
+    File attachments for tickets.
+    """
+    __tablename__ = "ticket_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    file_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    uploaded_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_at = Column(DateTime, default=utc_now)
+
+    ticket = relationship("Ticket", back_populates="attachments")
+    uploaded_by = relationship("User", backref="ticket_attachments")
+
+
+# ==================== NOTIFICATION MODELS ====================
+
+class Notification(Base):
+    """
+    In-app notifications for users.
+    """
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    notification_type = Column(String, default="info")  # info, warning, error, success, ticket
+
+    # Link to related entity
+    link_type = Column(String, nullable=True)  # ticket, equipment, contract, etc.
+    link_id = Column(Integer, nullable=True)
+
+    # Status
+    is_read = Column(Boolean, default=False, index=True)
+    read_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=utc_now, index=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", backref="notifications")
+
+
+# ==================== KNOWLEDGE BASE MODELS ====================
+
+class KnowledgeArticle(Base):
+    """
+    Knowledge base articles for self-service and technician reference.
+    """
+    __tablename__ = "knowledge_articles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    summary = Column(Text, nullable=True)  # Short description for search results
+
+    # Classification
+    category = Column(String, nullable=True, index=True)  # troubleshooting, how-to, faq, policy
+    tags = Column(JSON, default=[])  # ["network", "vpn", "connectivity"]
+
+    # Visibility
+    is_published = Column(Boolean, default=False, index=True)
+    is_internal = Column(Boolean, default=False)  # Internal-only (technicians)
+
+    # Authoring
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    last_editor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Metrics
+    view_count = Column(Integer, default=0)
+    helpful_count = Column(Integer, default=0)
+    not_helpful_count = Column(Integer, default=0)
+
+    # Versioning
+    version = Column(Integer, default=1)
+
+    # Timestamps
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    published_at = Column(DateTime, nullable=True)
+
+    # Related entities
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+
+    author = relationship("User", foreign_keys=[author_id], backref="authored_articles")
+    last_editor = relationship("User", foreign_keys=[last_editor_id])
+    entity = relationship("Entity", backref="knowledge_articles")
+
+
+# ==================== SLA CONFIGURATION MODELS ====================
+
+class SLAPolicy(Base):
+    """
+    SLA policy definitions for automatic SLA calculation.
+    """
+    __tablename__ = "sla_policies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+
+    # Priority-based response times (in minutes)
+    critical_response_time = Column(Integer, default=15)  # 15 min
+    critical_resolution_time = Column(Integer, default=240)  # 4 hours
+    high_response_time = Column(Integer, default=60)  # 1 hour
+    high_resolution_time = Column(Integer, default=480)  # 8 hours
+    medium_response_time = Column(Integer, default=240)  # 4 hours
+    medium_resolution_time = Column(Integer, default=1440)  # 24 hours
+    low_response_time = Column(Integer, default=480)  # 8 hours
+    low_resolution_time = Column(Integer, default=2880)  # 48 hours
+
+    # Business hours
+    business_hours_only = Column(Boolean, default=True)
+    business_start = Column(String, default="09:00")  # HH:MM
+    business_end = Column(String, default="18:00")
+    business_days = Column(JSON, default=[1, 2, 3, 4, 5])  # Monday=1 to Sunday=7
+
+    is_default = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    entity = relationship("Entity", backref="sla_policies")

@@ -1,7 +1,9 @@
 <template>
   <div class="notification-bell-wrapper">
-    <Button icon="pi pi-bell" text rounded class="header-icon-btn"
-            @click="togglePanel" v-badge.danger="unreadCount || null" />
+    <div class="bell-container">
+      <Button icon="pi pi-bell" text rounded class="header-icon-btn" @click="togglePanel" />
+      <span v-if="unreadCount > 0" class="unread-dot"></span>
+    </div>
 
     <!-- Backdrop (must be before panel for correct stacking) -->
     <Teleport to="body">
@@ -131,6 +133,11 @@ onUnmounted(() => {
   position: relative;
 }
 
+.bell-container {
+  position: relative;
+  display: inline-flex;
+}
+
 .header-icon-btn {
   width: 2.25rem;
   height: 2.25rem;
@@ -148,6 +155,29 @@ onUnmounted(() => {
 .header-icon-btn:hover {
   background: var(--bg-hover);
   color: var(--primary);
+}
+
+.unread-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
 }
 </style>
 

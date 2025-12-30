@@ -1,6 +1,8 @@
-# NetOps-Flow
+# Inframate
 
-Plateforme de gestion des opérations réseau auto-hébergée, entièrement générée par IA (Claude).
+Plateforme de gestion IT complète (ITSM/ITAM) auto-hébergée, entièrement générée par IA (Claude).
+
+**"Your Infrastructure Companion"** - Gestion helpdesk, inventaire, DCIM, IPAM, contrats et logiciels.
 
 ## Workflow Obligatoire
 

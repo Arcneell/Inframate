@@ -7,11 +7,11 @@
       <div class="sidebar-header">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: var(--primary-gradient);">
-            <i class="pi pi-bolt text-white text-lg"></i>
+            <i class="pi pi-server text-white text-lg"></i>
           </div>
           <div>
-            <span class="text-white font-bold text-base tracking-tight">NetOps Flow</span>
-            <div class="text-[10px] text-slate-400 font-medium -mt-0.5">IT Operations Hub</div>
+            <span class="text-white font-bold text-base tracking-tight">Inframate</span>
+            <div class="text-[10px] text-slate-400 font-medium -mt-0.5">Your Infrastructure Companion</div>
           </div>
         </div>
       </div>

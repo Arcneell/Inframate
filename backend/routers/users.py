@@ -12,6 +12,7 @@ from backend.core.security import (
     get_password_hash,
     validate_password_strength,
     get_current_admin_user,
+    AVAILABLE_PERMISSIONS,
 )
 from backend.core.config import get_settings
 from backend import models, schemas
@@ -19,6 +20,9 @@ from backend import models, schemas
 logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/users", tags=["Users"])
+
+# Valid roles for the system
+VALID_ROLES = ["user", "tech", "admin", "superadmin"]
 
 
 @router.post("/", response_model=schemas.User)
@@ -52,8 +56,24 @@ def create_user(
         raise HTTPException(status_code=400, detail="Username already registered")
 
     # Validate role
-    if user.role not in ["admin", "user"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'user'")
+    if user.role not in VALID_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}"
+        )
+
+    # Only superadmins can create other superadmins
+    if user.role == "superadmin" and current_user.role != "superadmin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only superadmins can create superadmin users"
+        )
+
+    # Validate permissions for tech role
+    permissions = []
+    if user.role == "tech" and user.permissions:
+        # Filter only valid permissions
+        permissions = [p for p in user.permissions if p in AVAILABLE_PERMISSIONS]
 
     hashed_password = get_password_hash(user.password)
     db_user = models.User(
@@ -61,6 +81,7 @@ def create_user(
         email=user.email,
         hashed_password=hashed_password,
         role=user.role,
+        permissions=permissions if user.role == "tech" else [],
         is_active=user.is_active
     )
     db.add(db_user)
@@ -92,24 +113,52 @@ def update_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Prevent deactivating the last admin
-    if user_update.is_active is False and db_user.role == "admin":
-        active_admins = db.query(models.User).filter(
-            models.User.role == "admin",
+    # Prevent deactivating the last superadmin
+    if user_update.is_active is False and db_user.role == "superadmin":
+        active_superadmins = db.query(models.User).filter(
+            models.User.role == "superadmin",
             models.User.is_active == True,
             models.User.id != user_id
         ).count()
-        if active_admins == 0:
+        if active_superadmins == 0:
             raise HTTPException(
                 status_code=400,
-                detail="Cannot deactivate the last active admin"
+                detail="Cannot deactivate the last active superadmin"
             )
 
     # Update fields
     if user_update.role is not None:
-        if user_update.role not in ["admin", "user"]:
-            raise HTTPException(status_code=400, detail="Invalid role")
+        if user_update.role not in VALID_ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}"
+            )
+        # Only superadmins can assign superadmin role
+        if user_update.role == "superadmin" and current_user.role != "superadmin":
+            raise HTTPException(
+                status_code=403,
+                detail="Only superadmins can assign superadmin role"
+            )
+        # Prevent demoting the last superadmin
+        if db_user.role == "superadmin" and user_update.role != "superadmin":
+            superadmin_count = db.query(models.User).filter(
+                models.User.role == "superadmin"
+            ).count()
+            if superadmin_count <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot demote the last superadmin"
+                )
         db_user.role = user_update.role
+
+    # Update permissions (only relevant for tech role)
+    if user_update.permissions is not None:
+        if db_user.role == "tech":
+            # Filter only valid permissions
+            db_user.permissions = [p for p in user_update.permissions if p in AVAILABLE_PERMISSIONS]
+        else:
+            # Non-tech roles don't have granular permissions
+            db_user.permissions = []
 
     if user_update.is_active is not None:
         db_user.is_active = user_update.is_active
@@ -146,11 +195,15 @@ def delete_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Prevent deleting the last admin
-    if db_user.role == "admin":
-        admin_count = db.query(models.User).filter(models.User.role == "admin").count()
-        if admin_count <= 1:
-            raise HTTPException(status_code=400, detail="Cannot delete the last admin")
+    # Prevent deleting the last superadmin
+    if db_user.role == "superadmin":
+        superadmin_count = db.query(models.User).filter(models.User.role == "superadmin").count()
+        if superadmin_count <= 1:
+            raise HTTPException(status_code=400, detail="Cannot delete the last superadmin")
+
+    # Admins cannot delete superadmins
+    if db_user.role == "superadmin" and current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmins can delete superadmin users")
 
     db.delete(db_user)
     db.commit()

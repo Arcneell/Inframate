@@ -9,7 +9,6 @@ import logging
 from backend.core.database import get_db
 from backend.core.security import (
     get_current_active_user,
-    get_current_admin_user,
     has_permission,
 )
 from backend import models, schemas
@@ -87,8 +86,9 @@ def update_manufacturer(
 def delete_manufacturer(
     manufacturer_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_manufacturer = db.query(models.Manufacturer).filter(
         models.Manufacturer.id == manufacturer_id
     ).first()
@@ -164,8 +164,9 @@ def update_equipment_type(
 def delete_equipment_type(
     type_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_type = db.query(models.EquipmentType).filter(
         models.EquipmentType.id == type_id
     ).first()
@@ -246,8 +247,9 @@ def update_equipment_model(
 def delete_equipment_model(
     model_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_model = db.query(models.EquipmentModel).filter(
         models.EquipmentModel.id == model_id
     ).first()
@@ -321,8 +323,9 @@ def update_location(
 def delete_location(
     location_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_location = db.query(models.Location).filter(
         models.Location.id == location_id
     ).first()
@@ -398,8 +401,9 @@ def update_supplier(
 def delete_supplier(
     supplier_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_supplier = db.query(models.Supplier).filter(
         models.Supplier.id == supplier_id
     ).first()
@@ -579,8 +583,9 @@ def update_equipment(
 def delete_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
+    check_inventory_permission(current_user)
     db_equipment = db.query(models.Equipment).filter(
         models.Equipment.id == equipment_id
     ).first()

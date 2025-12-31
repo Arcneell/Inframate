@@ -208,9 +208,10 @@ def update_software(
 def delete_software(
     software_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete software (admin only)."""
+    """Delete software (software permission required)."""
+    check_software_permission(current_user)
     db_software = db.query(models.Software).filter(
         models.Software.id == software_id
     ).first()
@@ -318,9 +319,10 @@ def create_license(
 def delete_license(
     license_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete a license (admin only)."""
+    """Delete a license (software permission required)."""
+    check_software_permission(current_user)
     db_license = db.query(models.SoftwareLicense).filter(
         models.SoftwareLicense.id == license_id
     ).first()

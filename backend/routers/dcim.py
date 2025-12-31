@@ -351,9 +351,10 @@ def update_rack(
 def delete_rack(
     rack_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete a rack (admin only)."""
+    """Delete a rack (dcim permission required)."""
+    check_dcim_permission(current_user)
     db_rack = db.query(models.Rack).filter(models.Rack.id == rack_id).first()
     if not db_rack:
         raise HTTPException(status_code=404, detail="Rack not found")
@@ -502,9 +503,10 @@ def update_pdu(
 def delete_pdu(
     pdu_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete a PDU (admin only)."""
+    """Delete a PDU (dcim permission required)."""
+    check_dcim_permission(current_user)
     db_pdu = db.query(models.PDU).filter(models.PDU.id == pdu_id).first()
     if not db_pdu:
         raise HTTPException(status_code=404, detail="PDU not found")

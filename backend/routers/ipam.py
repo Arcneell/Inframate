@@ -131,9 +131,10 @@ def scan_subnet(
 def delete_subnet(
     subnet_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete a subnet and all its IPs (admin only)."""
+    """Delete a subnet and all its IPs (ipam permission required)."""
+    check_ipam_permission(current_user)
     subnet = db.query(models.Subnet).filter(models.Subnet.id == subnet_id).first()
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")

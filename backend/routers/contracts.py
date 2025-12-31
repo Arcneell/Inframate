@@ -244,9 +244,10 @@ def update_contract(
 def delete_contract(
     contract_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin_user)
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    """Delete a contract (admin only)."""
+    """Delete a contract (contracts permission required)."""
+    check_contract_permission(current_user)
     db_contract = db.query(models.Contract).filter(
         models.Contract.id == contract_id
     ).first()

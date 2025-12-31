@@ -734,7 +734,11 @@ def assign_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Assign ticket to a user."""
+    """Assign ticket to a user. Requires tech, admin or superadmin role."""
+    # Permission check: only tech, admin, superadmin can assign tickets
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can assign tickets")
+
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -780,7 +784,11 @@ def resolve_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Mark ticket as resolved."""
+    """Mark ticket as resolved. Requires tech, admin or superadmin role."""
+    # Permission check: only tech, admin, superadmin can resolve tickets
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can resolve tickets")
+
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -814,7 +822,11 @@ def close_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Close a resolved ticket."""
+    """Close a resolved ticket. Requires tech, admin or superadmin role."""
+    # Permission check: only tech, admin, superadmin can close tickets
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can close tickets")
+
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -838,7 +850,11 @@ def reopen_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Reopen a closed/resolved ticket."""
+    """Reopen a closed/resolved ticket. Requires tech, admin or superadmin role."""
+    # Permission check: only tech, admin, superadmin can reopen tickets
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can reopen tickets")
+
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")

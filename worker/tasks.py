@@ -33,6 +33,9 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localho
 
 celery_app = Celery("inframate_worker", broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
+# Celery configuration for Celery 6.0 compatibility
+celery_app.conf.broker_connection_retry_on_startup = True
+
 # Configuration
 SCRIPTS_DIR = os.environ.get("SCRIPTS_DIR", "/scripts_storage")
 SSH_TIMEOUT = int(os.environ.get("SSH_TIMEOUT", "30"))

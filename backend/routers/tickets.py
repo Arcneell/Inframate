@@ -1,6 +1,12 @@
 """
 Ticket Management Router for Helpdesk functionality.
 Provides full CRUD operations with SLA tracking and workflow management.
+
+Access Control:
+- user: Can only see/modify their own tickets
+- tech: Can see all tickets, can modify tickets (for resolution)
+- admin: Full access to all tickets
+- superadmin: Full access to all tickets
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
@@ -18,6 +24,16 @@ from backend import models, schemas
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
+
+
+def can_access_all_tickets(user: models.User) -> bool:
+    """Check if user can access all tickets (tech, admin, superadmin)."""
+    return user.role in ("tech", "admin", "superadmin")
+
+
+def can_manage_tickets(user: models.User) -> bool:
+    """Check if user can manage tickets (assign, resolve, etc.) - tech, admin, superadmin."""
+    return user.role in ("tech", "admin", "superadmin")
 
 
 def generate_ticket_number() -> str:
@@ -149,15 +165,15 @@ def list_tickets(
         joinedload(models.Ticket.assigned_to)
     )
 
-    # Non-admin users can only see their own tickets (created by them)
-    if current_user.role != "admin":
+    # Users can only see their own tickets, tech/admin/superadmin can see all
+    if not can_access_all_tickets(current_user):
         query = query.filter(models.Ticket.requester_id == current_user.id)
-    # Entity filtering for admin users with entity
+    # Entity filtering for privileged users with entity
     elif current_user.entity_id:
         query = query.filter(models.Ticket.entity_id == current_user.entity_id)
 
-    # Filter by my tickets (assigned or requested) - only relevant for admins
-    if my_tickets and current_user.role == "admin":
+    # Filter by my tickets (assigned or requested) - only relevant for tech/admin/superadmin
+    if my_tickets and can_access_all_tickets(current_user):
         query = query.filter(
             or_(
                 models.Ticket.assigned_to_id == current_user.id,
@@ -233,7 +249,7 @@ def get_ticket_stats(
 
     # Build base query with filters
     base_filter = []
-    if current_user.role != "admin":
+    if not can_access_all_tickets(current_user):
         base_filter.append(models.Ticket.requester_id == current_user.id)
     elif current_user.entity_id:
         base_filter.append(models.Ticket.entity_id == current_user.entity_id)
@@ -326,11 +342,11 @@ def get_ticket(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # Access control: non-admin users can only view their own tickets
-    if current_user.role != "admin":
+    # Access control: users can only view their own tickets, tech/admin/superadmin can view all
+    if not can_access_all_tickets(current_user):
         if ticket.requester_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-    # Entity check for admin users
+    # Entity check for privileged users
     elif current_user.entity_id:
         if ticket.entity_id and ticket.entity_id != current_user.entity_id:
             raise HTTPException(status_code=403, detail="Access denied")
@@ -486,11 +502,12 @@ def update_ticket(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # Access control: non-admin users can only update their own tickets
-    if current_user.role != "admin":
+    # Access control: users can only update their own tickets with limited fields
+    # tech/admin/superadmin can update all tickets with all fields
+    if not can_manage_tickets(current_user):
         if ticket.requester_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-        # Non-admin users can only update limited fields
+        # Regular users can only update limited fields
         allowed_fields = {"title", "description", "category", "subcategory"}
         update_data_check = ticket_data.model_dump(exclude_unset=True)
         disallowed = set(update_data_check.keys()) - allowed_fields
@@ -555,8 +572,8 @@ def delete_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Delete a ticket (admin only)."""
-    if current_user.role != "admin":
+    """Delete a ticket (admin/superadmin only)."""
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
@@ -585,13 +602,14 @@ def add_comment(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # Access control: non-admin users can only comment on their own tickets
-    if current_user.role != "admin":
+    # Access control: users can only comment on their own tickets
+    # tech/admin/superadmin can comment on all tickets
+    if not can_access_all_tickets(current_user):
         if ticket.requester_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
-        # Non-admin users cannot post internal comments or mark as resolution
+        # Regular users cannot post internal comments or mark as resolution
         if comment_data.is_internal or comment_data.is_resolution:
-            raise HTTPException(status_code=403, detail="Only admins can post internal comments or resolutions")
+            raise HTTPException(status_code=403, detail="Only tech/admin can post internal comments or resolutions")
 
     comment = models.TicketComment(
         ticket_id=ticket_id,

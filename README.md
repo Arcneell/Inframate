@@ -123,8 +123,26 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
 - Comprehensive audit logging for all MFA events
 
 ### Performance & Caching
-- Redis caching for dashboard and topology endpoints (5-minute TTL)
+- Redis caching for dashboard, topology, and ticket stats endpoints (2-5 minute TTL)
 - Systematic API pagination for list endpoints (skip/limit parameters)
+- SQL aggregations for statistics (avoids N+1 queries)
+
+### Data Export
+- CSV export for equipment, tickets, contracts, software, IPs, and audit logs
+- Filterable exports with date ranges and status filters
+- Timestamped filenames for easy organization
+
+### Global Search
+- Unified search across equipment, tickets, knowledge articles, subnets, contracts, and software
+- Role-based result filtering (users see only their tickets)
+- Results grouped by type with relevance scoring
+
+### Webhooks
+- Event-driven webhooks for external integrations (Slack, Teams, etc.)
+- Configurable events: ticket.created, ticket.resolved, equipment.created, sla.breached, etc.
+- HMAC signature validation with shared secrets
+- Automatic retries with exponential backoff
+- Delivery logs for debugging
 
 ### Internationalization
 - Full support for English and French using vue-i18n (Composition API mode)
@@ -166,7 +184,8 @@ backend/
 │   ├── rate_limiter.py # Redis-based rate limiting
 │   ├── logging.py      # Structured JSON logging
 │   ├── cache.py        # Redis caching utilities
-│   └── middleware.py   # Audit logging middleware
+│   ├── middleware.py   # Audit logging middleware
+│   └── sla.py          # SLA business hours calculator
 ├── routers/
 │   ├── auth.py         # Authentication, MFA & refresh token endpoints
 │   ├── users.py        # User management (admin)
@@ -180,7 +199,10 @@ backend/
 │   ├── software.py     # Software and licenses
 │   ├── network_ports.py # Physical connectivity
 │   ├── attachments.py  # File attachments
-│   └── entities.py     # Multi-tenant entities
+│   ├── entities.py     # Multi-tenant entities
+│   ├── export.py       # CSV data export
+│   ├── search.py       # Global search
+│   └── webhooks.py     # Webhook management
 ├── models.py           # SQLAlchemy models (auto-encryption hooks)
 ├── schemas.py          # Pydantic schemas
 └── app.py              # FastAPI app (lifespan context manager)

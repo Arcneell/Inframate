@@ -49,8 +49,9 @@ backend/           # FastAPI API
 │   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp), refresh tokens (timezone-aware)
 │   ├── rate_limiter.py     # Rate limiting Redis
 │   ├── logging.py          # Logging structuré JSON/Text
-│   ├── cache.py            # Cache Redis pour dashboard/topology (TTL 5min)
-│   └── middleware.py       # Audit middleware (log auto POST/PUT/DELETE, enhanced metadata for critical ops)
+│   ├── cache.py            # Cache Redis pour dashboard/topology/tickets (TTL 2-5min)
+│   ├── middleware.py       # Audit middleware (log auto POST/PUT/DELETE, enhanced metadata for critical ops)
+│   └── sla.py              # Calcul SLA avec heures ouvrées (BusinessHoursCalculator)
 ├── routers/
 │   ├── auth.py             # POST /token, GET /me, MFA, refresh tokens (/refresh, /logout, /logout-all)
 │   ├── users.py            # CRUD utilisateurs (admin)
@@ -65,15 +66,18 @@ backend/           # FastAPI API
 │   ├── network_ports.py    # Ports réseau et connexions physiques
 │   ├── attachments.py      # Pièces jointes (documents)
 │   ├── entities.py         # Entités multi-tenant
-│   ├── tickets.py          # Système de tickets helpdesk (ITIL workflow, SLA, commentaires)
+│   ├── tickets.py          # Système de tickets helpdesk (ITIL workflow, SLA business hours, commentaires)
 │   ├── notifications.py    # Notifications in-app (polling, mark read, broadcast)
-│   └── knowledge.py        # Base de connaissances (articles, catégories, feedback)
+│   ├── knowledge.py        # Base de connaissances (articles, catégories, feedback)
+│   ├── export.py           # Export CSV (équipements, tickets, contrats, logiciels, IPs, audit)
+│   ├── search.py           # Recherche globale multi-ressources
+│   └── webhooks.py         # Webhooks pour intégrations externes (Slack, Teams, etc.)
 ├── models.py               # Modèles SQLAlchemy (+ UserToken, auto-encryption hooks pour TOTP/passwords)
 ├── schemas.py              # Schémas Pydantic (+ TokenWithRefresh, RefreshTokenRequest)
 └── app.py                  # Application FastAPI (lifespan context manager, optimized health check)
 
 worker/            # Celery worker
-└── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels, cleanup tokens/audit logs)
+└── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels, cleanup tokens/audit logs, SLA breach check)
 
 frontend/src/utils/
 └── validation.js  # Schémas de validation Zod (avatar, scripts, passwords, MFA codes)
@@ -163,12 +167,15 @@ frontend/src/utils/
 - Numérotation automatique : TKT-YYYYMMDD-XXXX
 - Assignation à un utilisateur ou équipe
 - SLA automatique basé sur la priorité (configurable via SLAPolicy)
+- **SLA avec heures ouvrées** : Calcul respectant les jours/heures ouvrés
 - Temps de réponse et résolution calculés
+- **Détection automatique breach SLA** (toutes les 15 min via Celery Beat)
 - Commentaires avec distinction interne/public
 - Historique complet des modifications
 - Pièces jointes par ticket
 - Filtrage par statut, priorité, assigné, dates
 - Actions rapides : assigner, résoudre, fermer, rouvrir
+- **Statistiques cachées** (Redis, TTL 2 min)
 
 ### Base de Connaissances
 - Articles avec éditeur Markdown
@@ -192,6 +199,24 @@ frontend/src/utils/
 - Suppression des notifications lues
 - Broadcast admin vers tous les utilisateurs
 
+### Export de Données
+- Export CSV pour équipements, tickets, contrats, logiciels, IPs, audit logs
+- Filtres sur dates, statuts, types
+- Noms de fichiers horodatés
+
+### Recherche Globale
+- Recherche unifiée sur équipements, tickets, articles KB, subnets, contrats, logiciels
+- Filtrage par type de ressource
+- Résultats groupés avec score de pertinence
+- Contrôle d'accès basé sur les rôles
+
+### Webhooks (Intégrations)
+- Webhooks pour événements : ticket.created, ticket.resolved, equipment.created, sla.breached, etc.
+- Signature HMAC avec secret partagé
+- Retries automatiques avec backoff exponentiel
+- Logs de livraison pour debugging
+- Test de webhook depuis l'interface
+
 ## Sécurité
 
 - **Auth**: JWT (30min access token) + Refresh tokens (7 jours) + bcrypt pour mots de passe
@@ -211,7 +236,8 @@ frontend/src/utils/
 - **Validation MIME**: Vérification du type MIME des scripts uploadés (anti-masquage)
 - **Audit Log**: Traçabilité complète via middleware (POST, PUT, DELETE) + événements MFA + métadonnées enrichies pour actions critiques (severity, category, affected_ids)
 - **Validation Frontend**: Schémas Zod pour validation des fichiers (avatar, scripts) et formulaires (password, MFA code)
-- **Cache Redis**: Dashboard et Topology cachés (TTL 5 minutes)
+- **Cache Redis**: Dashboard, Topology et Ticket Stats cachés (TTL 2-5 minutes)
+- **Rate Limiting MFA**: Protection contre brute force sur endpoint /verify-mfa
 
 ## Commandes
 
@@ -339,7 +365,9 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - `ticket_attachments` - Pièces jointes par ticket
 - `notifications` - Notifications in-app (type, lu/non-lu, lien ressource)
 - `knowledge_articles` - Articles base de connaissances (slug, versioning, feedback)
-- `sla_policies` - Politiques SLA configurables par priorité
+- `sla_policies` - Politiques SLA configurables par priorité (+ heures ouvrées)
+- `webhooks` - Configuration webhooks externes (events, url, secret HMAC)
+- `webhook_deliveries` - Logs de livraison webhooks (status, response, retries)
 
 **Hooks SQLAlchemy (before_insert/before_update):**
 - `Equipment.remote_password` → chiffré automatiquement avec Fernet
@@ -404,6 +432,18 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 | /api/v1/knowledge/articles/{id}/unpublish | POST | Dépublier article |
 | /api/v1/knowledge/articles/categories | GET | Liste catégories |
 | /api/v1/knowledge/articles/popular | GET | Articles populaires |
+| /api/v1/export/equipment | GET | Export CSV équipements |
+| /api/v1/export/tickets | GET | Export CSV tickets |
+| /api/v1/export/contracts | GET | Export CSV contrats |
+| /api/v1/export/software | GET | Export CSV logiciels |
+| /api/v1/export/ip-addresses | GET | Export CSV IPs |
+| /api/v1/export/audit-logs | GET | Export CSV audit logs |
+| /api/v1/search/ | GET | Recherche globale (q=query, types=...) |
+| /api/v1/webhooks/ | GET/POST | Liste/Créer webhooks |
+| /api/v1/webhooks/{id} | GET/PUT/DELETE | Détail/Modifier/Supprimer webhook |
+| /api/v1/webhooks/{id}/test | POST | Tester webhook |
+| /api/v1/webhooks/{id}/deliveries | GET | Logs de livraison |
+| /api/v1/webhooks/events | GET | Liste événements disponibles |
 
 ## Troubleshooting
 

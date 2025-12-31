@@ -11,7 +11,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
       <div class="card p-4 flex items-center gap-4">
         <div class="w-12 h-12 rounded-full bg-sky-500/20 flex items-center justify-center">
           <i class="pi pi-users text-sky-500 text-xl"></i>
@@ -23,12 +23,32 @@
       </div>
 
       <div class="card p-4 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+          <i class="pi pi-star text-purple-500 text-xl"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">{{ superadminCount }}</div>
+          <div class="text-sm opacity-70">{{ t('roles.superadmin') }}</div>
+        </div>
+      </div>
+
+      <div class="card p-4 flex items-center gap-4">
         <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
           <i class="pi pi-shield text-red-500 text-xl"></i>
         </div>
         <div>
           <div class="text-2xl font-bold">{{ adminCount }}</div>
-          <div class="text-sm opacity-70">{{ t('users.admins') }}</div>
+          <div class="text-sm opacity-70">{{ t('roles.admin') }}</div>
+        </div>
+      </div>
+
+      <div class="card p-4 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
+          <i class="pi pi-wrench text-orange-500 text-xl"></i>
+        </div>
+        <div>
+          <div class="text-2xl font-bold">{{ techCount }}</div>
+          <div class="text-sm opacity-70">{{ t('roles.tech') }}</div>
         </div>
       </div>
 
@@ -38,17 +58,7 @@
         </div>
         <div>
           <div class="text-2xl font-bold">{{ userCount }}</div>
-          <div class="text-sm opacity-70">{{ t('users.regularUsers') }}</div>
-        </div>
-      </div>
-
-      <div class="card p-4 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-          <i class="pi pi-check-circle text-green-500 text-xl"></i>
-        </div>
-        <div>
-          <div class="text-2xl font-bold">{{ mfaEnabledCount }}</div>
-          <div class="text-sm opacity-70">{{ t('users.mfaEnabled') }}</div>
+          <div class="text-sm opacity-70">{{ t('roles.user') }}</div>
         </div>
       </div>
     </div>
@@ -89,10 +99,24 @@
           </template>
         </Column>
 
-        <Column field="role" :header="t('settings.role')" sortable style="width: 120px">
+        <Column field="role" :header="t('settings.role')" sortable style="width: 160px">
           <template #body="slotProps">
-            <Tag :value="slotProps.data.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleUser')"
-                 :severity="slotProps.data.role === 'admin' ? 'danger' : 'info'" />
+            <Tag :value="getRoleLabel(slotProps.data.role)" :severity="getRoleSeverity(slotProps.data.role)" />
+          </template>
+        </Column>
+
+        <Column :header="t('users.permissions')" style="width: 200px">
+          <template #body="slotProps">
+            <div v-if="slotProps.data.role === 'tech' && slotProps.data.permissions?.length > 0" class="flex flex-wrap gap-1">
+              <Tag v-for="perm in slotProps.data.permissions.slice(0, 3)" :key="perm"
+                   :value="perm" severity="secondary" class="text-xs" />
+              <Tag v-if="slotProps.data.permissions.length > 3"
+                   :value="`+${slotProps.data.permissions.length - 3}`" severity="info" class="text-xs" />
+            </div>
+            <span v-else-if="slotProps.data.role === 'superadmin'" class="text-xs opacity-50 italic">{{ t('users.allAccess') }}</span>
+            <span v-else-if="slotProps.data.role === 'admin'" class="text-xs opacity-50 italic">{{ t('users.allExceptScripts') }}</span>
+            <span v-else-if="slotProps.data.role === 'user'" class="text-xs opacity-50 italic">{{ t('users.helpdeskOnly') }}</span>
+            <span v-else class="text-xs opacity-50">-</span>
           </template>
         </Column>
 
@@ -121,7 +145,7 @@
             <div class="flex gap-2">
               <Button icon="pi pi-pencil" text rounded severity="info" size="small"
                       @click="openUserDialog(slotProps.data)" v-tooltip.top="t('common.edit')" />
-              <Button v-if="slotProps.data.id !== currentUserId"
+              <Button v-if="slotProps.data.id !== currentUserId && canDeleteUser(slotProps.data)"
                       icon="pi pi-trash" text rounded severity="danger" size="small"
                       @click="confirmDeleteUser(slotProps.data)" v-tooltip.top="t('common.delete')" />
             </div>
@@ -132,17 +156,19 @@
 
     <!-- Create/Edit User Dialog -->
     <Dialog v-model:visible="showUserDialog" modal :header="editingUser ? t('users.editUser') : t('users.newUser')"
-            :style="{ width: '500px' }" @keydown.enter="onUserDialogEnter">
+            :style="{ width: '600px' }" @keydown.enter="onUserDialogEnter">
       <div class="flex flex-col gap-4 mt-2">
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('auth.username') }} <span class="text-red-500">*</span></label>
-          <InputText v-model="userForm.username" class="w-full" :disabled="editingUser" />
-          <small v-if="!editingUser" class="text-xs opacity-50">{{ t('users.usernameHelp') }}</small>
-        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ t('auth.username') }} <span class="text-red-500">*</span></label>
+            <InputText v-model="userForm.username" class="w-full" :disabled="editingUser" />
+            <small v-if="!editingUser" class="text-xs opacity-50">{{ t('users.usernameHelp') }}</small>
+          </div>
 
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('settings.email') }}</label>
-          <InputText v-model="userForm.email" type="email" class="w-full" :placeholder="t('settings.emailPlaceholder')" />
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ t('settings.email') }}</label>
+            <InputText v-model="userForm.email" type="email" class="w-full" :placeholder="t('settings.emailPlaceholder')" />
+          </div>
         </div>
 
         <div>
@@ -169,6 +195,19 @@
         <div>
           <label class="block text-sm font-medium mb-1">{{ t('settings.role') }} <span class="text-red-500">*</span></label>
           <Dropdown v-model="userForm.role" :options="roleOptions" optionLabel="label" optionValue="value" class="w-full" />
+          <small class="text-xs opacity-50 mt-1 block">{{ getRoleDescription(userForm.role) }}</small>
+        </div>
+
+        <!-- Granular Permissions for Tech role -->
+        <div v-if="userForm.role === 'tech'" class="mt-2">
+          <label class="block text-sm font-medium mb-2">{{ t('users.granularPermissions') }}</label>
+          <div class="grid grid-cols-2 gap-2 p-3 rounded-lg" style="background: var(--bg-secondary);">
+            <div v-for="perm in availablePermissions" :key="perm.value" class="flex items-center gap-2">
+              <Checkbox v-model="userForm.permissions" :inputId="perm.value" :value="perm.value" />
+              <label :for="perm.value" class="cursor-pointer text-sm">{{ perm.label }}</label>
+            </div>
+          </div>
+          <small class="text-xs opacity-50 mt-1 block">{{ t('users.selectPermissions') }}</small>
         </div>
 
         <div class="flex items-center gap-2">
@@ -222,11 +261,11 @@ const showDeleteDialog = ref(false);
 const editingUser = ref(null);
 const userToDelete = ref(null);
 
-const currentUserId = computed(() => {
+const currentUser = computed(() => {
   const userStr = localStorage.getItem('user');
   if (userStr) {
     try {
-      return JSON.parse(userStr).id;
+      return JSON.parse(userStr);
     } catch {
       return null;
     }
@@ -234,26 +273,55 @@ const currentUserId = computed(() => {
   return null;
 });
 
+const currentUserId = computed(() => currentUser.value?.id);
+const currentUserRole = computed(() => currentUser.value?.role);
+
 const userForm = ref({
   username: '',
   email: '',
   password: '',
   role: 'user',
+  permissions: [],
   is_active: true
 });
 
-const roleOptions = [
-  { label: t('settings.roleUser'), value: 'user' },
-  { label: t('settings.roleAdmin'), value: 'admin' }
-];
+// Role options - admins can't create superadmins
+const roleOptions = computed(() => {
+  const options = [
+    { label: t('roles.user'), value: 'user' },
+    { label: t('roles.tech'), value: 'tech' },
+    { label: t('roles.admin'), value: 'admin' }
+  ];
+  // Only superadmins can create other superadmins
+  if (currentUserRole.value === 'superadmin') {
+    options.push({ label: t('roles.superadmin'), value: 'superadmin' });
+  }
+  return options;
+});
+
+// Available permissions for tech role
+const availablePermissions = computed(() => [
+  { label: t('permissions.ipam'), value: 'ipam' },
+  { label: t('permissions.inventory'), value: 'inventory' },
+  { label: t('permissions.dcim'), value: 'dcim' },
+  { label: t('permissions.contracts'), value: 'contracts' },
+  { label: t('permissions.software'), value: 'software' },
+  { label: t('permissions.topology'), value: 'topology' },
+  { label: t('permissions.knowledge'), value: 'knowledge' },
+  { label: t('permissions.network_ports'), value: 'network_ports' },
+  { label: t('permissions.attachments'), value: 'attachments' },
+  { label: t('permissions.tickets_admin'), value: 'tickets_admin' },
+  { label: t('permissions.reports'), value: 'reports' }
+]);
 
 const tableFilters = ref({
   'global': { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
+const superadminCount = computed(() => users.value.filter(u => u.role === 'superadmin').length);
 const adminCount = computed(() => users.value.filter(u => u.role === 'admin').length);
+const techCount = computed(() => users.value.filter(u => u.role === 'tech').length);
 const userCount = computed(() => users.value.filter(u => u.role === 'user').length);
-const mfaEnabledCount = computed(() => users.value.filter(u => u.mfa_enabled).length);
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -271,6 +339,44 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
   return date.toLocaleDateString();
+};
+
+const getRoleLabel = (role) => {
+  const labels = {
+    superadmin: t('roles.superadmin'),
+    admin: t('roles.admin'),
+    tech: t('roles.tech'),
+    user: t('roles.user')
+  };
+  return labels[role] || role;
+};
+
+const getRoleSeverity = (role) => {
+  const severities = {
+    superadmin: 'danger',
+    admin: 'warning',
+    tech: 'info',
+    user: 'secondary'
+  };
+  return severities[role] || 'secondary';
+};
+
+const getRoleDescription = (role) => {
+  const descriptions = {
+    user: t('users.roleDescUser'),
+    tech: t('users.roleDescTech'),
+    admin: t('users.roleDescAdmin'),
+    superadmin: t('users.roleDescSuperadmin')
+  };
+  return descriptions[role] || '';
+};
+
+const canDeleteUser = (user) => {
+  // Can't delete yourself
+  if (user.id === currentUserId.value) return false;
+  // Admins can't delete superadmins
+  if (currentUserRole.value === 'admin' && user.role === 'superadmin') return false;
+  return true;
 };
 
 const loadUsers = async () => {
@@ -293,6 +399,7 @@ const openUserDialog = (user = null) => {
       email: user.email || '',
       password: '',
       role: user.role,
+      permissions: user.permissions || [],
       is_active: user.is_active
     };
   } else {
@@ -301,6 +408,7 @@ const openUserDialog = (user = null) => {
       email: '',
       password: '',
       role: 'user',
+      permissions: [],
       is_active: true
     };
   }
@@ -332,6 +440,7 @@ const saveUser = async () => {
       const updateData = {
         email: userForm.value.email,
         role: userForm.value.role,
+        permissions: userForm.value.role === 'tech' ? userForm.value.permissions : [],
         is_active: userForm.value.is_active
       };
       if (userForm.value.password) {
@@ -341,7 +450,11 @@ const saveUser = async () => {
       toast.add({ severity: 'success', summary: t('common.success'), detail: t('users.userUpdated') });
     } else {
       // Create user
-      await api.post('/users/', userForm.value);
+      const createData = {
+        ...userForm.value,
+        permissions: userForm.value.role === 'tech' ? userForm.value.permissions : []
+      };
+      await api.post('/users/', createData);
       toast.add({ severity: 'success', summary: t('common.success'), detail: t('users.userCreated') });
     }
     showUserDialog.value = false;

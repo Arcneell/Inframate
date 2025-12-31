@@ -206,6 +206,8 @@
     "totalUsers": "Total Users",
     "admins": "Administrators",
     "regularUsers": "Regular Users",
+    "superadmins": "Super Administrators",
+    "technicians": "Technicians",
     "mfaEnabled": "2FA Enabled",
     "newUser": "New User",
     "editUser": "Edit User",
@@ -223,7 +225,17 @@
     "createdAt": "Created",
     "usernameHelp": "Letters, numbers and underscores only",
     "leaveBlankToKeep": "leave blank to keep current",
-    "isActive": "Active user"
+    "isActive": "Active user",
+    "permissions": "Permissions",
+    "allAccess": "All Access",
+    "allExceptScripts": "All except scripts",
+    "helpdeskOnly": "Helpdesk only",
+    "granularPermissions": "Granular Permissions",
+    "selectPermissions": "Select permissions for this user",
+    "roleDescUser": "Can only access helpdesk features (tickets, knowledge base)",
+    "roleDescTech": "Can access features based on assigned permissions",
+    "roleDescAdmin": "Full access except scripts and system settings",
+    "roleDescSuperadmin": "Full access to all features including scripts and system settings"
   },
   "validation": {
     "error": "Validation Error",

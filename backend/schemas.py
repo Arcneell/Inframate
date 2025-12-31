@@ -53,7 +53,8 @@ class UserBase(BaseModel):
     username: str
     email: Optional[str] = None
     is_active: bool = True
-    role: str = "user"
+    role: str = "user"  # user, tech, admin, superadmin
+    permissions: Optional[List[str]] = []  # Granular permissions for tech/admin
     entity_id: Optional[int] = None
 
 class UserCreate(UserBase):
@@ -73,7 +74,8 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     password: Optional[str] = None
     is_active: Optional[bool] = None
-    role: Optional[str] = None
+    role: Optional[str] = None  # user, tech, admin, superadmin
+    permissions: Optional[List[str]] = None  # Granular permissions for tech/admin
     entity_id: Optional[int] = None
 
 

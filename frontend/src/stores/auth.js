@@ -1,11 +1,40 @@
 /**
  * Authentication Store (Pinia)
  * Manages user authentication state, token storage, and permissions.
+ *
+ * Role Hierarchy:
+ * - user: Helpdesk only (tickets, knowledge base)
+ * - tech: Granular permissions (no scripts, no system settings)
+ * - admin: All tech permissions + user management (no system settings)
+ * - superadmin: Full access including scripts and system settings
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../api'
 import router from '../router'
+
+// Role hierarchy (higher = more privileges)
+const ROLE_HIERARCHY = {
+  user: 0,
+  tech: 1,
+  admin: 2,
+  superadmin: 3
+}
+
+// Available permissions
+const AVAILABLE_PERMISSIONS = [
+  'ipam',
+  'inventory',
+  'dcim',
+  'contracts',
+  'software',
+  'topology',
+  'knowledge',
+  'network_ports',
+  'attachments',
+  'tickets_admin',
+  'reports'
+]
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -18,21 +47,78 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
   const username = computed(() => user.value?.username || '')
+  const userRole = computed(() => user.value?.role || 'user')
+  const userPermissions = computed(() => user.value?.permissions || [])
+
+  // Role-based getters
+  const isUser = computed(() => userRole.value === 'user')
+  const isTech = computed(() => userRole.value === 'tech')
+  const isAdmin = computed(() => userRole.value === 'admin' || userRole.value === 'superadmin')
+  const isSuperadmin = computed(() => userRole.value === 'superadmin')
+
   const userInitials = computed(() => {
     if (!user.value?.username) return '??'
     return user.value.username.substring(0, 2).toUpperCase()
   })
 
   /**
+   * Check if user has at least the required role level.
+   */
+  function hasRole(requiredRole) {
+    if (!user.value || !user.value.role) return false
+    const userLevel = ROLE_HIERARCHY[user.value.role] || 0
+    const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0
+    return userLevel >= requiredLevel
+  }
+
+  /**
    * Check if user has a specific permission.
+   *
+   * - superadmin: Always has all permissions
+   * - admin: Has all permissions (except scripts handled separately)
+   * - tech: Has only their assigned permissions
+   * - user: No granular permissions
    */
   function hasPermission(permission) {
     if (!user.value) return false
-    if (user.value.role === 'admin') return true
-    if (!permission) return true
-    return user.value.permissions?.[permission] === true
+
+    // Superadmin has all permissions
+    if (user.value.role === 'superadmin') return true
+
+    // Admin has all available permissions
+    if (user.value.role === 'admin') {
+      return AVAILABLE_PERMISSIONS.includes(permission)
+    }
+
+    // Tech has only their assigned permissions
+    if (user.value.role === 'tech') {
+      return (user.value.permissions || []).includes(permission)
+    }
+
+    // Regular users have no granular permissions
+    return false
+  }
+
+  /**
+   * Check if user can access scripts (superadmin only).
+   */
+  function canAccessScripts() {
+    return user.value?.role === 'superadmin'
+  }
+
+  /**
+   * Check if user can access system settings (superadmin only).
+   */
+  function canAccessSystemSettings() {
+    return user.value?.role === 'superadmin'
+  }
+
+  /**
+   * Check if user can manage other users (admin and superadmin).
+   */
+  function canManageUsers() {
+    return user.value?.role === 'admin' || user.value?.role === 'superadmin'
   }
 
   /**
@@ -162,8 +248,9 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.get('/me')
       user.value = response.data
 
-      if (!user.value.permissions) {
-        user.value.permissions = {}
+      // Ensure permissions is an array
+      if (!Array.isArray(user.value.permissions)) {
+        user.value.permissions = []
       }
 
       localStorage.setItem('user', JSON.stringify(user.value))
@@ -255,12 +342,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Getters
     isAuthenticated,
-    isAdmin,
     username,
+    userRole,
+    userPermissions,
+    isUser,
+    isTech,
+    isAdmin,
+    isSuperadmin,
     userInitials,
 
     // Actions
+    hasRole,
     hasPermission,
+    canAccessScripts,
+    canAccessSystemSettings,
+    canManageUsers,
     login,
     verifyMfa,
     fetchUser,

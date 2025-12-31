@@ -13,24 +13,107 @@ import Contracts from './views/Contracts.vue'
 import Software from './views/Software.vue'
 import Tickets from './views/Tickets.vue'
 import Knowledge from './views/Knowledge.vue'
+import Administration from './views/Administration.vue'
+
+// Role hierarchy (higher = more privileges)
+const ROLE_HIERARCHY = {
+  user: 0,
+  tech: 1,
+  admin: 2,
+  superadmin: 3
+}
+
+// Available permissions for permission-based routes
+const AVAILABLE_PERMISSIONS = [
+  'ipam',
+  'inventory',
+  'dcim',
+  'contracts',
+  'software',
+  'topology',
+  'knowledge',
+  'network_ports',
+  'attachments',
+  'tickets_admin',
+  'reports'
+]
 
 const routes = [
+  // Public routes
   { path: '/login', component: Login, name: 'Login', meta: { public: true } },
   { path: '/unauthorized', component: Unauthorized, name: 'Unauthorized', meta: { public: true } },
+
+  // Dashboard - accessible to all authenticated users
   { path: '/', component: Dashboard, name: 'Dashboard' },
-  // Accessible to all authenticated users
+
+  // Helpdesk - accessible to all authenticated users
   { path: '/tickets', component: Tickets, name: 'Tickets' },
   { path: '/knowledge', component: Knowledge, name: 'Knowledge Base' },
+
+  // User settings - accessible to all authenticated users
   { path: '/settings', component: Settings, name: 'Settings' },
-  // Admin only routes
-  { path: '/ipam', component: Ipam, name: 'IP Address Management', meta: { adminOnly: true } },
-  { path: '/topology', component: Topology, name: 'Network Topology', meta: { adminOnly: true } },
-  { path: '/scripts', component: ScriptRunner, name: 'Script Automation', meta: { adminOnly: true } },
-  { path: '/inventory', component: Inventory, name: 'Inventory', meta: { adminOnly: true } },
-  { path: '/dcim', component: Dcim, name: 'DCIM', meta: { adminOnly: true } },
-  { path: '/contracts', component: Contracts, name: 'Contracts', meta: { adminOnly: true } },
-  { path: '/software', component: Software, name: 'Software', meta: { adminOnly: true } },
-  { path: '/users', component: UserManagement, name: 'User Management', meta: { adminOnly: true } }
+
+  // Permission-based routes (tech with permission, admin, superadmin)
+  {
+    path: '/ipam',
+    component: Ipam,
+    name: 'IP Address Management',
+    meta: { requiresPermission: 'ipam' }
+  },
+  {
+    path: '/topology',
+    component: Topology,
+    name: 'Network Topology',
+    meta: { requiresPermission: 'topology' }
+  },
+  {
+    path: '/inventory',
+    component: Inventory,
+    name: 'Inventory',
+    meta: { requiresPermission: 'inventory' }
+  },
+  {
+    path: '/dcim',
+    component: Dcim,
+    name: 'DCIM',
+    meta: { requiresPermission: 'dcim' }
+  },
+  {
+    path: '/contracts',
+    component: Contracts,
+    name: 'Contracts',
+    meta: { requiresPermission: 'contracts' }
+  },
+  {
+    path: '/software',
+    component: Software,
+    name: 'Software',
+    meta: { requiresPermission: 'software' }
+  },
+
+  // Superadmin only - Scripts
+  {
+    path: '/scripts',
+    component: ScriptRunner,
+    name: 'Script Automation',
+    meta: { requiresSuperadmin: true }
+  },
+
+  // Admin and Superadmin - User Management
+  {
+    path: '/users',
+    component: UserManagement,
+    name: 'User Management',
+    meta: { requiresRole: 'admin' }
+  },
+
+  // Superadmin only - System Administration
+  {
+    path: '/administration',
+    component: Administration,
+    name: 'Administration',
+    meta: { requiresSuperadmin: true }
+  }
 ]
 
 const router = createRouter({
@@ -40,49 +123,93 @@ const router = createRouter({
 
 // Helper to get current user from localStorage
 const getCurrentUser = () => {
-  const userStr = localStorage.getItem('user');
+  const userStr = localStorage.getItem('user')
   if (userStr) {
     try {
-      return JSON.parse(userStr);
+      return JSON.parse(userStr)
     } catch (e) {
-      return null;
+      return null
     }
   }
-  return null;
-};
+  return null
+}
 
-// Check if user is admin
-const isAdmin = (user) => {
-  return user && user.role === 'admin';
-};
+// Check if user has at least the required role level
+const hasRole = (user, requiredRole) => {
+  if (!user || !user.role) return false
+  const userLevel = ROLE_HIERARCHY[user.role] || 0
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0
+  return userLevel >= requiredLevel
+}
+
+// Check if user has a specific permission
+const hasPermission = (user, permission) => {
+  if (!user) return false
+
+  // Superadmin has all permissions
+  if (user.role === 'superadmin') return true
+
+  // Admin has all permissions except scripts
+  if (user.role === 'admin') {
+    return AVAILABLE_PERMISSIONS.includes(permission)
+  }
+
+  // Tech has only their assigned permissions
+  if (user.role === 'tech') {
+    return (user.permissions || []).includes(permission)
+  }
+
+  // Regular users have no permissions
+  return false
+}
+
+// Check if user is superadmin
+const isSuperadmin = (user) => {
+  return user && user.role === 'superadmin'
+}
 
 router.beforeEach((to, from, next) => {
-  const isPublic = to.meta.public === true;
-  const loggedIn = localStorage.getItem('token');
+  const isPublic = to.meta.public === true
+  const loggedIn = localStorage.getItem('token')
 
   // If page is public, allow access
   if (isPublic) {
     // If logged in and trying to access login page, redirect to dashboard
     if (loggedIn && to.path === '/login') {
-      return next('/');
+      return next('/')
     }
-    return next();
+    return next()
   }
 
   // If not logged in and page requires auth, redirect to login
   if (!loggedIn) {
-    return next('/login');
+    return next('/login')
   }
 
-  // Check admin-only routes
-  if (to.meta.adminOnly) {
-    const user = getCurrentUser();
-    if (!isAdmin(user)) {
-      return next('/unauthorized');
+  const user = getCurrentUser()
+
+  // Check superadmin-only routes
+  if (to.meta.requiresSuperadmin) {
+    if (!isSuperadmin(user)) {
+      return next('/unauthorized')
     }
   }
 
-  next();
-});
+  // Check role-based routes (admin and above)
+  if (to.meta.requiresRole) {
+    if (!hasRole(user, to.meta.requiresRole)) {
+      return next('/unauthorized')
+    }
+  }
+
+  // Check permission-based routes
+  if (to.meta.requiresPermission) {
+    if (!hasPermission(user, to.meta.requiresPermission)) {
+      return next('/unauthorized')
+    }
+  }
+
+  next()
+})
 
 export default router

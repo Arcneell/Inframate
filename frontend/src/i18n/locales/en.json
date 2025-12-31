@@ -632,5 +632,84 @@
     "yes": "Yes",
     "no": "No",
     "feedbackThanks": "Thanks for your feedback!"
+  },
+  "admin": {
+    "title": "Administration",
+    "errors": {
+      "loadFailed": "Failed to load settings",
+      "saveFailed": "Failed to save settings"
+    },
+    "messages": {
+      "saved": "Settings saved successfully"
+    },
+    "smtp": {
+      "title": "SMTP",
+      "configuration": "Email Server Configuration",
+      "host": "SMTP Host",
+      "hostPlaceholder": "smtp.example.com",
+      "port": "Port",
+      "username": "Username",
+      "usernamePlaceholder": "Username or email",
+      "password": "Password",
+      "passwordPlaceholder": "SMTP password",
+      "useTls": "Use TLS encryption",
+      "fromEmail": "From Email",
+      "fromEmailPlaceholder": "noreply@example.com",
+      "fromName": "From Name",
+      "testConnection": "Test Connection",
+      "testFailed": "SMTP connection test failed"
+    },
+    "general": {
+      "title": "General",
+      "configuration": "General Settings",
+      "siteName": "Site Name",
+      "siteUrl": "Site URL",
+      "defaultLanguage": "Default Language",
+      "sessionTimeout": "Session Timeout",
+      "itemsPerPage": "Items per Page"
+    },
+    "security": {
+      "title": "Security",
+      "configuration": "Security Settings",
+      "minPasswordLength": "Minimum Password Length",
+      "requireMfaForAdmins": "Require MFA for Administrators",
+      "loginRateLimit": "Login Rate Limit",
+      "sessionConcurrentLimit": "Concurrent Sessions Limit"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "configuration": "Notification Settings",
+      "emailEnabled": "Enable Email Notifications",
+      "ticketEmail": "Send email on ticket creation",
+      "contractExpiryDays": "Contract Expiry Notice",
+      "licenseExpiryDays": "License Expiry Notice"
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "configuration": "Maintenance Settings",
+      "enableMode": "Enable Maintenance Mode",
+      "message": "Maintenance Message",
+      "auditRetention": "Audit Log Retention",
+      "enableBackup": "Enable Automatic Backups"
+    }
+  },
+  "roles": {
+    "user": "User",
+    "tech": "Technician",
+    "admin": "Administrator",
+    "superadmin": "Super Administrator"
+  },
+  "permissions": {
+    "ipam": "IP Address Management",
+    "inventory": "Inventory Management",
+    "dcim": "Data Center Management",
+    "contracts": "Contract Management",
+    "software": "Software Management",
+    "topology": "Network Topology",
+    "knowledge": "Knowledge Base",
+    "network_ports": "Network Ports",
+    "attachments": "Attachments",
+    "tickets_admin": "Ticket Administration",
+    "reports": "Reports & Exports"
   }
 }

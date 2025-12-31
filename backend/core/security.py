@@ -155,10 +155,139 @@ def get_current_active_user(
 def get_current_admin_user(
     current_user: models.User = Depends(get_current_active_user)
 ) -> models.User:
-    """Get current user if they are an admin."""
-    if current_user.role != "admin":
+    """Get current user if they are an admin or superadmin."""
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Not enough privileges")
     return current_user
+
+
+def get_current_superadmin_user(
+    current_user: models.User = Depends(get_current_active_user)
+) -> models.User:
+    """Get current user if they are a superadmin."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    return current_user
+
+
+# ==================== ROLE & PERMISSION FUNCTIONS ====================
+
+# Role hierarchy (higher number = more privileges)
+ROLE_HIERARCHY = {
+    "user": 0,        # Helpdesk only
+    "tech": 1,        # Granular permissions
+    "admin": 2,       # All tech + user management
+    "superadmin": 3,  # Full access
+}
+
+# Available permissions for tech/admin roles
+AVAILABLE_PERMISSIONS = [
+    "ipam",           # IP Address Management (subnets, IPs)
+    "inventory",      # Equipment, manufacturers, models, locations
+    "dcim",           # Racks, PDUs, datacenter management
+    "contracts",      # Contract management
+    "software",       # Software catalog and licenses
+    "topology",       # Network topology visualization
+    "knowledge",      # Knowledge base management (create/edit articles)
+    "network_ports",  # Physical network connectivity
+    "attachments",    # Equipment attachments
+    "tickets_admin",  # Ticket management (assign, resolve for others)
+    "reports",        # Access to reports and exports
+]
+
+
+def get_role_level(role: str) -> int:
+    """Get the hierarchy level of a role."""
+    return ROLE_HIERARCHY.get(role, 0)
+
+
+def has_role_or_higher(user: models.User, required_role: str) -> bool:
+    """Check if user has the required role or higher."""
+    user_level = get_role_level(user.role)
+    required_level = get_role_level(required_role)
+    return user_level >= required_level
+
+
+def has_permission(user: models.User, permission: str) -> bool:
+    """
+    Check if user has a specific permission.
+
+    - superadmin: Always has all permissions
+    - admin: Has all permissions except scripts and system settings
+    - tech: Has permissions defined in their permissions list
+    - user: No granular permissions (helpdesk only)
+    """
+    # Superadmin has all permissions
+    if user.role == "superadmin":
+        return True
+
+    # Admin has all permissions except scripts (handled separately)
+    if user.role == "admin":
+        return permission in AVAILABLE_PERMISSIONS
+
+    # Tech has only their assigned permissions
+    if user.role == "tech":
+        return permission in (user.permissions or [])
+
+    # Regular users have no granular permissions
+    return False
+
+
+def require_permission(permission: str):
+    """
+    Dependency factory for requiring a specific permission.
+
+    Usage:
+        @router.get("/", dependencies=[Depends(require_permission("ipam"))])
+        def list_items():
+            ...
+    """
+    def check_permission(
+        current_user: models.User = Depends(get_current_active_user)
+    ) -> models.User:
+        if not has_permission(current_user, permission):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission '{permission}' required"
+            )
+        return current_user
+    return check_permission
+
+
+def get_user_with_permission(permission: str):
+    """
+    Dependency that returns current user if they have the required permission.
+
+    Usage:
+        @router.get("/")
+        def list_items(current_user: models.User = Depends(get_user_with_permission("ipam"))):
+            ...
+    """
+    def dependency(
+        current_user: models.User = Depends(get_current_active_user)
+    ) -> models.User:
+        if not has_permission(current_user, permission):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission '{permission}' required"
+            )
+        return current_user
+    return dependency
+
+
+def can_access_scripts(user: models.User) -> bool:
+    """Check if user can access script execution. Only superadmin."""
+    return user.role == "superadmin"
+
+
+def can_access_system_settings(user: models.User) -> bool:
+    """Check if user can access system settings. Only superadmin."""
+    return user.role == "superadmin"
+
+
+def can_manage_users(user: models.User) -> bool:
+    """Check if user can manage other users. Admin and superadmin."""
+    return user.role in ("admin", "superadmin")
 
 
 # ==================== TOTP/MFA FUNCTIONS ====================

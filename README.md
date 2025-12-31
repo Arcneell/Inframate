@@ -98,11 +98,22 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
 - User authentication with JWT tokens (30-minute access tokens)
 - **Refresh Token System**: Secure token rotation with 7-day expiration
 - **Two-Factor Authentication (TOTP)**: Optional MFA with Google Authenticator, Authy, etc.
-- Role-based access control (admin/user)
-- Granular permissions (IPAM, Topology, Scripts, Settings, Inventory)
-- Admin can create and delete users
+- **Hierarchical Role System**:
+  - `user`: Helpdesk access only (tickets, knowledge base)
+  - `tech`: Granular permissions (no scripts, no system settings)
+  - `admin`: All tech permissions + user management (no system settings)
+  - `superadmin`: Full access including scripts and system settings
+- **Granular Permissions** for tech and admin roles: IPAM, Inventory, DCIM, Contracts, Software, Topology, Knowledge, Network Ports, Attachments, Tickets Admin, Reports
+- Admin and Superadmin can create and delete users
 - Password validation (minimum 8 characters)
 - Secure MFA secret storage with Fernet encryption
+
+### System Administration (Superadmin Only)
+- **SMTP Configuration**: Email server settings with TLS support and connection testing
+- **General Settings**: Site name, URL, default language, session timeout, items per page
+- **Security Settings**: Password policy, MFA requirements, rate limiting, concurrent sessions
+- **Notification Settings**: Email notifications, expiry alerts for contracts and licenses
+- **Maintenance Settings**: Maintenance mode, audit log retention, automatic backups
 
 ### Security
 - JWT-based authentication with short-lived access tokens (30 min) and refresh tokens (7 days)

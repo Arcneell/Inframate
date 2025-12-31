@@ -43,57 +43,73 @@
             </div>
           </router-link>
 
-          <!-- Network Section - Admin only -->
-          <div v-if="isAdmin" class="sidebar-section-title">{{ t('nav.network') }}</div>
+          <!-- Network Section - Permission-based -->
+          <div v-if="hasPermission('ipam') || hasPermission('topology')" class="sidebar-section-title">{{ t('nav.network') }}</div>
 
-          <router-link v-if="isAdmin" to="/ipam" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('ipam')" to="/ipam" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-sitemap"></i>
               <span>{{ t('nav.ipam') }}</span>
             </div>
           </router-link>
-          <router-link v-if="isAdmin" to="/topology" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('topology')" to="/topology" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-share-alt"></i>
               <span>{{ t('nav.topology') }}</span>
             </div>
           </router-link>
 
-          <!-- Assets Section - Admin only -->
-          <div v-if="isAdmin" class="sidebar-section-title">{{ t('nav.inventory') }}</div>
+          <!-- Assets Section - Permission-based -->
+          <div v-if="hasPermission('inventory') || hasPermission('dcim') || hasPermission('contracts') || hasPermission('software')" class="sidebar-section-title">{{ t('nav.inventory') }}</div>
 
-          <router-link v-if="isAdmin" to="/inventory" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('inventory')" to="/inventory" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-box"></i>
               <span>{{ t('nav.inventory') }}</span>
             </div>
           </router-link>
-          <router-link v-if="isAdmin" to="/dcim" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('dcim')" to="/dcim" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-server"></i>
               <span>{{ t('dcim.title') }}</span>
             </div>
           </router-link>
-          <router-link v-if="isAdmin" to="/contracts" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('contracts')" to="/contracts" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-file-edit"></i>
               <span>{{ t('contracts.title') }}</span>
             </div>
           </router-link>
-          <router-link v-if="isAdmin" to="/software" custom v-slot="{ navigate, isActive }">
+          <router-link v-if="hasPermission('software')" to="/software" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-desktop"></i>
               <span>{{ t('software.title') }}</span>
             </div>
           </router-link>
 
-          <!-- System Section - Admin only -->
+          <!-- Automation Section - Superadmin only -->
+          <div v-if="isSuperadmin" class="sidebar-section-title">{{ t('nav.automation') }}</div>
+
+          <router-link v-if="isSuperadmin" to="/scripts" custom v-slot="{ navigate, isActive }">
+            <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
+              <i class="pi pi-code"></i>
+              <span>{{ t('nav.scriptRunner') }}</span>
+            </div>
+          </router-link>
+
+          <!-- System Section - Admin and above -->
           <div v-if="isAdmin" class="sidebar-section-title">{{ t('nav.system') }}</div>
 
           <router-link v-if="isAdmin" to="/users" custom v-slot="{ navigate, isActive }">
             <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
               <i class="pi pi-users"></i>
               <span>{{ t('users.title') }}</span>
+            </div>
+          </router-link>
+          <router-link v-if="isSuperadmin" to="/administration" custom v-slot="{ navigate, isActive }">
+            <div @click="navigate" :class="['sidebar-link', isActive ? 'active' : '']">
+              <i class="pi pi-cog"></i>
+              <span>{{ t('admin.title') }}</span>
             </div>
           </router-link>
         </nav>
@@ -199,12 +215,17 @@ import NotificationBell from './components/shared/NotificationBell.vue';
 const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const user = ref({ username: '', role: '', permissions: {} });
+const user = ref({ username: '', role: '', permissions: [] });
 const isDark = ref(false);
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// Role hierarchy (higher = more privileges)
+const ROLE_HIERARCHY = { user: 0, tech: 1, admin: 2, superadmin: 3 };
+const AVAILABLE_PERMISSIONS = ['ipam', 'inventory', 'dcim', 'contracts', 'software', 'topology', 'knowledge', 'network_ports', 'attachments', 'tickets_admin', 'reports'];
+
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/unauthorized');
-const isAdmin = computed(() => user.value.role === 'admin');
+const isSuperadmin = computed(() => user.value.role === 'superadmin');
+const isAdmin = computed(() => user.value.role === 'admin' || user.value.role === 'superadmin');
 const userInitials = computed(() => (user.value.username ? user.value.username.substring(0, 2).toUpperCase() : '??'));
 
 const currentRouteName = computed(() => {
@@ -220,6 +241,7 @@ const currentRouteName = computed(() => {
   if(route.name === 'Software') return t('software.title');
   if(route.name === 'Tickets') return t('tickets.title');
   if(route.name === 'Knowledge Base') return t('knowledge.title');
+  if(route.name === 'Administration') return t('admin.title');
   return route.name;
 });
 
@@ -249,9 +271,16 @@ const initTheme = () => {
   updateThemeClass();
 };
 
-const hasPerm = (perm) => {
-  if (user.value.role === 'admin') return true;
-  return user.value.permissions && user.value.permissions[perm] === true;
+const hasPermission = (permission) => {
+  if (!user.value) return false;
+  // Superadmin has all permissions
+  if (user.value.role === 'superadmin') return true;
+  // Admin has all available permissions
+  if (user.value.role === 'admin') return AVAILABLE_PERMISSIONS.includes(permission);
+  // Tech has only their assigned permissions
+  if (user.value.role === 'tech') return (user.value.permissions || []).includes(permission);
+  // Regular users have no granular permissions
+  return false;
 };
 
 const fetchUser = async () => {

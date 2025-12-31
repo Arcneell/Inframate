@@ -36,10 +36,10 @@ frontend/          # Vue.js 3 SPA
 ├── src/
 │   ├── components/shared/   # Composants réutilisables (StatusTag, NotificationBell)
 │   ├── stores/              # Pinia stores (auth, ui, dcim, contracts, software, networkPorts, attachments, tickets, notifications)
-│   ├── views/               # Pages principales (Tickets.vue, Knowledge.vue pour helpdesk)
+│   ├── views/               # Pages principales (Tickets.vue, Knowledge.vue, Administration.vue)
 │   ├── i18n/                # Traductions EN/FR
 │   ├── api.js               # Client Axios
-│   ├── router.js            # Routes avec guards de permissions
+│   ├── router.js            # Routes avec guards de permissions (role hierarchy + granular permissions)
 │   └── style.css            # Design System Modern Slate (Anthracite, Zinc, Bleu électrique)
 
 backend/           # FastAPI API
@@ -71,7 +71,8 @@ backend/           # FastAPI API
 │   ├── knowledge.py        # Base de connaissances (articles, catégories, feedback)
 │   ├── export.py           # Export CSV (équipements, tickets, contrats, logiciels, IPs, audit)
 │   ├── search.py           # Recherche globale multi-ressources
-│   └── webhooks.py         # Webhooks pour intégrations externes (Slack, Teams, etc.)
+│   ├── webhooks.py         # Webhooks pour intégrations externes (Slack, Teams, etc.)
+│   └── settings.py         # Configuration système (SMTP, général, sécurité, notifications, maintenance)
 ├── models.py               # Modèles SQLAlchemy (+ UserToken, auto-encryption hooks pour TOTP/passwords)
 ├── schemas.py              # Schémas Pydantic (+ TokenWithRefresh, RefreshTokenRequest)
 └── app.py                  # Application FastAPI (lifespan context manager, optimized health check)
@@ -217,6 +218,13 @@ frontend/src/utils/
 - Logs de livraison pour debugging
 - Test de webhook depuis l'interface
 
+### Administration Système (Superadmin uniquement)
+- Configuration SMTP : serveur email avec support TLS et test de connexion
+- Paramètres généraux : nom du site, URL, langue par défaut, timeout session
+- Paramètres de sécurité : politique mot de passe, exigence MFA, rate limiting
+- Paramètres de notifications : emails, alertes d'expiration contrats/licences
+- Mode maintenance : activation, message personnalisé, rétention audit logs
+
 ## Sécurité
 
 - **Auth**: JWT (30min access token) + Refresh tokens (7 jours) + bcrypt pour mots de passe
@@ -230,7 +238,12 @@ frontend/src/utils/
   - Validation basique des URLs (supporte les mots de passe avec caractères spéciaux)
 - **Timezone-Aware**: Utilisation de `datetime.now(timezone.utc)` (Python 3.12+ compatible)
 - **Rate Limiting**: Redis-backed, 5 req/60s sur login
-- **RBAC**: Rôles admin/user + permissions granulaires (ipam, scripts, inventory, topology, settings, tickets, knowledge)
+- **RBAC Hiérarchique**:
+  - `user`: Helpdesk uniquement (tickets, base de connaissances)
+  - `tech`: Permissions granulaires (ipam, inventory, dcim, contracts, software, topology, knowledge, etc.)
+  - `admin`: Toutes permissions tech + gestion utilisateurs
+  - `superadmin`: Accès complet (scripts, paramètres système)
+- **Permissions Granulaires**: ipam, inventory, dcim, contracts, software, topology, knowledge, network_ports, attachments, tickets_admin, reports
 - **Sandbox Docker**: Mémoire 256MB, CPU 0.5, network disabled, read-only filesystem
 - **Sandbox Obligatoire**: Pas de fallback vers exécution directe quand DOCKER_SANDBOX_ENABLED=true
 - **Validation MIME**: Vérification du type MIME des scripts uploadés (anti-masquage)
@@ -320,7 +333,7 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - **i18n**: Utiliser `useI18n()` hook avec `legacy: false`
   - Clés hiérarchiques: `t('namespace.key')` (ex: `t('dashboard.totalSubnets')`)
   - Ne jamais utiliser `.value` sur `t()` - retourne directement une string
-  - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`, `tickets`, `knowledge`, `notifications`
+  - Namespaces: `common`, `nav`, `auth`, `dashboard`, `ipam`, `inventory`, `scripts`, `settings`, `users`, `validation`, `messages`, `filters`, `status`, `ip`, `remote`, `dcim`, `contracts`, `software`, `entities`, `tickets`, `knowledge`, `notifications`, `admin`, `roles`, `permissions`
 
 ### Design System (Modern Slate)
 - **Palette de couleurs**:
@@ -346,7 +359,7 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 ## Structure Base de Données
 
 **Tables principales:**
-- `users` - Utilisateurs avec rôles, permissions et MFA (colonnes: mfa_enabled, totp_secret auto-chiffré via hook)
+- `users` - Utilisateurs avec rôles hiérarchiques (user, tech, admin, superadmin), permissions JSON et MFA (totp_secret auto-chiffré)
 - `user_tokens` - Refresh tokens (token_hash SHA256, expires_at, revoked, device_info, ip_address)
 - `entities` - Entités multi-tenant
 - `subnets` / `ip_addresses` - IPAM
@@ -364,6 +377,7 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - `ticket_history` - Historique modifications tickets
 - `ticket_attachments` - Pièces jointes par ticket
 - `notifications` - Notifications in-app (type, lu/non-lu, lien ressource)
+- `system_settings` - Paramètres système (key, value JSON, category, is_sensitive)
 - `knowledge_articles` - Articles base de connaissances (slug, versioning, feedback)
 - `sla_policies` - Politiques SLA configurables par priorité (+ heures ouvrées)
 - `webhooks` - Configuration webhooks externes (events, url, secret HMAC)
@@ -444,6 +458,10 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 | /api/v1/webhooks/{id}/test | POST | Tester webhook |
 | /api/v1/webhooks/{id}/deliveries | GET | Logs de livraison |
 | /api/v1/webhooks/events | GET | Liste événements disponibles |
+| /api/v1/settings/ | GET | Liste paramètres système (superadmin) |
+| /api/v1/settings/by-category | GET | Paramètres groupés par catégorie |
+| /api/v1/settings/{key} | GET/PUT | Lire/Modifier paramètre |
+| /api/v1/settings/test-smtp | POST | Tester connexion SMTP |
 
 ## Troubleshooting
 

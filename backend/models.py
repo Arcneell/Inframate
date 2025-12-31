@@ -53,6 +53,13 @@ class Entity(Base):
     software = relationship("Software", back_populates="entity")
 
 class User(Base):
+    """
+    User model with hierarchical role system:
+    - user: Access to helpdesk only (create/view own tickets)
+    - tech: Granular permissions (ipam, inventory, dcim, contracts, software, topology, knowledge)
+    - admin: All tech permissions + user management (no system settings)
+    - superadmin: Full access including system settings and scripts
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -60,7 +67,7 @@ class User(Base):
     email = Column(String, nullable=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
-    role = Column(String, default="user")  # admin, user
+    role = Column(String, default="user")  # user, tech, admin, superadmin
     avatar = Column(String, nullable=True)  # Profile picture filename
     entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True)
     created_at = Column(DateTime, default=utc_now)
@@ -68,6 +75,10 @@ class User(Base):
     # MFA/TOTP fields
     mfa_enabled = Column(Boolean, default=False)
     totp_secret = Column(String, nullable=True)  # Encrypted TOTP secret (auto-encrypted via hooks)
+
+    # Granular permissions for tech and admin roles (JSON array of permission strings)
+    # Available: ipam, inventory, dcim, contracts, software, topology, knowledge, network_ports, attachments
+    permissions = Column(JSON, default=[])
 
     entity = relationship("Entity", back_populates="users")
     refresh_tokens = relationship("UserToken", back_populates="user", cascade="all, delete-orphan")
@@ -833,3 +844,52 @@ class WebhookDelivery(Base):
     created_at = Column(DateTime, default=utc_now, index=True)
 
     webhook = relationship("Webhook", back_populates="deliveries")
+
+
+# ==================== SYSTEM SETTINGS MODEL ====================
+
+class SystemSettings(Base):
+    """
+    System-wide configuration settings.
+    Only accessible by superadmin users.
+    Stores key-value pairs with categorization.
+    """
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False, index=True)
+    value = Column(Text, nullable=True)  # JSON-encoded value
+    category = Column(String, nullable=False, index=True)  # smtp, general, security, notifications, etc.
+    description = Column(Text, nullable=True)
+    value_type = Column(String, default="string")  # string, integer, boolean, json, password
+    is_sensitive = Column(Boolean, default=False)  # If true, value is encrypted and masked in UI
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    updated_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    updated_by = relationship("User", backref="settings_updates")
+
+
+# ==================== ROLE PERMISSIONS REFERENCE ====================
+
+# Available permissions for tech/admin roles:
+AVAILABLE_PERMISSIONS = [
+    "ipam",           # IP Address Management (subnets, IPs)
+    "inventory",      # Equipment, manufacturers, models, locations
+    "dcim",           # Racks, PDUs, datacenter management
+    "contracts",      # Contract management
+    "software",       # Software catalog and licenses
+    "topology",       # Network topology visualization
+    "knowledge",      # Knowledge base management (create/edit articles)
+    "network_ports",  # Physical network connectivity
+    "attachments",    # Equipment attachments
+    "tickets_admin",  # Ticket management (assign, resolve for others)
+    "reports",        # Access to reports and exports
+]
+
+# Role hierarchy (higher number = more privileges)
+ROLE_HIERARCHY = {
+    "user": 0,        # Helpdesk only
+    "tech": 1,        # Granular permissions
+    "admin": 2,       # All tech + user management
+    "superadmin": 3,  # Full access
+}

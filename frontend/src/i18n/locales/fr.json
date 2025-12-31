@@ -632,5 +632,84 @@
     "yes": "Oui",
     "no": "Non",
     "feedbackThanks": "Merci pour votre retour !"
+  },
+  "admin": {
+    "title": "Administration",
+    "errors": {
+      "loadFailed": "Échec du chargement des paramètres",
+      "saveFailed": "Échec de l'enregistrement des paramètres"
+    },
+    "messages": {
+      "saved": "Paramètres enregistrés avec succès"
+    },
+    "smtp": {
+      "title": "SMTP",
+      "configuration": "Configuration du serveur email",
+      "host": "Serveur SMTP",
+      "hostPlaceholder": "smtp.exemple.com",
+      "port": "Port",
+      "username": "Nom d'utilisateur",
+      "usernamePlaceholder": "Nom d'utilisateur ou email",
+      "password": "Mot de passe",
+      "passwordPlaceholder": "Mot de passe SMTP",
+      "useTls": "Utiliser le chiffrement TLS",
+      "fromEmail": "Email expéditeur",
+      "fromEmailPlaceholder": "noreply@exemple.com",
+      "fromName": "Nom expéditeur",
+      "testConnection": "Tester la connexion",
+      "testFailed": "Échec du test de connexion SMTP"
+    },
+    "general": {
+      "title": "Général",
+      "configuration": "Paramètres généraux",
+      "siteName": "Nom du site",
+      "siteUrl": "URL du site",
+      "defaultLanguage": "Langue par défaut",
+      "sessionTimeout": "Délai d'expiration de session",
+      "itemsPerPage": "Éléments par page"
+    },
+    "security": {
+      "title": "Sécurité",
+      "configuration": "Paramètres de sécurité",
+      "minPasswordLength": "Longueur minimale du mot de passe",
+      "requireMfaForAdmins": "Exiger la 2FA pour les administrateurs",
+      "loginRateLimit": "Limite de tentatives de connexion",
+      "sessionConcurrentLimit": "Limite de sessions simultanées"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "configuration": "Paramètres de notifications",
+      "emailEnabled": "Activer les notifications par email",
+      "ticketEmail": "Envoyer un email à la création de ticket",
+      "contractExpiryDays": "Préavis d'expiration des contrats",
+      "licenseExpiryDays": "Préavis d'expiration des licences"
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "configuration": "Paramètres de maintenance",
+      "enableMode": "Activer le mode maintenance",
+      "message": "Message de maintenance",
+      "auditRetention": "Conservation des logs d'audit",
+      "enableBackup": "Activer les sauvegardes automatiques"
+    }
+  },
+  "roles": {
+    "user": "Utilisateur",
+    "tech": "Technicien",
+    "admin": "Administrateur",
+    "superadmin": "Super Administrateur"
+  },
+  "permissions": {
+    "ipam": "Gestion des adresses IP",
+    "inventory": "Gestion de l'inventaire",
+    "dcim": "Gestion du datacenter",
+    "contracts": "Gestion des contrats",
+    "software": "Gestion des logiciels",
+    "topology": "Topologie réseau",
+    "knowledge": "Base de connaissances",
+    "network_ports": "Ports réseau",
+    "attachments": "Pièces jointes",
+    "tickets_admin": "Administration des tickets",
+    "reports": "Rapports et exports"
   }
 }

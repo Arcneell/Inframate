@@ -416,7 +416,7 @@ class PDU(PDUBase):
 # --- Rack Layout Schemas ---
 class RackEquipmentDetail(BaseModel):
     """Detailed equipment info for rack layout visualization"""
-    model_config = {"protected_namespaces": ()}
+    model_config = {"protected_namespaces": (), "from_attributes": True}
 
     id: int
     name: str
@@ -428,8 +428,6 @@ class RackEquipmentDetail(BaseModel):
     model_name: Optional[str] = None
     manufacturer_name: Optional[str] = None
     management_ip: Optional[str] = None
-    class Config:
-        from_attributes = True
 
 
 class RackSlot(BaseModel):

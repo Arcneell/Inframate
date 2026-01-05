@@ -172,10 +172,11 @@ async def update_password(
     current_user: models.User = Depends(get_current_active_user)
 ):
     """Update current user's password."""
-    if not validate_password_strength(password_data.password):
+    is_valid, error_message = validate_password_strength(password_data.password)
+    if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"Password must be at least {settings.min_password_length} characters"
+            detail=error_message
         )
 
     hashed_password = get_password_hash(password_data.password)

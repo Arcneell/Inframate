@@ -2,9 +2,10 @@
 Security utilities: JWT, password hashing, encryption, and refresh tokens.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Tuple
 import secrets
 import hashlib
+import re
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet, InvalidToken
@@ -50,9 +51,52 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def validate_password_strength(password: str) -> bool:
-    """Validate password meets minimum security requirements."""
-    return len(password) >= settings.min_password_length
+def validate_password_strength(password: str) -> Tuple[bool, str]:
+    """
+    Validate password meets security requirements.
+
+    Requirements:
+    - Minimum length (configurable, default 8)
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    - At least one special character
+
+    Args:
+        password: The password to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+        - (True, "") if password is valid
+        - (False, "error message") if password is invalid
+    """
+    min_length = settings.min_password_length
+
+    if len(password) < min_length:
+        return False, f"Password must be at least {min_length} characters long"
+
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;\'`~]', password):
+        return False, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>-_=+[]\\;'`~)"
+
+    return True, ""
+
+
+def validate_password_strength_simple(password: str) -> bool:
+    """
+    Simple password validation (legacy compatibility).
+    Use validate_password_strength() for detailed error messages.
+    """
+    is_valid, _ = validate_password_strength(password)
+    return is_valid
 
 
 # JWT functions

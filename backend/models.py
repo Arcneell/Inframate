@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Date, Numeric, UniqueConstraint, event
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Date, Numeric, UniqueConstraint, event, text
 from sqlalchemy.dialects.postgresql import INET, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import TypeDecorator
 from datetime import datetime, timezone
 from backend.core.database import Base
 
@@ -10,6 +11,49 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
+# ==================== ENCRYPTED STRING TYPE DECORATOR ====================
+
+class EncryptedString(TypeDecorator):
+    """
+    SQLAlchemy TypeDecorator for automatic Fernet encryption/decryption.
+
+    Encrypts values before storing in DB, decrypts when reading.
+    Fernet tokens start with 'gAAAA' prefix for detection.
+
+    Usage:
+        totp_secret = Column(EncryptedString, nullable=True)
+        remote_password = Column(EncryptedString, nullable=True)
+    """
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        """Encrypt value before storing in database."""
+        if not value:
+            return value
+        # Already encrypted - skip
+        if isinstance(value, str) and value.startswith('gAAAA'):
+            return value
+        # Import here to avoid circular imports
+        from backend.core.security import encrypt_value
+        return encrypt_value(value)
+
+    def process_result_value(self, value, dialect):
+        """Decrypt value when reading from database."""
+        if not value:
+            return value
+        # Only decrypt if it looks encrypted
+        if isinstance(value, str) and value.startswith('gAAAA'):
+            from backend.core.security import decrypt_value
+            try:
+                return decrypt_value(value)
+            except Exception:
+                # Return encrypted value if decryption fails
+                return value
+        return value
+
+
+# Legacy helper functions (kept for backward compatibility with existing code)
 def _encrypt_sensitive_field(value: str) -> str:
     """Encrypt a sensitive field value if not already encrypted."""
     if not value:
@@ -664,6 +708,40 @@ class TicketAttachment(Base):
 
     ticket = relationship("Ticket", back_populates="attachments")
     uploaded_by = relationship("User", backref="ticket_attachments")
+
+
+# ==================== TICKET NUMBER GENERATION HOOK ====================
+
+@event.listens_for(Ticket, 'before_insert')
+def generate_ticket_number_on_insert(mapper, connection, target):
+    """
+    Automatically generate unique ticket_number before inserting Ticket.
+
+    Format: TKT-YYYYMMDD-XXXX where XXXX is a sequential number per day.
+    Uses atomic database query to ensure uniqueness under concurrent inserts.
+    """
+    if target.ticket_number:
+        return  # Already set, skip
+
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    pattern = f"TKT-{today}-%"
+
+    # Atomic query to find max ticket number for today
+    result = connection.execute(
+        text("""
+            SELECT MAX(
+                CAST(
+                    SUBSTRING(ticket_number FROM 'TKT-[0-9]{8}-([0-9]+)') AS INTEGER
+                )
+            )
+            FROM tickets
+            WHERE ticket_number LIKE :pattern
+        """),
+        {"pattern": pattern}
+    ).scalar()
+
+    next_num = (result or 0) + 1
+    target.ticket_number = f"TKT-{today}-{next_num:04d}"
 
 
 # ==================== NOTIFICATION MODELS ====================

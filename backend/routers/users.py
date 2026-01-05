@@ -42,10 +42,11 @@ def create_user(
         )
 
     # Validate password strength
-    if not validate_password_strength(user.password):
+    is_valid, error_message = validate_password_strength(user.password)
+    if not is_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"Password must be at least {settings.min_password_length} characters"
+            detail=error_message
         )
 
     # Check for existing user
@@ -167,10 +168,11 @@ def update_user(
         db_user.email = user_update.email
 
     if user_update.password:
-        if not validate_password_strength(user_update.password):
+        is_valid, error_message = validate_password_strength(user_update.password)
+        if not is_valid:
             raise HTTPException(
                 status_code=400,
-                detail=f"Password must be at least {settings.min_password_length} characters"
+                detail=error_message
             )
         db_user.hashed_password = get_password_hash(user_update.password)
 

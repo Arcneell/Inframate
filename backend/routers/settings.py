@@ -2,7 +2,7 @@
 System Settings Router - Administration system configuration.
 Superadmin only access for sensitive system settings.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -12,6 +12,7 @@ import logging
 
 from backend.core.database import get_db
 from backend.core.security import get_current_superadmin_user, encrypt_value, decrypt_value
+from backend.core.rate_limiter import get_rate_limiter
 from backend import models
 
 logger = logging.getLogger(__name__)
@@ -433,13 +434,25 @@ def get_setting(
 
 
 @router.put("/{key}", response_model=SettingResponse)
-def update_setting(
+async def update_setting(
     key: str,
     setting_data: SettingUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_superadmin_user)
 ):
     """Update a system setting."""
+    # Rate limiting: 10 modifications per minute per user
+    rate_limiter = get_rate_limiter()
+    rate_key = f"settings_update:{current_user.id}"
+
+    if not await rate_limiter.is_allowed(rate_key, max_requests=10, window=60):
+        logger.warning(f"Rate limit exceeded for settings update by user {current_user.username}")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many settings modifications. Please try again later."
+        )
+
     setting = db.query(models.SystemSettings).filter(
         models.SystemSettings.key == key
     ).first()
@@ -484,12 +497,24 @@ def update_setting(
 
 
 @router.post("/", response_model=SettingResponse)
-def create_setting(
+async def create_setting(
     setting_data: SettingCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_superadmin_user)
 ):
     """Create a new system setting."""
+    # Rate limiting: 10 modifications per minute per user
+    rate_limiter = get_rate_limiter()
+    rate_key = f"settings_update:{current_user.id}"
+
+    if not await rate_limiter.is_allowed(rate_key, max_requests=10, window=60):
+        logger.warning(f"Rate limit exceeded for settings creation by user {current_user.username}")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many settings modifications. Please try again later."
+        )
+
     # Check if key already exists
     existing = db.query(models.SystemSettings).filter(
         models.SystemSettings.key == setting_data.key

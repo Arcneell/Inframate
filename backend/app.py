@@ -85,7 +85,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.celery_app = None
 
     logger.info("Inframate API started successfully.")
-    logger.info("Note: Database initialization is handled by entrypoint.sh")
+
+    # Create default admin user if not exists (idempotent)
+    try:
+        create_default_admin()
+    except Exception as e:
+        logger.warning(f"Could not create default admin: {e}")
 
     yield  # Application runs here
 

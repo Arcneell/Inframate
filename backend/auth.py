@@ -42,11 +42,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def validate_password_strength(password: str) -> bool:
-    """Validate password meets minimum security requirements."""
+def validate_password_strength(password: str) -> tuple:
+    """
+    Validate password meets minimum security requirements.
+    Returns (is_valid, error_message).
+
+    Note: This is a legacy file. Use backend.core.security.validate_password_strength for new code.
+    """
+    import re
+
     if len(password) < MIN_PASSWORD_LENGTH:
-        return False
-    return True
+        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters long"
+
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;\'`~]', password):
+        return False, "Password must contain at least one special character"
+
+    return True, ""
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     credentials_exception = HTTPException(

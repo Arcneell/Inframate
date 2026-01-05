@@ -78,7 +78,7 @@
             <Dropdown v-model="filters.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value"
                       :placeholder="t('tickets.allTypes')" showClear class="w-full" @change="loadTickets" />
           </div>
-          <div v-if="isAdmin" class="flex items-center gap-2">
+          <div v-if="canManageTickets" class="flex items-center gap-2">
             <Checkbox v-model="filters.my_tickets" :binary="true" inputId="myTickets" @change="loadTickets" />
             <label for="myTickets" class="text-sm cursor-pointer">{{ t('tickets.myTickets') }}</label>
           </div>
@@ -138,7 +138,7 @@
                 <span>{{ slotProps.data.requester_name || '-' }}</span>
               </template>
             </Column>
-            <Column v-if="isAdmin" field="assigned_to_name" :header="t('tickets.assignedTo')" style="width: 120px">
+            <Column v-if="canManageTickets" field="assigned_to_name" :header="t('tickets.assignedTo')" style="width: 120px">
               <template #body="slotProps">
                 <span v-if="slotProps.data.assigned_to_name">{{ slotProps.data.assigned_to_name }}</span>
                 <span v-else class="opacity-50 italic">{{ t('tickets.unassigned') }}</span>
@@ -175,11 +175,11 @@
           <Dropdown v-model="ticketForm.category" :options="categoryOptions" optionLabel="label" optionValue="value"
                     class="w-full" showClear />
         </div>
-        <div v-if="isAdmin">
+        <div v-if="canManageTickets">
           <label class="block text-sm font-medium mb-1">{{ t('tickets.ticketPriority') }}</label>
           <Dropdown v-model="ticketForm.priority" :options="priorityOptions" optionLabel="label" optionValue="value" class="w-full" />
         </div>
-        <div v-if="isAdmin">
+        <div v-if="canManageTickets">
           <label class="block text-sm font-medium mb-1">{{ t('tickets.assignTo') }}</label>
           <Dropdown v-model="ticketForm.assigned_to_id" :options="users" optionLabel="username" optionValue="id"
                     class="w-full" showClear :placeholder="t('tickets.selectUser')" />
@@ -240,7 +240,7 @@
             <h4 class="font-semibold mb-3">{{ t('tickets.comments') }} ({{ currentTicket.comments?.length || 0 }})</h4>
             <div class="space-y-3 max-h-64 overflow-auto mb-4">
               <template v-for="comment in currentTicket.comments" :key="comment.id">
-                <div v-if="isAdmin || !comment.is_internal"
+                <div v-if="canManageTickets || !comment.is_internal"
                      class="p-3 rounded-lg" style="background-color: var(--bg-app);"
                      :class="{ 'border-l-4 border-yellow-500': comment.is_internal }">
                   <div class="flex gap-3">
@@ -266,7 +266,7 @@
                   </div>
                 </div>
               </template>
-              <div v-if="!currentTicket.comments?.length || (!isAdmin && currentTicket.comments?.every(c => c.is_internal))" class="text-center py-4 opacity-50">
+              <div v-if="!currentTicket.comments?.length || (!canManageTickets && currentTicket.comments?.every(c => c.is_internal))" class="text-center py-4 opacity-50">
                 {{ t('tickets.noComments') }}
               </div>
             </div>
@@ -275,7 +275,7 @@
             <div class="border-t pt-4" style="border-color: var(--border-color);">
               <Textarea v-model="newComment" :placeholder="t('tickets.addComment')" rows="2" class="w-full mb-2" />
               <div class="flex justify-between items-center">
-                <div v-if="isAdmin" class="flex items-center gap-2">
+                <div v-if="canManageTickets" class="flex items-center gap-2">
                   <Checkbox v-model="commentInternal" :binary="true" inputId="internal" />
                   <label for="internal" class="text-sm cursor-pointer">{{ t('tickets.internalNote') }}</label>
                 </div>
@@ -304,8 +304,8 @@
         <!-- Sidebar Info -->
         <div class="w-64 flex-shrink-0">
           <div class="space-y-4">
-            <!-- Status Actions (Admin only) -->
-            <div v-if="isAdmin" class="p-4 rounded-lg" style="background-color: var(--bg-app);">
+            <!-- Status Actions (Tech with tickets_admin, Admin, Superadmin) -->
+            <div v-if="canManageTickets" class="p-4 rounded-lg" style="background-color: var(--bg-app);">
               <h4 class="font-semibold mb-3">{{ t('tickets.actions') }}</h4>
               <div class="space-y-2">
                 <Button v-if="currentTicket.status === 'new' || currentTicket.status === 'pending'"
@@ -332,7 +332,7 @@
                 <span class="text-xs opacity-50 block">{{ t('tickets.requester') }}</span>
                 <span>{{ currentTicket.requester_name || '-' }}</span>
               </div>
-              <div v-if="isAdmin">
+              <div v-if="canManageTickets">
                 <span class="text-xs opacity-50 block">{{ t('tickets.assignedTo') }}</span>
                 <div class="flex items-center gap-2">
                   <span>{{ currentTicket.assigned_to_name || t('tickets.unassigned') }}</span>
@@ -409,6 +409,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { useTicketsStore } from '../stores/tickets';
+import { useAuthStore } from '../stores/auth';
 import api from '../api';
 
 const route = useRoute();
@@ -417,21 +418,26 @@ const router = useRouter();
 const { t } = useI18n();
 const toast = useToast();
 const ticketsStore = useTicketsStore();
+const authStore = useAuthStore();
 
 // User info for permission checks
-const currentUser = computed(() => {
-  const userStr = localStorage.getItem('user');
-  if (userStr) {
-    try {
-      return JSON.parse(userStr);
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
-});
+const currentUser = computed(() => authStore.user);
 
-const isAdmin = computed(() => currentUser.value?.role === 'admin');
+// Permission check: can manage tickets (tech with tickets_admin, admin, superadmin)
+const canManageTickets = computed(() => {
+  if (!currentUser.value) return false;
+  const role = currentUser.value.role;
+
+  // Admin and superadmin always can manage tickets
+  if (role === 'admin' || role === 'superadmin') return true;
+
+  // Tech with tickets_admin permission can manage tickets
+  if (role === 'tech') {
+    return authStore.hasPermission('tickets_admin');
+  }
+
+  return false;
+});
 
 // State
 const tickets = ref([]);

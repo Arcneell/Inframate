@@ -600,14 +600,15 @@ const loadTickets = async () => {
 
 const loadReferenceData = async () => {
   try {
-    const [usersRes, equipmentRes] = await Promise.all([
+    const results = await Promise.allSettled([
       api.get('/users/'),
       api.get('/inventory/equipment/')
     ]);
-    users.value = usersRes.data;
-    equipment.value = equipmentRes.data;
-  } catch (e) {
-    console.error('Failed to load reference data:', e);
+    // Handle partial failures gracefully
+    if (results[0].status === 'fulfilled') users.value = results[0].value.data;
+    if (results[1].status === 'fulfilled') equipment.value = results[1].value.data;
+  } catch {
+    // Error handled by API interceptor
   }
 };
 

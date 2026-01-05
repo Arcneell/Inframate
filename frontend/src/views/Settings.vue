@@ -288,8 +288,8 @@ const loadUserData = async () => {
 
     // Also update localStorage
     localStorage.setItem('user', JSON.stringify(currentUser.value));
-  } catch (e) {
-    console.error('Failed to load user data:', e);
+  } catch {
+    // Error handled by API interceptor
   }
 };
 

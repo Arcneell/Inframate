@@ -29,7 +29,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       notifications.value = response.data
       return response.data
     } catch (err) {
-      console.error('Failed to fetch notifications:', err)
+      // Error handled by API interceptor
       throw err
     } finally {
       loading.value = false
@@ -41,9 +41,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
       const response = await api.get('/notifications/count')
       count.value = response.data
       return response.data
-    } catch (err) {
-      console.error('Failed to fetch notification count:', err)
-      throw err
+    } catch {
+      // Silent fail for polling - don't disrupt user experience
     }
   }
 
@@ -57,7 +56,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       }
       count.value.unread = Math.max(0, count.value.unread - 1)
     } catch (err) {
-      console.error('Failed to mark notification as read:', err)
+      // Error handled by API interceptor
       throw err
     }
   }
@@ -71,7 +70,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       })
       count.value.unread = 0
     } catch (err) {
-      console.error('Failed to mark all as read:', err)
+      // Error handled by API interceptor
       throw err
     }
   }
@@ -89,7 +88,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         notifications.value.splice(index, 1)
       }
     } catch (err) {
-      console.error('Failed to delete notification:', err)
+      // Error handled by API interceptor
       throw err
     }
   }
@@ -100,7 +99,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       notifications.value = notifications.value.filter(n => !n.is_read)
       count.value.total = count.value.unread
     } catch (err) {
-      console.error('Failed to delete read notifications:', err)
+      // Error handled by API interceptor
       throw err
     }
   }

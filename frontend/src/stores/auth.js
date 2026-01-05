@@ -273,9 +273,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (refreshToken && token.value) {
         try {
           await api.post('/logout', { refresh_token: refreshToken })
-        } catch (err) {
+        } catch {
           // Ignore errors - we're logging out anyway
-          console.warn('Failed to revoke refresh token:', err)
         }
       }
     }

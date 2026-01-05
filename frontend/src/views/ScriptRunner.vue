@@ -267,14 +267,14 @@ const loadData = async () => {
         scripts.value = scRes.data;
         executions.value = exRes.data;
         executableEquipment.value = eqRes.data;
-    } catch (e) { console.error(e); }
+    } catch { /* Error handled by API interceptor */ }
 };
 
 const fetchExecutions = async () => {
     try {
         const res = await api.get('/executions/');
         executions.value = res.data;
-    } catch (e) { console.error(e); }
+    } catch { /* Error handled by API interceptor */ }
 };
 
 const uploadScript = async () => {

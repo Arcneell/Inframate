@@ -78,7 +78,7 @@ export const useTicketsStore = defineStore('tickets', () => {
       stats.value = response.data
       return response.data
     } catch (err) {
-      console.error('Failed to fetch ticket stats:', err)
+      // Error handled by API interceptor
       throw err
     }
   }

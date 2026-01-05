@@ -274,8 +274,7 @@ const loadSettings = async () => {
         }
       }
     })
-  } catch (error) {
-    console.error('Failed to load settings:', error)
+  } catch {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
@@ -307,8 +306,7 @@ const saveCategory = async (category) => {
       detail: t('admin.messages.saved'),
       life: 3000
     })
-  } catch (error) {
-    console.error('Failed to save settings:', error)
+  } catch {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
@@ -335,7 +333,6 @@ const testSmtp = async () => {
       life: 5000
     })
   } catch (error) {
-    console.error('SMTP test failed:', error)
     toast.add({
       severity: 'error',
       summary: t('common.error'),

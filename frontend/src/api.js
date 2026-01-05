@@ -100,6 +100,10 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         }).then(token => {
+          // Validate token before retry to prevent race condition
+          if (!token) {
+            return Promise.reject(new Error('Token refresh failed'))
+          }
           originalRequest.headers['Authorization'] = `Bearer ${token}`
           return api(originalRequest)
         }).catch(err => {
@@ -174,8 +178,8 @@ api.interceptors.response.use(
 function getNotificationStore() {
   try {
     return useNotificationStore()
-  } catch (e) {
-    console.error('Notification store not available:', e)
+  } catch {
+    // Notification store not available during initialization
     return null
   }
 }
@@ -187,9 +191,8 @@ function showErrorToast(summary, detail) {
   const notificationStore = getNotificationStore()
   if (notificationStore) {
     notificationStore.error(summary, detail, 5000)
-  } else {
-    console.error(`${summary}: ${detail}`)
   }
+  // Silent fallback if notification store not available
 }
 
 /**

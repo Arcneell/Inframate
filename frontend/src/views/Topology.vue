@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { Network } from 'vis-network';
 import api from '../api';
 
@@ -87,8 +87,8 @@ const fetchTopology = async () => {
         
         network = new Network(container, data, options);
         
-    } catch (e) {
-        console.error("Failed to load topology", e);
+    } catch {
+        // Error handled by API interceptor
     } finally {
         loading.value = false;
     }
@@ -96,6 +96,13 @@ const fetchTopology = async () => {
 
 onMounted(() => {
     fetchTopology();
+});
+
+onUnmounted(() => {
+    if (network) {
+        network.destroy();
+        network = null;
+    }
 });
 </script>
 

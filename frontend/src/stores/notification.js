@@ -29,9 +29,8 @@ export const useNotificationStore = defineStore('notification', () => {
         detail: detail,
         life: life
       })
-    } else {
-      console.warn('Toast instance not available:', message, detail)
     }
+    // Silent fallback if toast not initialized yet
   }
 
   /**
@@ -45,9 +44,8 @@ export const useNotificationStore = defineStore('notification', () => {
         detail: detail,
         life: life
       })
-    } else {
-      console.error('Toast instance not available:', message, detail)
     }
+    // Silent fallback if toast not initialized yet
   }
 
   /**
@@ -61,9 +59,8 @@ export const useNotificationStore = defineStore('notification', () => {
         detail: detail,
         life: life
       })
-    } else {
-      console.warn('Toast instance not available:', message, detail)
     }
+    // Silent fallback if toast not initialized yet
   }
 
   /**
@@ -77,9 +74,8 @@ export const useNotificationStore = defineStore('notification', () => {
         detail: detail,
         life: life
       })
-    } else {
-      console.info('Toast instance not available:', message, detail)
     }
+    // Silent fallback if toast not initialized yet
   }
 
   /**
@@ -88,9 +84,8 @@ export const useNotificationStore = defineStore('notification', () => {
   function add(options) {
     if (toastInstance.value) {
       toastInstance.value.add(options)
-    } else {
-      console.warn('Toast instance not available:', options)
     }
+    // Silent fallback if toast not initialized yet
   }
 
   return {

@@ -762,8 +762,8 @@ const loadAvailableIps = async () => {
   try {
     const res = await api.get('/inventory/available-ips/');
     availableIps.value = res.data;
-  } catch (e) {
-    console.error(e);
+  } catch {
+    // Silent fail - non-critical data
   }
 };
 

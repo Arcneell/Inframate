@@ -119,7 +119,7 @@
       <div class="sidebar-footer">
         <router-link to="/settings" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
           <div class="user-avatar-container">
-            <img v-if="user.avatar" :src="`${apiUrl}/api/v1/avatars/${user.avatar}`" class="user-avatar-img" alt="">
+            <img v-if="user.avatar && !avatarError" :src="`${apiUrl}/api/v1/avatars/${user.avatar}`" class="user-avatar-img" alt="" @error="avatarError = true">
             <div v-else class="user-avatar">
               {{ userInitials }}
             </div>
@@ -211,10 +211,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from './api';
 import NotificationBell from './components/shared/NotificationBell.vue';
-import {
-  hasPermission as checkPermission,
-  AVAILABLE_PERMISSIONS
-} from './utils/permissions';
+import { hasPermission as checkPermission } from './utils/permissions';
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -222,11 +219,12 @@ const router = useRouter();
 const user = ref({ username: '', role: '', permissions: [] });
 const isDark = ref(false);
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const avatarError = ref(false);
 
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/unauthorized');
 const isSuperadmin = computed(() => user.value.role === 'superadmin');
 const isAdmin = computed(() => user.value.role === 'admin' || user.value.role === 'superadmin');
-const userInitials = computed(() => (user.value.username ? user.value.username.substring(0, 2).toUpperCase() : '??'));
+const userInitials = computed(() => user.value?.username?.substring(0, 2)?.toUpperCase() || '??');
 
 const currentRouteName = computed(() => {
   if(route.name === 'Dashboard') return t('nav.dashboard');
@@ -280,11 +278,12 @@ const fetchUser = async () => {
   try {
     const res = await api.get('/me');
     user.value = res.data;
+    avatarError.value = false; // Reset avatar error on user refresh
     // Ensure permissions is an array (not object)
     if (!Array.isArray(user.value.permissions)) {
       user.value.permissions = [];
     }
-  } catch (e) {
+  } catch {
     // Handled by interceptor
   }
 };
@@ -295,7 +294,7 @@ const logout = async () => {
   if (refreshToken) {
     try {
       await api.post('/logout', { refresh_token: refreshToken });
-    } catch (e) {
+    } catch {
       // Ignore errors - we're logging out anyway
     }
   }

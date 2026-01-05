@@ -260,8 +260,8 @@ const loadPopularArticles = async () => {
   try {
     const response = await api.get('/knowledge/articles/popular?limit=5');
     popularArticles.value = response.data;
-  } catch (e) {
-    console.error('Failed to load popular articles:', e);
+  } catch {
+    // Silent fail - non-critical data
   }
 };
 
@@ -269,8 +269,8 @@ const loadCategories = async () => {
   try {
     const response = await api.get('/knowledge/articles/categories');
     categories.value = response.data;
-  } catch (e) {
-    console.error('Failed to load categories:', e);
+  } catch {
+    // Silent fail - non-critical data
   }
 };
 
@@ -395,8 +395,8 @@ const submitFeedback = async (helpful) => {
     } else {
       selectedArticle.value.not_helpful_count++;
     }
-  } catch (e) {
-    console.error('Failed to submit feedback:', e);
+  } catch {
+    // Silent fail - feedback is non-critical
   }
 };
 

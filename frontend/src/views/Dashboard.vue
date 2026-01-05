@@ -666,19 +666,20 @@ const loadDashboard = async () => {
 
     // Load extended dashboard data for tech/admin/superadmin
     if (isTech.value) {
-      const [statsRes, alertsRes, activitiesRes] = await Promise.all([
+      const results = await Promise.allSettled([
         api.get('/dashboard/stats'),
         api.get('/dashboard/alerts'),
         api.get('/dashboard/recent-activity')
       ]);
-      stats.value = statsRes.data;
-      alerts.value = alertsRes.data;
-      activities.value = activitiesRes.data;
+      // Handle partial failures gracefully
+      if (results[0].status === 'fulfilled') stats.value = results[0].value.data;
+      if (results[1].status === 'fulfilled') alerts.value = results[1].value.data;
+      if (results[2].status === 'fulfilled') activities.value = results[2].value.data;
     }
 
     lastRefresh.value = new Date().toLocaleTimeString();
-  } catch (e) {
-    console.error("Failed to fetch dashboard data", e);
+  } catch {
+    // Error handled by API interceptor
   }
 };
 

@@ -190,7 +190,7 @@
 
       <!-- Content Area -->
       <div class="flex-1 overflow-auto custom-scrollbar" style="padding: 1.5rem 2rem;">
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component }" :key="userKey">
           <transition name="page" mode="out-in">
             <component :is="Component" />
           </transition>
@@ -225,6 +225,8 @@ const isLoginPage = computed(() => route.path === '/login' || route.path === '/u
 const isSuperadmin = computed(() => user.value.role === 'superadmin');
 const isAdmin = computed(() => user.value.role === 'admin' || user.value.role === 'superadmin');
 const userInitials = computed(() => user.value?.username?.substring(0, 2)?.toUpperCase() || '??');
+// Key for router-view to force remount when user changes (avoids cache issues on account switch)
+const userKey = computed(() => user.value?.id || 'anonymous');
 
 const currentRouteName = computed(() => {
   if(route.name === 'Dashboard') return t('nav.dashboard');

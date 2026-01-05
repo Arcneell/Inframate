@@ -507,15 +507,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+import { useAuthStore } from '../stores/auth';
 import {
   getCurrentUser,
   hasPermission,
   isAdmin as checkIsAdmin,
   isTechOrAbove
 } from '../utils/permissions';
+
+const authStore = useAuthStore();
 
 const { t } = useI18n();
 
@@ -761,6 +764,15 @@ const loadDashboard = async () => {
     // Error handled by API interceptor
   }
 };
+
+// Watch for user changes (login/logout/switch account) and reload dashboard
+watch(() => authStore.user?.id, (newUserId, oldUserId) => {
+  if (newUserId && newUserId !== oldUserId) {
+    // User changed - reload everything
+    loadDismissedAlerts();
+    loadDashboard();
+  }
+});
 
 onMounted(() => {
   loadDismissedAlerts();

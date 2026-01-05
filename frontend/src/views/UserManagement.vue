@@ -178,18 +178,33 @@
             <span v-else class="text-xs opacity-50 ml-1">({{ t('users.leaveBlankToKeep') }})</span>
           </label>
           <Password v-model="userForm.password" toggleMask class="w-full" inputClass="w-full" :feedback="false"
-                    :class="{ 'p-invalid': userForm.password && userForm.password.length > 0 && userForm.password.length < 8 }" />
-          <small v-if="userForm.password && userForm.password.length > 0 && userForm.password.length < 8"
-                 class="text-xs text-red-500 flex items-center gap-1 mt-1">
-            <i class="pi pi-exclamation-circle"></i>
-            {{ t('validation.passwordTooShort') }}
-          </small>
-          <small v-else-if="userForm.password && userForm.password.length >= 8"
-                 class="text-xs text-green-500 flex items-center gap-1 mt-1">
-            <i class="pi pi-check-circle"></i>
-            {{ t('validation.passwordMinLength', { min: 8 }) }}
-          </small>
-          <small v-else class="text-xs opacity-50">{{ t('validation.passwordMinLength', { min: 8 }) }}</small>
+                    :class="{ 'p-invalid': userForm.password && !isPasswordValid }" />
+          <!-- Password requirements checklist -->
+          <div v-if="userForm.password || !editingUser" class="mt-2 p-2 rounded text-xs" style="background: var(--bg-secondary);">
+            <div class="font-medium mb-1 opacity-70">{{ t('validation.passwordRequirements') }}</div>
+            <div class="grid grid-cols-1 gap-1">
+              <div :class="passwordChecks.minLength ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.minLength ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordMinLength', { min: 8 }) }}
+              </div>
+              <div :class="passwordChecks.hasUppercase ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasUppercase ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireUppercase') }}
+              </div>
+              <div :class="passwordChecks.hasLowercase ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasLowercase ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireLowercase') }}
+              </div>
+              <div :class="passwordChecks.hasDigit ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasDigit ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireDigit') }}
+              </div>
+              <div :class="passwordChecks.hasSpecial ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasSpecial ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireSpecial') }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -271,6 +286,23 @@ const currentUser = computed(() => {
     }
   }
   return null;
+});
+
+// Password validation checks
+const passwordChecks = computed(() => {
+  const pwd = userForm.value.password || '';
+  return {
+    minLength: pwd.length >= 8,
+    hasUppercase: /[A-Z]/.test(pwd),
+    hasLowercase: /[a-z]/.test(pwd),
+    hasDigit: /\d/.test(pwd),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;'`~]/.test(pwd)
+  };
+});
+
+const isPasswordValid = computed(() => {
+  const checks = passwordChecks.value;
+  return checks.minLength && checks.hasUppercase && checks.hasLowercase && checks.hasDigit && checks.hasSpecial;
 });
 
 const currentUserId = computed(() => currentUser.value?.id);
@@ -422,12 +454,12 @@ const saveUser = async () => {
       toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.usernameTooShort') });
       return;
     }
-    if (!userForm.value.password || userForm.value.password.length < 8) {
+    if (!userForm.value.password || !isPasswordValid.value) {
       toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.passwordTooShort') });
       return;
     }
   } else {
-    if (userForm.value.password && userForm.value.password.length < 8) {
+    if (userForm.value.password && !isPasswordValid.value) {
       toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.passwordTooShort') });
       return;
     }

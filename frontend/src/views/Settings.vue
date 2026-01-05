@@ -75,17 +75,33 @@
           <label class="block text-sm font-medium mb-1 opacity-70">{{ t('settings.newPassword') }}</label>
           <Password v-model="newPassword" toggleMask class="w-full" inputClass="w-full" :feedback="false"
                     :placeholder="t('settings.newPasswordPlaceholder')"
-                    :class="{ 'p-invalid': newPassword && newPassword.length > 0 && newPassword.length < 8 }" />
-          <small v-if="newPassword && newPassword.length > 0 && newPassword.length < 8"
-                 class="text-xs text-red-500 flex items-center gap-1 mt-1">
-            <i class="pi pi-exclamation-circle"></i>
-            {{ t('validation.passwordTooShort') }}
-          </small>
-          <small v-else-if="newPassword && newPassword.length >= 8"
-                 class="text-xs text-green-500 flex items-center gap-1 mt-1">
-            <i class="pi pi-check-circle"></i>
-            {{ t('validation.passwordMinLength', { min: 8 }) }}
-          </small>
+                    :class="{ 'p-invalid': newPassword && !isNewPasswordValid }" />
+          <!-- Password requirements checklist -->
+          <div v-if="newPassword" class="mt-2 p-2 rounded text-xs" style="background: var(--bg-secondary);">
+            <div class="font-medium mb-1 opacity-70">{{ t('validation.passwordRequirements') }}</div>
+            <div class="grid grid-cols-1 gap-1">
+              <div :class="passwordChecks.minLength ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.minLength ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordMinLength', { min: 8 }) }}
+              </div>
+              <div :class="passwordChecks.hasUppercase ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasUppercase ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireUppercase') }}
+              </div>
+              <div :class="passwordChecks.hasLowercase ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasLowercase ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireLowercase') }}
+              </div>
+              <div :class="passwordChecks.hasDigit ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasDigit ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireDigit') }}
+              </div>
+              <div :class="passwordChecks.hasSpecial ? 'text-green-500' : 'opacity-50'">
+                <i :class="passwordChecks.hasSpecial ? 'pi pi-check-circle' : 'pi pi-circle'"></i>
+                {{ t('validation.passwordRequireSpecial') }}
+              </div>
+            </div>
+          </div>
           <small v-else class="text-xs opacity-50">{{ t('validation.passwordMinLength', { min: 8 }) }}</small>
         </div>
         <div>
@@ -98,7 +114,7 @@
             <i class="pi pi-exclamation-circle"></i>
             {{ t('settings.passwordMismatch') }}
           </small>
-          <small v-else-if="confirmPassword && newPassword && confirmPassword === newPassword && newPassword.length >= 8"
+          <small v-else-if="confirmPassword && newPassword && confirmPassword === newPassword && isNewPasswordValid"
                  class="text-xs text-green-500 flex items-center gap-1 mt-1">
             <i class="pi pi-check-circle"></i>
             {{ t('common.success') }}
@@ -108,7 +124,7 @@
 
       <div class="flex justify-end mt-4">
         <Button :label="t('settings.updatePassword')" icon="pi pi-check" @click="updatePassword"
-                :loading="updatingPassword" :disabled="!newPassword || !confirmPassword" />
+                :loading="updatingPassword" :disabled="!isNewPasswordValid || !confirmPassword || newPassword !== confirmPassword" />
       </div>
     </div>
 
@@ -201,7 +217,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import QRCode from 'qrcode';
 import api from '../api';
-import { validateAvatarFile, validatePassword, validateMfaCode } from '../utils/validation';
+import { validateAvatarFile, validateMfaCode } from '../utils/validation';
 
 const { t } = useI18n();
 const toast = useToast();
@@ -217,6 +233,23 @@ const savingProfile = ref(false);
 const newPassword = ref('');
 const confirmPassword = ref('');
 const updatingPassword = ref(false);
+
+// Password validation checks
+const passwordChecks = computed(() => {
+  const pwd = newPassword.value || '';
+  return {
+    minLength: pwd.length >= 8,
+    hasUppercase: /[A-Z]/.test(pwd),
+    hasLowercase: /[a-z]/.test(pwd),
+    hasDigit: /\d/.test(pwd),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;'`~]/.test(pwd)
+  };
+});
+
+const isNewPasswordValid = computed(() => {
+  const checks = passwordChecks.value;
+  return checks.minLength && checks.hasUppercase && checks.hasLowercase && checks.hasDigit && checks.hasSpecial;
+});
 
 // MFA state
 const showMfaSetupDialog = ref(false);
@@ -317,10 +350,9 @@ const saveProfile = async () => {
 };
 
 const updatePassword = async () => {
-  // Validate password with Zod schema
-  const passwordValidation = validatePassword(newPassword.value);
-  if (!passwordValidation.success) {
-    toast.add({ severity: 'warn', summary: t('validation.error'), detail: passwordValidation.error });
+  // Validate password strength
+  if (!isNewPasswordValid.value) {
+    toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.passwordTooShort') });
     return;
   }
 

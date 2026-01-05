@@ -242,6 +242,11 @@
     "usernameTooShort": "Username must be at least 3 characters",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordMinLength": "Minimum {min} characters",
+    "passwordRequirements": "Password requirements:",
+    "passwordRequireUppercase": "At least one uppercase letter (A-Z)",
+    "passwordRequireLowercase": "At least one lowercase letter (a-z)",
+    "passwordRequireDigit": "At least one digit (0-9)",
+    "passwordRequireSpecial": "At least one special character (!@#$%^&*...)",
     "fillRequiredFields": "Please fill all required fields",
     "updateFailed": "Update Failed"
   },

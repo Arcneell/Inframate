@@ -46,8 +46,8 @@ backend/           # FastAPI API
 ├── core/
 │   ├── config.py           # Configuration Pydantic Settings (Docker secrets support, URL validation)
 │   ├── database.py         # SQLAlchemy engine + sessions
-│   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp), refresh tokens (timezone-aware)
-│   ├── rate_limiter.py     # Rate limiting Redis
+│   ├── security.py         # JWT, bcrypt, Fernet encryption, TOTP (pyotp), refresh tokens, password strength validation (regex)
+│   ├── rate_limiter.py     # Rate limiting Redis (login, MFA, settings)
 │   ├── logging.py          # Logging structuré JSON/Text
 │   ├── cache.py            # Cache Redis pour dashboard/topology/tickets (TTL 2-5min)
 │   ├── middleware.py       # Audit middleware (log auto POST/PUT/DELETE, enhanced metadata for critical ops)
@@ -66,16 +66,16 @@ backend/           # FastAPI API
 │   ├── network_ports.py    # Ports réseau et connexions physiques
 │   ├── attachments.py      # Pièces jointes (documents)
 │   ├── entities.py         # Entités multi-tenant
-│   ├── tickets.py          # Système de tickets helpdesk (ITIL workflow, SLA business hours, commentaires)
+│   ├── tickets.py          # Système de tickets helpdesk (ITIL workflow, SLA business hours, auto ticket_number via hook)
 │   ├── notifications.py    # Notifications in-app (polling, mark read, broadcast)
 │   ├── knowledge.py        # Base de connaissances (articles, catégories, feedback)
 │   ├── export.py           # Export CSV (équipements, tickets, contrats, logiciels, IPs, audit)
 │   ├── search.py           # Recherche globale multi-ressources
 │   ├── webhooks.py         # Webhooks pour intégrations externes (Slack, Teams, etc.)
-│   └── settings.py         # Configuration système (SMTP, général, sécurité, notifications, maintenance)
-├── models.py               # Modèles SQLAlchemy (+ UserToken, auto-encryption hooks pour TOTP/passwords)
+│   └── settings.py         # Configuration système (SMTP, général, sécurité, notifications, maintenance, rate limited)
+├── models.py               # Modèles SQLAlchemy (+ EncryptedString TypeDecorator, ticket_number hook, UserToken)
 ├── schemas.py              # Schémas Pydantic (+ TokenWithRefresh, RefreshTokenRequest)
-└── app.py                  # Application FastAPI (lifespan context manager, optimized health check)
+└── app.py                  # Application FastAPI (lifespan context manager, auto create_default_admin)
 
 worker/            # Celery worker
 └── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels, cleanup tokens/audit logs, SLA breach check)
@@ -229,18 +229,22 @@ frontend/src/utils/
 
 - **Auth**: JWT (30min access token) + Refresh tokens (7 jours) + bcrypt pour mots de passe
 - **Refresh Tokens**: Rotation automatique, révocation individuelle ou globale, stockage haché (SHA256), nettoyage automatique via Celery Beat
-- **MFA/TOTP**: Authentification à deux facteurs optionnelle avec pyotp (secrets auto-chiffrés via hooks SQLAlchemy)
+- **MFA/TOTP**: Authentification à deux facteurs optionnelle avec pyotp (secrets auto-chiffrés via TypeDecorator)
 - **Encryption**: Fernet pour données sensibles (remote passwords, TOTP secrets)
-- **Auto-Encryption**: Hooks SQLAlchemy pour chiffrer automatiquement Equipment.remote_password et User.totp_secret
+- **EncryptedString TypeDecorator**: Chiffrement/déchiffrement automatique transparent via SQLAlchemy TypeDecorator (remplace les hooks manuels)
+- **Password Policy**: Validation renforcée avec regex (min 8 caractères + majuscule + minuscule + chiffre + caractère spécial)
 - **Configuration Sécurisée**:
   - JWT_SECRET_KEY et ENCRYPTION_KEY obligatoires (validation Pydantic)
   - Support Docker secrets via *_FILE environment variables
   - Validation basique des URLs (supporte les mots de passe avec caractères spéciaux)
 - **Timezone-Aware**: Utilisation de `datetime.now(timezone.utc)` (Python 3.12+ compatible)
-- **Rate Limiting**: Redis-backed, 5 req/60s sur login
+- **Rate Limiting**: Redis-backed
+  - Login: 5 req/60s
+  - MFA verification: protection brute force
+  - SystemSettings: 10 modifications/min par utilisateur
 - **RBAC Hiérarchique**:
   - `user`: Helpdesk uniquement (tickets, base de connaissances)
-  - `tech`: Permissions granulaires (ipam, inventory, dcim, contracts, software, topology, knowledge, etc.)
+  - `tech`: Permissions granulaires (ipam, inventory, dcim, contracts, software, topology, knowledge, tickets_admin, etc.)
   - `admin`: Toutes permissions tech + gestion utilisateurs
   - `superadmin`: Accès complet (scripts, paramètres système)
 - **Permissions Granulaires**: ipam, inventory, dcim, contracts, software, topology, knowledge, network_ports, attachments, tickets_admin, reports
@@ -250,7 +254,7 @@ frontend/src/utils/
 - **Audit Log**: Traçabilité complète via middleware (POST, PUT, DELETE) + événements MFA + métadonnées enrichies pour actions critiques (severity, category, affected_ids)
 - **Validation Frontend**: Schémas Zod pour validation des fichiers (avatar, scripts) et formulaires (password, MFA code)
 - **Cache Redis**: Dashboard, Topology et Ticket Stats cachés (TTL 2-5 minutes)
-- **Rate Limiting MFA**: Protection contre brute force sur endpoint /verify-mfa
+- **Init Admin Automatique**: Création automatique du superadmin au démarrage via lifespan context manager
 
 ## Commandes
 
@@ -383,9 +387,9 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - `webhooks` - Configuration webhooks externes (events, url, secret HMAC)
 - `webhook_deliveries` - Logs de livraison webhooks (status, response, retries)
 
-**Hooks SQLAlchemy (before_insert/before_update):**
-- `Equipment.remote_password` → chiffré automatiquement avec Fernet
-- `User.totp_secret` → chiffré automatiquement avec Fernet
+**SQLAlchemy TypeDecorators & Hooks:**
+- `EncryptedString` TypeDecorator → chiffrement/déchiffrement automatique transparent (utilisé pour totp_secret, remote_password)
+- `Ticket.ticket_number` → généré automatiquement via hook `before_insert` (format: TKT-YYYYMMDD-XXXX, numérotation séquentielle atomique)
 
 ## API Endpoints Principaux
 

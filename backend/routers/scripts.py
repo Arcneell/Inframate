@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import shutil
 import os
 import re
-import datetime
+from datetime import datetime, timezone
 import logging
 
 from backend.core.database import get_db
@@ -357,7 +357,7 @@ def stop_execution(
         execute_script_task.app.control.revoke(execution.task_id, terminate=True)
         execution.status = "cancelled"
         execution.stderr = (execution.stderr or "") + "\n[Stopped by user]"
-        execution.completed_at = datetime.datetime.utcnow()
+        execution.completed_at = datetime.now(timezone.utc)
         db.commit()
 
     return {"message": "Execution stopped"}

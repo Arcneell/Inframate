@@ -5,7 +5,7 @@ With Redis caching for performance optimization.
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 from backend.core.database import get_db
 from backend.core.security import get_current_active_user
@@ -112,7 +112,7 @@ def get_stats(
     users_count = db.query(models.User).filter(models.User.is_active == True).count()
 
     # Recent script executions (last 7 days)
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     recent_executions = db.query(models.ScriptExecution).filter(
         models.ScriptExecution.started_at >= seven_days_ago
     ).count()
@@ -132,10 +132,11 @@ def get_stats(
     ).count()
 
     # Warranty expiring (next 30 days)
+    now = datetime.now(timezone.utc)
     warranty_expiring = db.query(models.Equipment).filter(
         and_(
-            models.Equipment.warranty_expiry >= datetime.utcnow(),
-            models.Equipment.warranty_expiry <= datetime.utcnow() + timedelta(days=30)
+            models.Equipment.warranty_expiry >= now,
+            models.Equipment.warranty_expiry <= now + timedelta(days=30)
         )
     ).count()
 
@@ -203,7 +204,7 @@ def get_alerts(
     """Get dashboard alerts for contracts, licenses, warranties expiring soon."""
     alerts = []
     today = date.today()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     thirty_days = today + timedelta(days=30)
     thirty_days_dt = now + timedelta(days=30)
 

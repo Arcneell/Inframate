@@ -45,11 +45,15 @@ class EncryptedString(TypeDecorator):
         # Only decrypt if it looks encrypted
         if isinstance(value, str) and value.startswith('gAAAA'):
             from backend.core.security import decrypt_value
+            import logging
             try:
                 return decrypt_value(value)
-            except Exception:
-                # Return encrypted value if decryption fails
-                return value
+            except Exception as e:
+                # Log decryption failure for security audit
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to decrypt sensitive field: {type(e).__name__} - {e}")
+                # Return None instead of encrypted value to prevent data leak
+                return None
         return value
 
 

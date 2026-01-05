@@ -4,7 +4,7 @@ Provides secure script execution in ephemeral containers.
 """
 import os
 import subprocess
-import datetime
+from datetime import datetime, timezone, timedelta, date
 import logging
 import socket
 import json
@@ -56,7 +56,7 @@ def log_event(event_type: str, **kwargs):
     """Log structured event."""
     log_data = {
         "event_type": event_type,
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         **kwargs
     }
     logger.info(json.dumps(log_data))
@@ -535,7 +535,7 @@ def execute_script_task(
         if not real_path.startswith(os.path.realpath(SCRIPTS_DIR)):
             execution.status = "failure"
             execution.stderr = "Security error: Invalid file path"
-            execution.completed_at = datetime.datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             db.commit()
             log_event("path_traversal_attempt", filename=filename)
             return "Security error"
@@ -543,7 +543,7 @@ def execute_script_task(
         if not os.path.exists(file_path):
             execution.status = "failure"
             execution.stderr = f"File not found: {filename}"
-            execution.completed_at = datetime.datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             db.commit()
             return "File not found"
 
@@ -634,7 +634,7 @@ def execute_script_task(
         execution.stdout = stdout
         execution.stderr = stderr
         execution.status = "success" if return_code == 0 else "failure"
-        execution.completed_at = datetime.datetime.utcnow()
+        execution.completed_at = datetime.now(timezone.utc)
         db.commit()
 
         log_event(
@@ -656,7 +656,7 @@ def execute_script_task(
         try:
             execution.status = "failure"
             execution.stderr = f"Unexpected error: {str(e)}"
-            execution.completed_at = datetime.datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc)
             db.commit()
         except Exception:
             pass
@@ -735,7 +735,7 @@ def scan_subnet_task(self, subnet_id: int):
 
             if existing_ip:
                 existing_ip.status = status
-                existing_ip.last_scanned_at = datetime.datetime.utcnow()
+                existing_ip.last_scanned_at = datetime.now(timezone.utc)
                 if hostname:
                     existing_ip.hostname = hostname
                 if mac:
@@ -747,7 +747,7 @@ def scan_subnet_task(self, subnet_id: int):
                     status=status,
                     hostname=hostname,
                     mac_address=mac,
-                    last_scanned_at=datetime.datetime.utcnow()
+                    last_scanned_at=datetime.now(timezone.utc)
                 )
                 db.add(new_ip)
 
@@ -787,8 +787,8 @@ def check_expiring_warranties_task(self, days_threshold: int = 30):
 
     db: Session = SessionLocal()
     try:
-        today = datetime.date.today()
-        threshold_date = today + datetime.timedelta(days=days_threshold)
+        today = date.today()
+        threshold_date = today + timedelta(days=days_threshold)
 
         expiring = db.query(Equipment).filter(
             Equipment.warranty_expiry.isnot(None),
@@ -852,8 +852,8 @@ def check_expiring_contracts_task(self, days_threshold: int = 30):
 
     db: Session = SessionLocal()
     try:
-        today = datetime.date.today()
-        threshold_date = today + datetime.timedelta(days=days_threshold)
+        today = date.today()
+        threshold_date = today + timedelta(days=days_threshold)
 
         expiring = db.query(Contract).filter(
             Contract.end_date >= today,
@@ -918,8 +918,8 @@ def check_expiring_licenses_task(self, days_threshold: int = 30):
 
     db: Session = SessionLocal()
     try:
-        today = datetime.date.today()
-        threshold_date = today + datetime.timedelta(days=days_threshold)
+        today = date.today()
+        threshold_date = today + timedelta(days=days_threshold)
 
         expiring = db.query(SoftwareLicense).filter(
             SoftwareLicense.expiry_date.isnot(None),
@@ -1093,14 +1093,14 @@ def collect_software_inventory_task(self, equipment_id: int):
 
             if installation:
                 installation.installed_version = sw_info.get("version")
-                installation.discovered_at = datetime.datetime.utcnow()
+                installation.discovered_at = datetime.now(timezone.utc)
                 updated_count += 1
             else:
                 installation = SoftwareInstallation(
                     software_id=software.id,
                     equipment_id=equipment_id,
                     installed_version=sw_info.get("version"),
-                    discovered_at=datetime.datetime.utcnow()
+                    discovered_at=datetime.now(timezone.utc)
                 )
                 db.add(installation)
                 new_count += 1
@@ -1267,7 +1267,6 @@ def cleanup_expired_tokens_task(self):
     """
     from backend.core.database import SessionLocal
     from backend.models import UserToken
-    from datetime import datetime, timezone
 
     db: Session = SessionLocal()
     try:
@@ -1290,7 +1289,6 @@ def cleanup_expired_tokens_task(self):
 
         # Delete revoked tokens that are older than 24 hours
         # (keep recent revoked tokens for security audit purposes)
-        from datetime import timedelta
         cutoff_time = now - timedelta(hours=24)
 
         deleted_revoked = db.query(UserToken).filter(
@@ -1346,7 +1344,6 @@ def cleanup_old_audit_logs_task(self, days_to_keep: int = 90):
     """
     from backend.core.database import SessionLocal
     from backend.models import AuditLog
-    from datetime import datetime, timezone, timedelta
 
     db: Session = SessionLocal()
     try:
@@ -1440,7 +1437,6 @@ def check_sla_breaches_task(self):
     """
     from backend.core.database import SessionLocal
     from backend.models import Ticket, Notification
-    from datetime import datetime, timezone
 
     db: Session = SessionLocal()
     try:
@@ -1536,7 +1532,7 @@ def backup_database(self, compress: bool = True):
         os.makedirs(BACKUP_DIR, exist_ok=True)
 
         # Generate filename with timestamp
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"inframate_backup_{timestamp}.sql"
         if compress:
             filename += ".gz"
@@ -1640,7 +1636,7 @@ def cleanup_old_backups(self, retention_days: int = None):
         if not os.path.exists(BACKUP_DIR):
             return {"status": "success", "deleted_count": 0, "message": "Backup directory does not exist"}
 
-        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
         deleted_count = 0
         deleted_files = []
 
@@ -1650,8 +1646,8 @@ def cleanup_old_backups(self, retention_days: int = None):
 
             filepath = os.path.join(BACKUP_DIR, filename)
 
-            # Check file modification time
-            file_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
+            # Check file modification time (convert to UTC-aware datetime)
+            file_mtime = datetime.fromtimestamp(os.path.getmtime(filepath), tz=timezone.utc)
 
             if file_mtime < cutoff_date:
                 os.remove(filepath)
@@ -1702,7 +1698,7 @@ def list_backups(self):
             backups.append({
                 "filename": filename,
                 "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "created_at": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
                 "compressed": filename.endswith(".gz")
             })
 

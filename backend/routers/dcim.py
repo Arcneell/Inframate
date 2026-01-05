@@ -27,6 +27,48 @@ def get_user_entity_filter(current_user: models.User):
     return current_user.entity_id
 
 
+def check_rack_position_conflict(
+    db: Session,
+    rack_id: int,
+    position_u: int,
+    height_u: int,
+    exclude_equipment_id: int = None
+) -> models.Equipment:
+    """
+    Check for equipment conflicts at a given rack position.
+
+    Uses optimized SQL query to find overlapping equipment instead of
+    loading all equipment and checking in Python.
+
+    Args:
+        db: Database session
+        rack_id: Rack ID to check
+        position_u: Starting U position
+        height_u: Height in U
+        exclude_equipment_id: Equipment ID to exclude (for updates)
+
+    Returns:
+        Conflicting equipment if found, None otherwise
+    """
+    new_end = position_u + height_u - 1
+
+    # SQL query to find overlapping equipment:
+    # Two ranges [a, b] and [c, d] overlap if NOT (b < c OR a > d)
+    # Which is equivalent to: b >= c AND a <= d
+    query = db.query(models.Equipment).filter(
+        models.Equipment.rack_id == rack_id,
+        models.Equipment.position_u.isnot(None),
+        # Check overlap: new_end >= eq.position_u AND position_u <= eq_end
+        new_end >= models.Equipment.position_u,
+        position_u <= models.Equipment.position_u + models.Equipment.height_u - 1
+    )
+
+    if exclude_equipment_id:
+        query = query.filter(models.Equipment.id != exclude_equipment_id)
+
+    return query.first()
+
+
 # ==================== RACKS ====================
 
 @router.get("/racks/", response_model=List[schemas.RackFull])
@@ -83,10 +125,11 @@ def get_rack_layout(
     if not rack:
         raise HTTPException(status_code=404, detail="Rack not found")
 
-    # Get equipment in this rack with optimized joins
+    # Get equipment in this rack with optimized joins (including IP addresses)
     equipment = db.query(models.Equipment).options(
         joinedload(models.Equipment.model).joinedload(models.EquipmentModel.manufacturer),
-        joinedload(models.Equipment.model).joinedload(models.EquipmentModel.equipment_type)
+        joinedload(models.Equipment.model).joinedload(models.EquipmentModel.equipment_type),
+        joinedload(models.Equipment.ip_addresses)
     ).filter(
         models.Equipment.rack_id == rack_id,
         models.Equipment.position_u.isnot(None)
@@ -95,20 +138,18 @@ def get_rack_layout(
     # Get unassigned equipment (rack_id set but position_u is null)
     unassigned = db.query(models.Equipment).options(
         joinedload(models.Equipment.model).joinedload(models.EquipmentModel.manufacturer),
-        joinedload(models.Equipment.model).joinedload(models.EquipmentModel.equipment_type)
+        joinedload(models.Equipment.model).joinedload(models.EquipmentModel.equipment_type),
+        joinedload(models.Equipment.ip_addresses)
     ).filter(
         models.Equipment.rack_id == rack_id,
         models.Equipment.position_u.is_(None)
     ).all()
 
-    # Get management IPs for equipment
+    # Build equipment IPs map from pre-loaded relationships (avoids N+1 queries)
     equipment_ips = {}
     for eq in equipment + unassigned:
-        ip = db.query(models.IPAddress).filter(
-            models.IPAddress.equipment_id == eq.id
-        ).first()
-        if ip:
-            equipment_ips[eq.id] = ip.ip_address
+        if eq.ip_addresses:
+            equipment_ips[eq.id] = eq.ip_addresses[0].address
 
     # Build layout with full details
     layout = []
@@ -189,23 +230,15 @@ def place_equipment_in_rack(
             detail=f"Equipment height ({equipment.height_u}U) exceeds rack capacity at position {position_u}"
         )
 
-    # Check for conflicts with existing equipment
-    existing = db.query(models.Equipment).filter(
-        models.Equipment.rack_id == rack_id,
-        models.Equipment.position_u.isnot(None)
-    ).all()
-
-    for eq in existing:
-        if eq.id == equipment_id:
-            continue
-        # Check if ranges overlap
-        eq_end = eq.position_u + eq.height_u - 1
-        new_end = position_u + equipment.height_u - 1
-        if not (new_end < eq.position_u or position_u > eq_end):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Position conflicts with {eq.name} at U{eq.position_u}"
-            )
+    # Check for conflicts using optimized SQL query
+    conflict = check_rack_position_conflict(
+        db, rack_id, position_u, equipment.height_u, exclude_equipment_id=equipment_id
+    )
+    if conflict:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Position conflicts with {conflict.name} at U{conflict.position_u}"
+        )
 
     # Update equipment
     equipment.rack_id = rack_id
@@ -248,21 +281,15 @@ def update_equipment_position(
                     detail=f"Equipment height ({equipment.height_u}U) exceeds rack capacity at position {position_u}"
                 )
 
-            # Check conflicts
-            existing = db.query(models.Equipment).filter(
-                models.Equipment.rack_id == rack_id,
-                models.Equipment.position_u.isnot(None),
-                models.Equipment.id != equipment_id
-            ).all()
-
-            for eq in existing:
-                eq_end = eq.position_u + eq.height_u - 1
-                new_end = position_u + equipment.height_u - 1
-                if not (new_end < eq.position_u or position_u > eq_end):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Position conflicts with {eq.name} at U{eq.position_u}"
-                    )
+            # Check conflicts using optimized SQL query
+            conflict = check_rack_position_conflict(
+                db, rack_id, position_u, equipment.height_u, exclude_equipment_id=equipment_id
+            )
+            if conflict:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Position conflicts with {conflict.name} at U{conflict.position_u}"
+                )
 
         equipment.rack_id = rack_id
         equipment.position_u = position_u

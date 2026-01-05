@@ -6,7 +6,7 @@ user management, and security-related actions.
 import logging
 import json
 from typing import Callable, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 
 from fastapi import Request, Response
@@ -265,7 +265,7 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
                 extra_data["query_params"] = filtered_params
 
             # Add timestamp with timezone
-            extra_data["timestamp_utc"] = datetime.utcnow().isoformat() + "Z"
+            extra_data["timestamp_utc"] = datetime.now(timezone.utc).isoformat()
 
             # Enhanced logging for critical operations
             if severity in ("critical", "high"):

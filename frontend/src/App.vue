@@ -211,11 +211,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from './api';
 import NotificationBell from './components/shared/NotificationBell.vue';
+import { useAuthStore } from './stores/auth';
 import { hasPermission as checkPermission } from './utils/permissions';
 
 const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const user = ref({ username: '', role: '', permissions: [] });
 const isDark = ref(false);
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -226,7 +228,8 @@ const isSuperadmin = computed(() => user.value.role === 'superadmin');
 const isAdmin = computed(() => user.value.role === 'admin' || user.value.role === 'superadmin');
 const userInitials = computed(() => user.value?.username?.substring(0, 2)?.toUpperCase() || '??');
 // Key for router-view to force remount when user changes (avoids cache issues on account switch)
-const userKey = computed(() => user.value?.id || 'anonymous');
+// Uses authStore.user for reactivity when switching accounts
+const userKey = computed(() => authStore.user?.id || user.value?.id || 'anonymous');
 
 const currentRouteName = computed(() => {
   if(route.name === 'Dashboard') return t('nav.dashboard');
@@ -285,6 +288,9 @@ const fetchUser = async () => {
     if (!Array.isArray(user.value.permissions)) {
       user.value.permissions = [];
     }
+    // Sync with authStore for components using it
+    authStore.user = { ...user.value };
+    localStorage.setItem('user', JSON.stringify(user.value));
   } catch {
     // Handled by interceptor
   }
@@ -308,16 +314,29 @@ const logout = async () => {
   router.push('/login');
 };
 
+// Watch route changes to fetch user when navigating away from login
 watch(() => route.path, async (newPath) => {
-  if (newPath !== '/login' && !user.value.username) {
+  if (newPath !== '/login' && newPath !== '/unauthorized' && !user.value.username) {
     await fetchUser();
   }
 });
+
+// Watch authStore user changes to sync local user ref (for account switching)
+watch(() => authStore.user, (newUser) => {
+  if (newUser && newUser.id !== user.value.id) {
+    user.value = { ...newUser };
+    avatarError.value = false;
+  }
+}, { deep: true });
 
 onMounted(async () => {
   initTheme();
   const savedLang = localStorage.getItem('lang') || 'en';
   locale.value = savedLang;
+
+  // Initialize authStore from localStorage
+  authStore.init();
+
   if (!isLoginPage.value) {
     await fetchUser();
   }

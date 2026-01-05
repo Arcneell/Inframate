@@ -607,7 +607,7 @@ const getUnassignedTooltip = (eq) => {
 const handleSlotClick = (slot) => {
   if (slot.equipment?.is_start && slot.equipment.id) {
     // Navigate to equipment details in inventory
-    router.push({ name: 'Inventory', query: { equipmentId: slot.equipment.id } });
+    router.push({ name: 'Inventory', query: { equipment: slot.equipment.id } });
   }
 };
 
@@ -622,7 +622,7 @@ const handleEquipmentContextMenu = (event, equipment) => {
       label: t('dcim.viewDetails'),
       icon: 'pi pi-eye',
       command: () => {
-        router.push({ name: 'Inventory', query: { equipmentId: equipment.id } });
+        router.push({ name: 'Inventory', query: { equipment: equipment.id } });
       }
     },
     {

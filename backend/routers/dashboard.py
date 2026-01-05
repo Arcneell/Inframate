@@ -335,7 +335,7 @@ def get_recent_activity(
             "title": eq.name,
             "description": f"Added to inventory",
             "timestamp": eq.created_at.isoformat() if eq.created_at else None,
-            "link": "/inventory"
+            "link": f"/inventory?equipment={eq.id}"
         })
 
     # Sort by timestamp

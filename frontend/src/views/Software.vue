@@ -281,10 +281,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+
+const route = useRoute();
+const router = useRouter();
 
 const { t } = useI18n();
 const toast = useToast();
@@ -526,5 +530,29 @@ const onInstallationDialogEnter = (event) => {
   }
 };
 
-onMounted(loadData);
+// Open software from URL parameter
+const openSoftwareFromUrl = () => {
+  const softwareId = route.query.id;
+  if (softwareId && software.value.length > 0) {
+    const sw = software.value.find(s => s.id === parseInt(softwareId));
+    if (sw) {
+      openSoftwareDialog(sw);
+      // Clear the query parameter after opening
+      router.replace({ path: route.path });
+    }
+  }
+};
+
+// Watch for route changes
+watch(() => route.query.id, (newVal) => {
+  if (newVal) {
+    openSoftwareFromUrl();
+  }
+});
+
+onMounted(async () => {
+  await loadData();
+  // Check if we need to open a software from URL
+  openSoftwareFromUrl();
+});
 </script>

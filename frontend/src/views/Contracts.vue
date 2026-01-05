@@ -198,10 +198,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+
+const route = useRoute();
+const router = useRouter();
 
 const { t } = useI18n();
 const toast = useToast();
@@ -421,5 +425,29 @@ const onEquipmentLinkDialogEnter = (event) => {
   }
 };
 
-onMounted(loadData);
+// Open contract from URL parameter
+const openContractFromUrl = () => {
+  const contractId = route.query.id;
+  if (contractId && contracts.value.length > 0) {
+    const contract = contracts.value.find(c => c.id === parseInt(contractId));
+    if (contract) {
+      openContractDialog(contract);
+      // Clear the query parameter after opening
+      router.replace({ path: route.path });
+    }
+  }
+};
+
+// Watch for route changes
+watch(() => route.query.id, (newVal) => {
+  if (newVal) {
+    openContractFromUrl();
+  }
+});
+
+onMounted(async () => {
+  await loadData();
+  // Check if we need to open a contract from URL
+  openContractFromUrl();
+});
 </script>

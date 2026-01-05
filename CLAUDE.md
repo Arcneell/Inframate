@@ -78,7 +78,7 @@ backend/           # FastAPI API
 └── app.py                  # Application FastAPI (lifespan context manager, auto create_default_admin)
 
 worker/            # Celery worker
-└── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels, cleanup tokens/audit logs, SLA breach check)
+└── tasks.py       # Tâches async (exécution scripts, scan subnet, alertes expirations, collecte logiciels, cleanup tokens/audit logs, SLA breach check, backup PostgreSQL)
 
 frontend/src/utils/
 └── validation.js  # Schémas de validation Zod (avatar, scripts, passwords, MFA codes)
@@ -104,6 +104,7 @@ frontend/src/utils/
 - Statuts: En service, En stock, Retiré, Maintenance
 - Intégration DCIM : Champs de placement rack (rack_id, position_u, height_u) dans le formulaire équipement
 - Chargement automatique de la liste des baies pour sélection directe
+- **QR Codes** : Génération de QR codes pour équipements (PNG ou base64, taille configurable)
 
 ### Topologie Réseau
 - Visualisation graphique avec Vis.js
@@ -165,7 +166,7 @@ frontend/src/utils/
 - Workflow ITIL : new → open → pending → resolved → closed
 - Types de tickets : incident, request, problem, change
 - Priorités : low, medium, high, critical
-- Numérotation automatique : TKT-YYYYMMDD-XXXX
+- Numérotation automatique : TKT-YYYYMMDD-XXXX (via SQLAlchemy hook atomique)
 - Assignation à un utilisateur ou équipe
 - SLA automatique basé sur la priorité (configurable via SLAPolicy)
 - **SLA avec heures ouvrées** : Calcul respectant les jours/heures ouvrés
@@ -177,6 +178,7 @@ frontend/src/utils/
 - Filtrage par statut, priorité, assigné, dates
 - Actions rapides : assigner, résoudre, fermer, rouvrir
 - **Statistiques cachées** (Redis, TTL 2 min)
+- **Modèles de tickets** : Templates prédéfinis pour création rapide (titre, description, type, priorité, catégorie)
 
 ### Base de Connaissances
 - Articles avec éditeur Markdown
@@ -224,6 +226,8 @@ frontend/src/utils/
 - Paramètres de sécurité : politique mot de passe, exigence MFA, rate limiting
 - Paramètres de notifications : emails, alertes d'expiration contrats/licences
 - Mode maintenance : activation, message personnalisé, rétention audit logs
+- **Backups PostgreSQL** : Sauvegarde automatique via Celery (pg_dump, compression gzip optionnelle)
+- **Nettoyage backups** : Suppression automatique des anciens backups (rétention configurable)
 
 ## Sécurité
 
@@ -301,6 +305,8 @@ echo "your-db-password" | docker secret create postgres_password -
 | LOG_LEVEL | INFO | Niveau de log |
 | DOCKER_SANDBOX_MEMORY | 256m | Limite mémoire sandbox |
 | SCRIPT_EXECUTION_TIMEOUT | 300 | Timeout scripts (sec) |
+| BACKUP_DIR | /backups | Répertoire de stockage des backups |
+| BACKUP_RETENTION_DAYS | 30 | Durée de rétention des backups (jours) |
 
 ### Support Docker Secrets (Production)
 
@@ -386,10 +392,31 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 - `sla_policies` - Politiques SLA configurables par priorité (+ heures ouvrées)
 - `webhooks` - Configuration webhooks externes (events, url, secret HMAC)
 - `webhook_deliveries` - Logs de livraison webhooks (status, response, retries)
+- `ticket_templates` - Modèles de tickets prédéfinis (titre, description, type, priorité, catégorie, icône)
 
 **SQLAlchemy TypeDecorators & Hooks:**
 - `EncryptedString` TypeDecorator → chiffrement/déchiffrement automatique transparent (utilisé pour totp_secret, remote_password)
 - `Ticket.ticket_number` → généré automatiquement via hook `before_insert` (format: TKT-YYYYMMDD-XXXX, numérotation séquentielle atomique)
+
+**Index de performance:**
+- `ix_equipment_status` - Filtrage par statut équipement
+- `ix_equipment_entity_id` - Filtrage multi-tenant
+- `ix_equipment_asset_tag` - Recherche par asset tag
+- `ix_tickets_status` - Filtrage par statut ticket
+- `ix_tickets_priority` - Filtrage par priorité
+- `ix_tickets_created_by` - Tickets par créateur
+- `ix_tickets_assigned_to` - Tickets par assigné
+- `ix_tickets_entity_id` - Filtrage multi-tenant
+- `ix_audit_logs_timestamp` - Recherche temporelle audit
+- `ix_audit_logs_user_id` - Audit par utilisateur
+- `ix_audit_logs_action` - Audit par action
+- `ix_contracts_end_date` - Alertes expiration
+- `ix_contracts_status` - Filtrage par statut
+- `ix_software_licenses_expiry` - Alertes expiration licences
+- `ix_ip_addresses_status` - Filtrage IPAM
+- `ix_ip_addresses_subnet_id` - IPs par subnet
+- `ix_notifications_user_is_read` - Notifications non-lues
+- `ix_knowledge_articles_is_published` - Articles publiés
 
 ## API Endpoints Principaux
 
@@ -410,6 +437,7 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 | /api/v1/scripts/{id}/run | POST | Exécuter script |
 | /api/v1/executions/ | GET | Historique exécutions |
 | /api/v1/inventory/equipment/ | GET/POST | Équipements |
+| /api/v1/inventory/equipment/{id}/qrcode | GET | QR code équipement (PNG ou base64) |
 | /api/v1/dashboard/stats | GET | Statistiques |
 | /api/v1/dcim/racks/ | GET/POST | Baies |
 | /api/v1/dcim/racks/{id}/layout | GET | Disposition baie (détails complets équipements + non assignés) |
@@ -436,6 +464,9 @@ En production, les secrets peuvent être lus depuis des fichiers via les variabl
 | /api/v1/tickets/{id}/close | POST | Fermer ticket |
 | /api/v1/tickets/{id}/reopen | POST | Rouvrir ticket |
 | /api/v1/tickets/stats | GET | Statistiques tickets |
+| /api/v1/tickets/templates/ | GET/POST | Liste/Créer modèles de tickets |
+| /api/v1/tickets/templates/{id} | GET/PUT/DELETE | Détail/Modifier/Supprimer modèle |
+| /api/v1/tickets/from-template | POST | Créer ticket depuis modèle |
 | /api/v1/notifications/ | GET | Liste notifications |
 | /api/v1/notifications/count | GET | Compteur non-lus |
 | /api/v1/notifications/{id}/read | POST | Marquer comme lu |

@@ -40,6 +40,7 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
 - Bidirectional IP-Equipment linking with IPAM integration
 - Integrated DCIM placement: Add rack assignment, U-position, and height directly from equipment form
 - Automatic rack list loading for seamless datacenter placement
+- **QR Code generation**: Generate QR codes for equipment (PNG or base64, configurable size)
 
 ### Network Topology
 - Visual network topology display showing subnets and IP addresses
@@ -105,8 +106,20 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
   - `superadmin`: Full access including scripts and system settings
 - **Granular Permissions** for tech and admin roles: IPAM, Inventory, DCIM, Contracts, Software, Topology, Knowledge, Network Ports, Attachments, Tickets Admin, Reports
 - Admin and Superadmin can create and delete users
-- Password validation (minimum 8 characters)
+- Password validation (minimum 8 characters, uppercase, lowercase, digit, special character)
 - Secure MFA secret storage with Fernet encryption
+
+### Helpdesk - Ticketing System
+- ITIL workflow: new → open → pending → resolved → closed
+- Ticket types: incident, request, problem, change
+- Priorities: low, medium, high, critical
+- Automatic numbering: TKT-YYYYMMDD-XXXX (atomic via SQLAlchemy hook)
+- **Ticket templates**: Predefined templates for quick ticket creation
+- SLA based on priority (configurable via SLAPolicy)
+- **Business hours SLA**: Calculations respecting working days/hours
+- Comments with internal/public distinction
+- Full history tracking
+- Quick actions: assign, resolve, close, reopen
 
 ### System Administration (Superadmin Only)
 - **SMTP Configuration**: Email server settings with TLS support and connection testing
@@ -114,6 +127,8 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
 - **Security Settings**: Password policy, MFA requirements, rate limiting, concurrent sessions
 - **Notification Settings**: Email notifications, expiry alerts for contracts and licenses
 - **Maintenance Settings**: Maintenance mode, audit log retention, automatic backups
+- **PostgreSQL Backups**: Automatic database backup via Celery (pg_dump, optional gzip compression)
+- **Backup Cleanup**: Automatic deletion of old backups (configurable retention)
 
 ### Security
 - JWT-based authentication with short-lived access tokens (30 min) and refresh tokens (7 days)
@@ -137,6 +152,7 @@ A self-hosted IT management platform featuring Helpdesk ticketing, Asset Managem
 - Redis caching for dashboard, topology, and ticket stats endpoints (2-5 minute TTL)
 - Systematic API pagination for list endpoints (skip/limit parameters)
 - SQL aggregations for statistics (avoids N+1 queries)
+- **Database indexes** on frequently filtered columns (status, entity_id, timestamps, etc.)
 
 ### Data Export
 - CSV export for equipment, tickets, contracts, software, IPs, and audit logs
@@ -298,6 +314,8 @@ frontend/src/
 | `DOCKER_SANDBOX_IMAGE` | Sandbox Docker image | `inframate-sandbox:latest` |
 | `DOCKER_SANDBOX_MEMORY` | Sandbox memory limit | `256m` |
 | `DOCKER_SANDBOX_CPU` | Sandbox CPU limit | `0.5` |
+| `BACKUP_DIR` | Backup storage directory | `/backups` |
+| `BACKUP_RETENTION_DAYS` | Backup retention period (days) | `30` |
 
 ### Docker Secrets (Production)
 

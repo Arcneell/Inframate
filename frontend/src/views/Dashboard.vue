@@ -12,16 +12,17 @@
     </div>
 
     <!-- Alert Banner (if critical alerts exist) - Admin only -->
-    <div v-if="isAdmin && criticalAlerts.length > 0" class="bg-red-50 dark:bg-gradient-to-r dark:from-red-900/40 dark:to-orange-900/40 border border-red-300 dark:border-red-500/30 rounded-xl p-4">
+    <div v-if="isAdmin && criticalAlerts.length > 0 && !bannerDismissed" class="alert-banner rounded-xl p-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center flex-shrink-0">
-          <i class="pi pi-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
+        <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+          <i class="pi pi-exclamation-triangle text-red-400 text-xl"></i>
         </div>
         <div class="flex-1">
-          <h3 class="font-semibold text-red-700 dark:text-red-300">{{ t('dashboard.attentionRequired') }}</h3>
-          <p class="text-sm text-red-600/70 dark:text-red-200/70">{{ criticalAlerts.length }} {{ t('dashboard.criticalItems') }}</p>
+          <h3 class="font-semibold text-white">{{ t('dashboard.attentionRequired') }}</h3>
+          <p class="text-sm text-red-200">{{ criticalAlerts.length }} {{ t('dashboard.criticalItems') }}</p>
         </div>
-        <Button :label="t('dashboard.viewAlerts')" size="small" severity="danger" outlined @click="scrollToAlerts" />
+        <Button :label="t('dashboard.viewAlerts')" size="small" severity="danger" @click="handleViewAlerts" />
+        <Button icon="pi pi-times" size="small" severity="secondary" text rounded @click="dismissBanner" v-tooltip.top="t('common.dismiss')" />
       </div>
     </div>
 
@@ -310,36 +311,49 @@
           <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
             <i class="pi pi-bell text-orange-400"></i>
             {{ t('dashboard.alerts') }}
-            <span v-if="alerts.length" class="ml-auto text-sm font-normal px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400">
-              {{ alerts.length }}
+            <span v-if="visibleAlerts.length" class="ml-auto text-sm font-normal px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400">
+              {{ visibleAlerts.length }}
             </span>
           </h3>
-          <div v-if="alerts.length > 0" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-            <router-link
-              v-for="alert in alerts"
+          <div v-if="visibleAlerts.length > 0" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+            <div
+              v-for="alert in visibleAlerts"
               :key="`${alert.type}-${alert.id}`"
-              :to="alert.link"
-              class="flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/50"
+              class="flex items-center gap-3 p-3 rounded-lg transition-colors"
               :class="{
-                'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20': alert.severity === 'danger',
-                'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-500/20': alert.severity === 'warning',
-                'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/20': alert.severity === 'info'
+                'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/30': alert.severity === 'danger',
+                'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-500/30': alert.severity === 'warning',
+                'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-500/30': alert.severity === 'info'
               }"
             >
-              <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                :class="{
-                  'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400': alert.severity === 'danger',
-                  'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400': alert.severity === 'warning',
-                  'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400': alert.severity === 'info'
-                }">
-                <i :class="getAlertIcon(alert.type)"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium truncate">{{ alert.title }}</div>
-                <div class="text-xs opacity-60">{{ getAlertTypeLabel(alert.type) }} - {{ alert.message }}</div>
-              </div>
-              <i class="pi pi-chevron-right text-gray-500"></i>
-            </router-link>
+              <router-link :to="alert.link" class="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  :class="{
+                    'bg-red-100 dark:bg-red-500/30 text-red-600 dark:text-red-300': alert.severity === 'danger',
+                    'bg-orange-100 dark:bg-orange-500/30 text-orange-600 dark:text-orange-300': alert.severity === 'warning',
+                    'bg-blue-100 dark:bg-blue-500/30 text-blue-600 dark:text-blue-300': alert.severity === 'info'
+                  }">
+                  <i :class="getAlertIcon(alert.type)"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium truncate" :class="{
+                    'text-red-800 dark:text-red-200': alert.severity === 'danger',
+                    'text-orange-800 dark:text-orange-200': alert.severity === 'warning',
+                    'text-blue-800 dark:text-blue-200': alert.severity === 'info'
+                  }">{{ alert.title }}</div>
+                  <div class="text-xs" :class="{
+                    'text-red-600 dark:text-red-300': alert.severity === 'danger',
+                    'text-orange-600 dark:text-orange-300': alert.severity === 'warning',
+                    'text-blue-600 dark:text-blue-300': alert.severity === 'info'
+                  }">{{ getAlertTypeLabel(alert.type) }} - {{ alert.message }}</div>
+                </div>
+                <i class="pi pi-chevron-right opacity-50"></i>
+              </router-link>
+              <Button icon="pi pi-times" size="small" text rounded
+                class="flex-shrink-0 opacity-50 hover:opacity-100"
+                @click.prevent="dismissAlert(alert)"
+                v-tooltip.top="t('common.dismiss')" />
+            </div>
           </div>
           <div v-else class="text-center py-8 opacity-50">
             <i class="pi pi-check-circle text-4xl text-green-500 mb-3"></i>
@@ -528,6 +542,8 @@ const alerts = ref([]);
 const activities = ref([]);
 const alertsSection = ref(null);
 const lastRefresh = ref('');
+const bannerDismissed = ref(false);
+const dismissedAlerts = ref([]);
 
 const username = computed(() => {
   const userStr = localStorage.getItem('user');
@@ -561,7 +577,15 @@ const currentDate = computed(() => {
   });
 });
 
-const criticalAlerts = computed(() => alerts.value.filter(a => a.severity === 'danger'));
+const criticalAlerts = computed(() => visibleAlerts.value.filter(a => a.severity === 'danger'));
+
+// Filter out dismissed alerts
+const visibleAlerts = computed(() => {
+  return alerts.value.filter(alert => {
+    const alertKey = `${alert.type}-${alert.id}`;
+    return !dismissedAlerts.value.includes(alertKey);
+  });
+});
 
 const equipmentPercent = (status) => {
   const total = stats.value.equipment || 1;
@@ -653,6 +677,45 @@ const scrollToAlerts = () => {
   alertsSection.value?.scrollIntoView({ behavior: 'smooth' });
 };
 
+// Handle "View Alerts" button click - scroll and dismiss banner
+const handleViewAlerts = () => {
+  scrollToAlerts();
+  dismissBanner();
+};
+
+// Dismiss the alert banner
+const dismissBanner = () => {
+  bannerDismissed.value = true;
+  localStorage.setItem('dashboard_banner_dismissed', 'true');
+};
+
+// Dismiss an individual alert
+const dismissAlert = (alert) => {
+  const alertKey = `${alert.type}-${alert.id}`;
+  if (!dismissedAlerts.value.includes(alertKey)) {
+    dismissedAlerts.value.push(alertKey);
+    saveDismissedAlerts();
+  }
+};
+
+// Load dismissed alerts from localStorage
+const loadDismissedAlerts = () => {
+  try {
+    const stored = localStorage.getItem('dashboard_dismissed_alerts');
+    if (stored) {
+      dismissedAlerts.value = JSON.parse(stored);
+    }
+    bannerDismissed.value = localStorage.getItem('dashboard_banner_dismissed') === 'true';
+  } catch {
+    dismissedAlerts.value = [];
+  }
+};
+
+// Save dismissed alerts to localStorage
+const saveDismissedAlerts = () => {
+  localStorage.setItem('dashboard_dismissed_alerts', JSON.stringify(dismissedAlerts.value));
+};
+
 const loadDashboard = async () => {
   try {
     // Load ticket stats for all users
@@ -682,10 +745,19 @@ const loadDashboard = async () => {
   }
 };
 
-onMounted(loadDashboard);
+onMounted(() => {
+  loadDismissedAlerts();
+  loadDashboard();
+});
 </script>
 
 <style scoped>
+.alert-banner {
+  background: linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #dc2626 100%);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+}
+
 .stat-card {
   @apply card p-4 flex flex-col items-center text-center cursor-pointer transition-all hover:scale-105 hover:border-blue-500/50;
 }

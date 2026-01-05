@@ -1,6 +1,6 @@
 # Inframate
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic--2.0-blue.svg)](LICENSE)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Vue.js 3](https://img.shields.io/badge/Vue.js-3-4FC08D.svg)](https://vuejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://www.docker.com/)
@@ -86,7 +86,9 @@ docker-compose logs -f worker
 
 ## License
 
-GNU General Public License v3.0 - see [LICENSE](LICENSE)
+Elastic License 2.0 (ELv2) - see [LICENSE](LICENSE)
+
+This license allows you to use, modify, and contribute to the software. However, you may not provide it as a hosted/managed service to third parties.
 
 ## Support
 

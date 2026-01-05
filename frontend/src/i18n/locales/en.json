@@ -378,7 +378,8 @@
     "overview": "Overview",
     "name": "Name",
     "current": "Current",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "refresh": "Refresh"
   },
   "dcim": {
     "title": "DCIM",
@@ -773,6 +774,12 @@
     "firewall": "Firewall",
     "connection": "Connection",
     "fiber": "Fiber",
-    "copper": "Copper"
+    "copper": "Copper",
+    "otherIp": "Other IP",
+    "activeOnly": "Active Only",
+    "servers": "Servers",
+    "switches": "Switches",
+    "routers": "Routers",
+    "firewalls": "Firewalls"
   }
 }

@@ -378,7 +378,8 @@
     "overview": "Vue d'ensemble",
     "name": "Nom",
     "current": "Actuel",
-    "dismiss": "Ignorer"
+    "dismiss": "Ignorer",
+    "refresh": "Actualiser"
   },
   "dcim": {
     "title": "DCIM",
@@ -773,6 +774,12 @@
     "firewall": "Pare-feu",
     "connection": "Connexion",
     "fiber": "Fibre",
-    "copper": "Cuivre"
+    "copper": "Cuivre",
+    "otherIp": "Autre IP",
+    "activeOnly": "Actifs uniquement",
+    "servers": "Serveurs",
+    "switches": "Switches",
+    "routers": "Routeurs",
+    "firewalls": "Pare-feux"
   }
 }

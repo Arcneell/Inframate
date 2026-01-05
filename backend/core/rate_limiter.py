@@ -18,11 +18,19 @@ class RedisRateLimiter:
     Implements sliding window algorithm.
     """
 
+    # Action-specific rate limits (max_requests, window_size in seconds)
+    ACTION_LIMITS = {
+        "login": (5, 60),           # 5 requests per minute (brute force protection)
+        "mfa": (5, 60),             # 5 MFA attempts per minute
+        "settings_update": (50, 60), # 50 settings updates per minute (batch saves)
+        "api": (100, 60),           # 100 API calls per minute
+    }
+
     def __init__(self, redis_url: Optional[str] = None):
         self.redis_url = redis_url or settings.redis_url
         self._client: Optional[redis.Redis] = None
-        self.window_size = settings.rate_limit_window
-        self.max_requests = settings.rate_limit_max_requests
+        self.default_window_size = settings.rate_limit_window
+        self.default_max_requests = settings.rate_limit_max_requests
 
     @property
     def client(self) -> redis.Redis:
@@ -40,6 +48,12 @@ class RedisRateLimiter:
         """Generate Redis key for rate limiting."""
         return f"rate_limit:{action}:{identifier}"
 
+    def _get_limits(self, action: str) -> tuple:
+        """Get rate limits for a specific action."""
+        if action in self.ACTION_LIMITS:
+            return self.ACTION_LIMITS[action]
+        return (self.default_max_requests, self.default_window_size)
+
     def is_allowed(self, identifier: str, action: str = "login") -> bool:
         """
         Check if a request is allowed under rate limit.
@@ -51,9 +65,10 @@ class RedisRateLimiter:
         Returns:
             True if request is allowed, False if rate limited
         """
+        max_requests, window_size = self._get_limits(action)
         key = self._get_key(identifier, action)
         current_time = time.time()
-        window_start = current_time - self.window_size
+        window_start = current_time - window_size
 
         try:
             pipe = self.client.pipeline()
@@ -68,12 +83,12 @@ class RedisRateLimiter:
             pipe.zadd(key, {str(current_time): current_time})
 
             # Set expiry on the key
-            pipe.expire(key, self.window_size + 10)
+            pipe.expire(key, window_size + 10)
 
             results = pipe.execute()
             current_count = results[1]
 
-            if current_count >= self.max_requests:
+            if current_count >= max_requests:
                 logger.warning(f"Rate limit exceeded for {identifier} on {action}")
                 return False
 
@@ -86,9 +101,10 @@ class RedisRateLimiter:
 
     def get_remaining(self, identifier: str, action: str = "login") -> int:
         """Get remaining requests in current window."""
+        max_requests, window_size = self._get_limits(action)
         key = self._get_key(identifier, action)
         current_time = time.time()
-        window_start = current_time - self.window_size
+        window_start = current_time - window_size
 
         try:
             # Clean old entries and count
@@ -98,14 +114,15 @@ class RedisRateLimiter:
             results = pipe.execute()
             current_count = results[1]
 
-            return max(0, self.max_requests - current_count)
+            return max(0, max_requests - current_count)
 
         except redis.RedisError as e:
             logger.error(f"Redis error getting remaining: {e}")
-            return self.max_requests
+            return max_requests
 
     def get_reset_time(self, identifier: str, action: str = "login") -> int:
         """Get seconds until rate limit resets."""
+        _, window_size = self._get_limits(action)
         key = self._get_key(identifier, action)
 
         try:
@@ -113,13 +130,13 @@ class RedisRateLimiter:
             oldest = self.client.zrange(key, 0, 0, withscores=True)
             if oldest:
                 oldest_time = oldest[0][1]
-                reset_time = int(oldest_time + self.window_size - time.time())
+                reset_time = int(oldest_time + window_size - time.time())
                 return max(0, reset_time)
             return 0
 
         except redis.RedisError as e:
             logger.error(f"Redis error getting reset time: {e}")
-            return self.window_size
+            return window_size
 
     def reset(self, identifier: str, action: str = "login") -> bool:
         """Reset rate limit for an identifier."""

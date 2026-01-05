@@ -683,10 +683,25 @@ const handleViewAlerts = () => {
   dismissBanner();
 };
 
+// Get current user ID for per-user localStorage keys
+const getCurrentUserId = () => {
+  try {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.id || 'unknown';
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return 'unknown';
+};
+
 // Dismiss the alert banner
 const dismissBanner = () => {
   bannerDismissed.value = true;
-  localStorage.setItem('dashboard_banner_dismissed', 'true');
+  const userId = getCurrentUserId();
+  localStorage.setItem(`dashboard_banner_dismissed_${userId}`, 'true');
 };
 
 // Dismiss an individual alert
@@ -698,22 +713,24 @@ const dismissAlert = (alert) => {
   }
 };
 
-// Load dismissed alerts from localStorage
+// Load dismissed alerts from localStorage (per-user)
 const loadDismissedAlerts = () => {
   try {
-    const stored = localStorage.getItem('dashboard_dismissed_alerts');
+    const userId = getCurrentUserId();
+    const stored = localStorage.getItem(`dashboard_dismissed_alerts_${userId}`);
     if (stored) {
       dismissedAlerts.value = JSON.parse(stored);
     }
-    bannerDismissed.value = localStorage.getItem('dashboard_banner_dismissed') === 'true';
+    bannerDismissed.value = localStorage.getItem(`dashboard_banner_dismissed_${userId}`) === 'true';
   } catch {
     dismissedAlerts.value = [];
   }
 };
 
-// Save dismissed alerts to localStorage
+// Save dismissed alerts to localStorage (per-user)
 const saveDismissedAlerts = () => {
-  localStorage.setItem('dashboard_dismissed_alerts', JSON.stringify(dismissedAlerts.value));
+  const userId = getCurrentUserId();
+  localStorage.setItem(`dashboard_dismissed_alerts_${userId}`, JSON.stringify(dismissedAlerts.value));
 };
 
 const loadDashboard = async () => {

@@ -322,6 +322,22 @@ def get_physical_topology(
             }
         })
 
+    # Pre-build port lookup map to avoid N+1 queries
+    # Get all connected port IDs from our equipment
+    connected_port_ids = set()
+    for eq in equipment_list:
+        for port in eq.network_ports:
+            if port.connected_to_id:
+                connected_port_ids.add(port.connected_to_id)
+
+    # Fetch all target ports in a single query
+    target_ports_map = {}
+    if connected_port_ids:
+        target_ports = db.query(models.NetworkPort).filter(
+            models.NetworkPort.id.in_(connected_port_ids)
+        ).all()
+        target_ports_map = {p.id: p for p in target_ports}
+
     # Create edges for port connections
     seen_connections = set()
     for eq in equipment_list:
@@ -335,10 +351,8 @@ def get_physical_topology(
                 continue
             seen_connections.add(conn_key)
 
-            # Find target port and equipment
-            target_port = db.query(models.NetworkPort).filter(
-                models.NetworkPort.id == port.connected_to_id
-            ).first()
+            # Find target port from pre-loaded map (no DB query!)
+            target_port = target_ports_map.get(port.connected_to_id)
 
             if not target_port or target_port.equipment_id not in equipment_ids:
                 continue
@@ -465,25 +479,45 @@ def get_site_topology(
             }
         })
 
-        # Port connections
+    # Pre-build port lookup map to avoid N+1 queries
+    connected_port_ids = set()
+    for eq in equipment_list:
         for port in eq.network_ports:
             if port.connected_to_id:
-                target_port = db.query(models.NetworkPort).filter(
-                    models.NetworkPort.id == port.connected_to_id
-                ).first()
+                connected_port_ids.add(port.connected_to_id)
+
+    target_ports_map = {}
+    if connected_port_ids:
+        target_ports = db.query(models.NetworkPort).filter(
+            models.NetworkPort.id.in_(connected_port_ids)
+        ).all()
+        target_ports_map = {p.id: p for p in target_ports}
+
+    # Port connections - using pre-loaded map
+    seen_edges = set()
+    for eq in equipment_list:
+        for port in eq.network_ports:
+            if port.connected_to_id:
+                target_port = target_ports_map.get(port.connected_to_id)
 
                 if target_port and target_port.equipment_id in equipment_ids:
                     edge_key = tuple(sorted([eq.id, target_port.equipment_id]))
-                    edge_id = f"conn_{edge_key[0]}_{edge_key[1]}"
 
-                    if not any(e["id"] == edge_id for e in edges):
+                    if edge_key not in seen_edges:
+                        seen_edges.add(edge_key)
                         edges.append({
-                            "id": edge_id,
+                            "id": f"conn_{edge_key[0]}_{edge_key[1]}",
                             "source": f"eq_{eq.id}",
                             "target": f"eq_{target_port.equipment_id}",
                             "label": port.speed or "",
                             "color": "#64748b",
                             "width": 2,
+                            "data": {
+                                "source_port": port.name,
+                                "target_port": target_port.name,
+                                "port_type": port.port_type,
+                                "speed": port.speed,
+                            }
                         })
 
     groups = [{"id": room, "label": room, "count": len(eqs)} for room, eqs in rooms.items()]

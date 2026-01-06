@@ -863,6 +863,11 @@
     "dragToConnect": "Glissez depuis un nœud pour connecter",
     "releaseToConnect": "Relâchez pour connecter à ce nœud",
     "stabilizing": "Stabilisation du réseau...",
-    "physicsDisabled": "Physique stabilisée"
+    "physicsDisabled": "Physique stabilisée",
+    "coreLayer": "Cœur",
+    "distribution": "Distrib",
+    "access": "Accès",
+    "compute": "Serveurs",
+    "doubleClickToOpen": "Double-clic pour étendre"
   }
 }

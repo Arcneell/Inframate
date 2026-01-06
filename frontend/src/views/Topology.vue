@@ -17,6 +17,10 @@
         <Dropdown v-if="viewMode === 'physical'" v-model="clusteringMode" :options="clusteringOptions"
           optionLabel="label" optionValue="value" class="w-40" />
 
+        <!-- Layer Filtering (Physical view) -->
+        <SelectButton v-if="viewMode === 'physical'" v-model="selectedLayers" :options="layerOptions"
+          optionLabel="label" optionValue="value" multiple :allowEmpty="true" class="layer-filter" />
+
         <!-- Link Mode Toggle -->
         <Button v-if="viewMode === 'physical'"
           :icon="linkMode ? 'pi pi-times' : 'pi pi-link'"
@@ -350,7 +354,11 @@ const selectedVlan = ref(null);
 const availableVlans = ref([]);
 
 // Clustering state
-const clusteringMode = ref('none');
+const clusteringMode = ref('site'); // Default to site clustering
+const clustersOpen = ref(new Set()); // Track which clusters are open
+
+// Layer filtering state
+const selectedLayers = ref(['core', 'distribution', 'access', 'compute']); // All layers selected by default
 
 // Layout persistence
 const savingLayout = ref(false);
@@ -380,6 +388,24 @@ const clusteringOptions = computed(() => [
   { label: t('topology.groupBySite'), value: 'site' },
   { label: t('topology.groupByRack'), value: 'rack' }
 ]);
+
+// Layer filtering options based on equipment hierarchy levels
+const layerOptions = computed(() => [
+  { label: t('topology.coreLayer'), value: 'core' },
+  { label: t('topology.distribution'), value: 'distribution' },
+  { label: t('topology.access'), value: 'access' },
+  { label: t('topology.compute'), value: 'compute' }
+]);
+
+// Map hierarchy levels to layer names
+const hierarchyToLayer = {
+  0: 'core',       // Routers/Gateways
+  1: 'core',       // Firewalls
+  2: 'distribution', // Switches/Distribution
+  3: 'compute',    // Servers
+  4: 'compute',    // Storage
+  5: 'access'      // Endpoints/Workstations
+};
 
 const speedOptions = [
   { label: '100 Mbps', value: '100M' },
@@ -850,6 +876,69 @@ const loadTopology = async () => {
   }
 };
 
+/**
+ * Apply clustering to the network based on the selected clustering mode.
+ * Creates visual clusters for groups of equipment by site or rack.
+ */
+const applyClustering = () => {
+  if (!network || clusteringMode.value === 'none') return;
+
+  // Get unique cluster keys based on mode
+  const clusterKey = clusteringMode.value === 'site' ? 'site' : 'rack';
+  const clusterGroups = new Map();
+
+  nodes.value.forEach(node => {
+    if (node.type !== 'equipment') return;
+    const groupName = node.data?.[clusterKey] || node.group || 'Unassigned';
+    if (!clusterGroups.has(groupName)) {
+      clusterGroups.set(groupName, []);
+    }
+    clusterGroups.get(groupName).push(node.id);
+  });
+
+  // Create clusters for each group (only if more than 1 node)
+  clusterGroups.forEach((nodeIds, groupName) => {
+    if (nodeIds.length < 2) return;
+
+    const clusterId = `cluster_${clusterKey}_${groupName}`;
+
+    // Skip if this cluster was opened by user
+    if (clustersOpen.value.has(clusterId)) return;
+
+    // Cluster color based on number of nodes
+    const clusterColor = nodeIds.length > 5 ? '#7c3aed' : '#3b82f6';
+
+    network.cluster({
+      joinCondition: (nodeOptions) => {
+        return nodeIds.includes(nodeOptions.id);
+      },
+      clusterNodeProperties: {
+        id: clusterId,
+        label: `${groupName}\n(${nodeIds.length} ${t('topology.nodes')})`,
+        shape: 'box',
+        color: {
+          background: clusterColor + '20',
+          border: clusterColor,
+          highlight: { background: clusterColor + '40', border: clusterColor },
+          hover: { background: clusterColor + '30', border: clusterColor }
+        },
+        font: {
+          color: clusterColor,
+          size: 14,
+          face: 'Inter, system-ui, sans-serif',
+          bold: true,
+          multi: 'html'
+        },
+        borderWidth: 2,
+        borderWidthSelected: 3,
+        size: 40 + nodeIds.length * 5,
+        mass: 2 + nodeIds.length * 0.5,
+        title: `<div style="padding:8px;"><strong>${groupName}</strong><br/>${nodeIds.length} ${t('topology.equipment')}<br/><em>${t('topology.doubleClickToOpen')}</em></div>`
+      }
+    });
+  });
+};
+
 // Get hierarchy level from API data (configured in equipment type settings)
 const getHierarchyLevel = (node) => {
   // Use the level directly from API if available
@@ -889,6 +978,16 @@ const renderNetwork = () => {
     filteredNodes = nodes.value.filter(n =>
       n.type !== 'ip' || n.data?.vlan === selectedVlan.value
     );
+  }
+
+  // Filter by layer if in physical view
+  if (isPhysical && selectedLayers.value.length > 0 && selectedLayers.value.length < 4) {
+    filteredNodes = filteredNodes.filter(n => {
+      if (n.type !== 'equipment') return true;
+      const level = getHierarchyLevel(n);
+      const layer = hierarchyToLayer[level] || 'compute';
+      return selectedLayers.value.includes(layer);
+    });
   }
 
   // Aggregate multiple links between same equipment (LACP visualization)
@@ -982,9 +1081,34 @@ const renderNetwork = () => {
   const visEdges = aggregatedEdges.map(edge => {
     const sourceNode = nodes.value.find(n => n.id === edge.source);
     const targetNode = nodes.value.find(n => n.id === edge.target);
-    const tooltipText = sourceNode && targetNode
-      ? `${sourceNode.label} ↔ ${targetNode.label}${edge.label ? '\n' + edge.label : ''}${edge.aggregated ? '\n' + t('topology.aggregatedLinks', { count: edge.linkCount }) : ''}\n${t('topology.clickToDelete')}`
-      : '';
+
+    // Build enriched tooltip with port information
+    let tooltipHtml = '<div style="padding:10px;font-size:12px;max-width:280px;">';
+    if (sourceNode && targetNode) {
+      tooltipHtml += `<div style="font-weight:600;margin-bottom:6px;">${sourceNode.label} ↔ ${targetNode.label}</div>`;
+
+      // Port details if available
+      if (edge.data?.source_port && edge.data?.target_port) {
+        tooltipHtml += `<div style="color:#64748b;font-size:11px;">`;
+        tooltipHtml += `<span style="color:#3b82f6;">${edge.data.source_port}</span> (${sourceNode.label})`;
+        tooltipHtml += ` ↔ `;
+        tooltipHtml += `<span style="color:#3b82f6;">${edge.data.target_port}</span> (${targetNode.label})`;
+        tooltipHtml += `</div>`;
+      }
+
+      if (edge.label) {
+        tooltipHtml += `<div style="margin-top:4px;"><strong>${t('topology.linkSpeed')}:</strong> ${edge.label}</div>`;
+      }
+      if (edge.data?.port_type) {
+        tooltipHtml += `<div><strong>${t('topology.linkType')}:</strong> ${edge.data.port_type}</div>`;
+      }
+      if (edge.aggregated) {
+        tooltipHtml += `<div style="margin-top:4px;color:#8b5cf6;font-weight:500;">${t('topology.lacpBundle')}: ${edge.linkCount} ${t('topology.links')}</div>`;
+      }
+      tooltipHtml += `<div style="margin-top:6px;color:#94a3b8;font-size:10px;font-style:italic;">${t('topology.clickToDelete')}</div>`;
+    }
+    tooltipHtml += '</div>';
+    const tooltipText = tooltipHtml;
 
     // Check if edge is part of highlighted path
     const isInPath = highlightedPath.value.length > 1 &&
@@ -1183,13 +1307,6 @@ const renderNetwork = () => {
     updateMiniMap();
   });
 
-  network.on('doubleClick', params => {
-    if (params.nodes.length > 0) {
-      const node = nodes.value.find(n => n.id === params.nodes[0]);
-      if (node?.type === 'equipment') goToEquipment(node.data?.id);
-    }
-  });
-
   // Handle stabilization progress - disable physics at 90%
   network.on('stabilizationProgress', (params) => {
     const progress = Math.round((params.iterations / params.total) * 100);
@@ -1202,11 +1319,31 @@ const renderNetwork = () => {
   network.once('stabilizationIterationsDone', () => {
     // Disable physics after stabilization for better performance
     network.setOptions({ physics: { enabled: false } });
+
+    // Apply clustering after stabilization
+    if (isPhysical && clusteringMode.value !== 'none') {
+      applyClustering();
+    }
+
     network.fit({ animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
     setTimeout(() => {
       zoomLevel.value = network.getScale();
       initMiniMap();
     }, 350);
+  });
+
+  // Handle double-click on cluster to open it
+  network.on('doubleClick', params => {
+    if (params.nodes.length > 0) {
+      const nodeId = params.nodes[0];
+      if (network.isCluster(nodeId)) {
+        network.openCluster(nodeId);
+        clustersOpen.value.add(nodeId);
+      } else {
+        const node = nodes.value.find(n => n.id === nodeId);
+        if (node?.type === 'equipment') goToEquipment(node.data?.id);
+      }
+    }
   });
 
   // Change cursor to pointer when hovering over edges
@@ -1492,10 +1629,12 @@ const goToEquipment = (id) => {
   if (eqId) router.push({ path: '/inventory', query: { equipment: eqId } });
 };
 
-watch(viewMode, () => { selectedSite.value = null; selectedVlan.value = null; loadTopology(); });
+watch(viewMode, () => { selectedSite.value = null; selectedVlan.value = null; clustersOpen.value.clear(); loadTopology(); });
 watch(selectedSite, loadTopology);
 watch(selectedVlan, () => { if (viewMode.value === 'logical') renderNetwork(); });
 watch(showMiniMap, (val) => { if (val) nextTick(initMiniMap); });
+watch(clusteringMode, () => { clustersOpen.value.clear(); renderNetwork(); });
+watch(selectedLayers, () => { if (viewMode.value === 'physical') renderNetwork(); }, { deep: true });
 
 onMounted(loadTopology);
 onUnmounted(() => {
@@ -2013,6 +2152,28 @@ onUnmounted(() => {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+/* Layer Filter */
+.layer-filter {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.layer-filter :deep(.p-selectbutton) {
+  display: flex;
+  gap: 2px;
+}
+
+.layer-filter :deep(.p-button) {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.6875rem;
+  border-radius: var(--radius-sm);
+}
+
+.layer-filter :deep(.p-button.p-highlight) {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
 }
 </style>
 

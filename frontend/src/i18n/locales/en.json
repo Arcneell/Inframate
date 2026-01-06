@@ -863,6 +863,11 @@
     "dragToConnect": "Drag from a node to connect",
     "releaseToConnect": "Release to connect to this node",
     "stabilizing": "Stabilizing network...",
-    "physicsDisabled": "Physics stabilized"
+    "physicsDisabled": "Physics stabilized",
+    "coreLayer": "Core",
+    "distribution": "Distrib",
+    "access": "Access",
+    "compute": "Compute",
+    "doubleClickToOpen": "Double-click to expand"
   }
 }

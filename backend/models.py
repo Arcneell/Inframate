@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Date, Numeric, UniqueConstraint, event, text
-from sqlalchemy.dialects.postgresql import INET, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Date, Numeric, UniqueConstraint, Index, event, text
+from sqlalchemy.dialects.postgresql import INET, JSON, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import TypeDecorator
 from datetime import datetime, timezone
@@ -126,10 +126,15 @@ class User(Base):
 
     # Granular permissions for tech and admin roles (JSON array of permission strings)
     # Available: ipam, inventory, dcim, contracts, software, topology, knowledge, network_ports, attachments
-    permissions = Column(JSON, default=[])
+    permissions = Column(JSONB, default=[])  # JSONB for GIN index support
 
     entity = relationship("Entity", back_populates="users")
     refresh_tokens = relationship("UserToken", back_populates="user", cascade="all, delete-orphan")
+
+    # GIN index for JSON permissions column (fast permission-based queries)
+    __table_args__ = (
+        Index('ix_users_permissions_gin', permissions, postgresql_using='gin'),
+    )
 
 
 # ==================== USER TOTP SECRET ENCRYPTION HOOKS ====================
@@ -258,11 +263,16 @@ class EquipmentModel(Base):
     name = Column(String, nullable=False, index=True)
     manufacturer_id = Column(Integer, ForeignKey("manufacturers.id"), nullable=False)
     equipment_type_id = Column(Integer, ForeignKey("equipment_types.id"), nullable=False)
-    specs = Column(JSON, nullable=True)  # {"cpu": "...", "ram": "...", etc.}
+    specs = Column(JSONB, nullable=True)  # {"cpu": "...", "ram": "...", etc.} - JSONB for GIN index
 
     manufacturer = relationship("Manufacturer", back_populates="models")
     equipment_type = relationship("EquipmentType", back_populates="models")
     equipment = relationship("Equipment", back_populates="model")
+
+    # GIN index for JSON specs column (fast hardware spec searches)
+    __table_args__ = (
+        Index('ix_equipment_models_specs_gin', specs, postgresql_using='gin'),
+    )
 
 
 class Location(Base):
@@ -592,10 +602,16 @@ class AuditLog(Base):
     resource_id = Column(String, nullable=True)  # ID of the affected resource
     entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
     ip_address = Column(String, nullable=True)  # Client IP address
-    changes = Column(JSON, nullable=True)  # {"field": {"old": "value", "new": "value"}}
-    extra_data = Column(JSON, nullable=True)  # Additional context (renamed from metadata to avoid SQLAlchemy conflict)
+    changes = Column(JSONB, nullable=True)  # {"field": {"old": "value", "new": "value"}} - JSONB for GIN index
+    extra_data = Column(JSONB, nullable=True)  # Additional context - JSONB for GIN index
 
     # Note: No relationship to User to preserve logs even after user deletion
+
+    # GIN indexes for JSON columns (fast audit log searches)
+    __table_args__ = (
+        Index('ix_audit_logs_changes_gin', changes, postgresql_using='gin'),
+        Index('ix_audit_logs_extra_data_gin', extra_data, postgresql_using='gin'),
+    )
 
 
 # ==================== HELPDESK TICKET MODELS ====================
@@ -801,7 +817,7 @@ class KnowledgeArticle(Base):
 
     # Classification
     category = Column(String, nullable=True, index=True)  # troubleshooting, how-to, faq, policy
-    tags = Column(JSON, default=[])  # ["network", "vpn", "connectivity"]
+    tags = Column(JSONB, default=[])  # ["network", "vpn", "connectivity"] - JSONB for GIN index
 
     # Visibility
     is_published = Column(Boolean, default=False, index=True)
@@ -831,6 +847,11 @@ class KnowledgeArticle(Base):
     last_editor = relationship("User", foreign_keys=[last_editor_id])
     entity = relationship("Entity", backref="knowledge_articles")
 
+    # GIN index for JSON tags column (fast tag-based searches)
+    __table_args__ = (
+        Index('ix_knowledge_articles_tags_gin', tags, postgresql_using='gin'),
+    )
+
 
 # ==================== SLA CONFIGURATION MODELS ====================
 
@@ -858,7 +879,7 @@ class SLAPolicy(Base):
     business_hours_only = Column(Boolean, default=True)
     business_start = Column(String, default="09:00")  # HH:MM
     business_end = Column(String, default="18:00")
-    business_days = Column(JSON, default=[1, 2, 3, 4, 5])  # Monday=1 to Sunday=7
+    business_days = Column(JSONB, default=[1, 2, 3, 4, 5])  # Monday=1 to Sunday=7 - JSONB for GIN index
 
     is_default = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
@@ -866,6 +887,11 @@ class SLAPolicy(Base):
     created_at = Column(DateTime, default=utc_now)
 
     entity = relationship("Entity", backref="sla_policies")
+
+    # GIN index for JSON business_days column
+    __table_args__ = (
+        Index('ix_sla_policies_business_days_gin', business_days, postgresql_using='gin'),
+    )
 
 
 # ==================== TICKET TEMPLATE MODELS ====================
@@ -925,7 +951,7 @@ class Webhook(Base):
     secret = Column(String, nullable=True)  # Shared secret for HMAC signature
 
     # Event subscriptions
-    events = Column(JSON, default=[])  # List of events: ticket.created, ticket.updated, equipment.created, etc.
+    events = Column(JSONB, default=[])  # List of events: ticket.created, etc. - JSONB for GIN index
 
     # Configuration
     is_active = Column(Boolean, default=True)
@@ -949,6 +975,11 @@ class Webhook(Base):
     entity = relationship("Entity", backref="webhooks")
     created_by = relationship("User", backref="webhooks")
     deliveries = relationship("WebhookDelivery", back_populates="webhook", cascade="all, delete-orphan")
+
+    # GIN index for JSON events column (fast event-based queries)
+    __table_args__ = (
+        Index('ix_webhooks_events_gin', events, postgresql_using='gin'),
+    )
 
 
 class WebhookDelivery(Base):

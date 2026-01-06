@@ -247,8 +247,10 @@ frontend/src/utils/
 - **Pinia Stores avec Cache Local** : TTL 2 minutes côté client, debounce des appels, mises à jour optimistes
 - **Invalidation Intelligente** : Cache invalidé automatiquement lors des mutations (create, update, delete)
 
-### Fichier de Migration
-- `backend/migrations/001_performance_indexes.sql` : Script SQL à exécuter pour ajouter tous les index de performance
+### Index Automatiques
+- Tous les index de performance (GIN pour JSONB, basiques, partiels, composites) sont définis dans les modèles SQLAlchemy via `__table_args__`
+- Les index sont créés automatiquement lors du premier démarrage avec SQLAlchemy `create_all()` (aucune migration manuelle requise)
+- Le fichier `backend/migrations/001_performance_indexes.sql` est fourni comme référence documentaire uniquement
 
 ## Sécurité
 

@@ -397,6 +397,18 @@ const loadTopology = async () => {
   }
 };
 
+// Calculate hierarchy level based on equipment type
+const getHierarchyLevel = (node) => {
+  if (node.type !== 'equipment') return 3;
+  const typeLower = (node.sublabel || node.data?.type || '').toLowerCase();
+  if (typeLower.includes('router') || typeLower.includes('gateway')) return 0;
+  if (typeLower.includes('firewall') || typeLower.includes('pare-feu')) return 1;
+  if (typeLower.includes('switch')) return 2;
+  if (typeLower.includes('server') || typeLower.includes('serveur')) return 3;
+  if (typeLower.includes('storage') || typeLower.includes('nas') || typeLower.includes('san')) return 4;
+  return 3; // Default level for workstations, APs, etc.
+};
+
 const renderNetwork = () => {
   if (!networkContainer.value || nodes.value.length === 0) return;
 
@@ -406,6 +418,7 @@ const renderNetwork = () => {
 
   const visNodes = nodes.value.map((node) => {
     const isEquipment = node.type === 'equipment';
+    const level = getHierarchyLevel(node);
 
     if (isEquipment) {
       const iconClass = node.icon || 'pi-box';
@@ -414,25 +427,17 @@ const renderNetwork = () => {
         label: node.label,
         title: createTooltip(node),
         group: node.group,
+        level: level,
         shape: 'image',
         image: createIconSvg(iconClass, node.color),
-        size: 24,
+        size: 28,
         font: {
           color: textColor,
-          size: 12,
+          size: 14,
           face: 'Inter, system-ui, sans-serif',
-          background: bgColor,
+          background: bgColor + 'ee',
           strokeWidth: 0,
-          vadjust: 2
-        },
-        scaling: {
-          label: {
-            enabled: true,
-            min: 10,
-            max: 16,
-            maxVisible: 30,
-            drawThreshold: 5
-          }
+          vadjust: 4
         },
         _data: node
       };
@@ -442,6 +447,7 @@ const renderNetwork = () => {
         label: node.label,
         title: createTooltip(node),
         group: node.group,
+        level: level,
         color: {
           background: node.color + '30',
           border: node.color,
@@ -450,21 +456,12 @@ const renderNetwork = () => {
         },
         font: {
           color: textColor,
-          size: 12,
-          background: bgColor
+          size: 13,
+          background: bgColor + 'ee'
         },
         borderWidth: 2,
         shape: node.shape || 'dot',
         size: node.size || 18,
-        scaling: {
-          label: {
-            enabled: true,
-            min: 10,
-            max: 14,
-            maxVisible: 25,
-            drawThreshold: 5
-          }
-        },
         _data: node
       };
     }
@@ -480,37 +477,43 @@ const renderNetwork = () => {
     smooth: { type: 'continuous', roundness: 0.15 }
   }));
 
+  // For physical topology, use hierarchical layout
+  const isPhysical = viewMode.value === 'physical' || viewMode.value === 'combined';
+
   const options = {
     nodes: {
       font: {
         face: 'Inter, system-ui, sans-serif',
-        size: 12,
-        strokeWidth: 3,
-        strokeColor: bgColor
+        size: 14,
+        strokeWidth: 4,
+        strokeColor: bgColor,
+        color: textColor
       },
-      shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 8, x: 0, y: 3 },
-      scaling: {
-        label: {
-          enabled: true,
-          min: 10,
-          max: 18,
-          maxVisible: 40,
-          drawThreshold: 3
-        }
-      }
+      shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 8, x: 0, y: 3 }
     },
     edges: {
-      smooth: { type: 'continuous', roundness: 0.15 },
+      smooth: isPhysical ? { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 } : { type: 'continuous', roundness: 0.15 },
       arrows: { to: { enabled: false } },
       font: {
-        size: 9,
+        size: 10,
         color: textColor,
-        strokeWidth: 2,
+        strokeWidth: 3,
         strokeColor: bgColor,
         align: 'middle'
       }
     },
-    physics: {
+    physics: isPhysical ? {
+      enabled: true,
+      hierarchicalRepulsion: {
+        centralGravity: 0.0,
+        springLength: 150,
+        springConstant: 0.01,
+        nodeDistance: 180,
+        damping: 0.09
+      },
+      solver: 'hierarchicalRepulsion',
+      stabilization: { iterations: 200, fit: true }
+    } : {
       enabled: true,
       solver: 'forceAtlas2Based',
       forceAtlas2Based: {
@@ -534,7 +537,19 @@ const renderNetwork = () => {
       hideEdgesOnDrag: false,
       hideEdgesOnZoom: false
     },
-    layout: {
+    layout: isPhysical ? {
+      hierarchical: {
+        enabled: true,
+        direction: 'UD',
+        sortMethod: 'directed',
+        levelSeparation: 150,
+        nodeSpacing: 200,
+        treeSpacing: 250,
+        blockShifting: true,
+        edgeMinimization: true,
+        parentCentralization: true
+      }
+    } : {
       improvedLayout: true,
       randomSeed: 42
     }
@@ -688,9 +703,28 @@ const createTooltip = (node) => {
 
 const formatKey = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-const zoomIn = () => network?.moveTo({ scale: network.getScale() * 1.25, animation: { duration: 150 } });
-const zoomOut = () => network?.moveTo({ scale: network.getScale() / 1.25, animation: { duration: 150 } });
-const fitToScreen = () => network?.fit({ animation: { duration: 300 } });
+const zoomIn = () => {
+  if (!network) return;
+  const newScale = network.getScale() * 1.25;
+  network.moveTo({ scale: newScale, animation: { duration: 150 } });
+  zoomLevel.value = newScale;
+};
+
+const zoomOut = () => {
+  if (!network) return;
+  const newScale = network.getScale() / 1.25;
+  network.moveTo({ scale: newScale, animation: { duration: 150 } });
+  zoomLevel.value = newScale;
+};
+
+const fitToScreen = () => {
+  if (!network) return;
+  network.fit({ animation: { duration: 300 } });
+  // Update zoom level after animation completes
+  setTimeout(() => {
+    zoomLevel.value = network.getScale();
+  }, 350);
+};
 
 const goToEquipment = (id) => {
   const eqId = id || selectedNode.value?.data?.id;

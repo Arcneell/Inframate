@@ -290,7 +290,17 @@
     "building": "Bâtiment",
     "room": "Salle",
     "icon": "Icône",
-    "specs": "Spécifications"
+    "specs": "Spécifications",
+    "hierarchyLevel": "Niveau Hiérarchique",
+    "hierarchyLevelHint": "Détermine la position dans la vue topologie (0 = haut, plus élevé = plus bas)",
+    "hierarchyLevelOptions": {
+      "router": "Niveau 0 - Cœur/Routeur/Passerelle",
+      "firewall": "Niveau 1 - Pare-feu/Sécurité",
+      "switch": "Niveau 2 - Switch/Distribution",
+      "server": "Niveau 3 - Serveur/Calcul",
+      "storage": "Niveau 4 - Stockage/NAS/SAN",
+      "endpoint": "Niveau 5 - Poste de travail"
+    }
   },
   "status": {
     "inService": "En service",

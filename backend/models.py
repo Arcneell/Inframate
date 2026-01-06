@@ -245,6 +245,7 @@ class EquipmentType(Base):
     name = Column(String, unique=True, nullable=False, index=True)
     icon = Column(String, default="pi-box")  # PrimeIcons class
     supports_remote_execution = Column(Boolean, default=False)  # Enable SSH/WinRM fields
+    hierarchy_level = Column(Integer, default=3)  # 0=top (router), 1=firewall, 2=switch, 3=server, 4=storage
 
     models = relationship("EquipmentModel", back_populates="equipment_type")
 

@@ -225,6 +225,18 @@
             </template>
           </Column>
           <Column field="name" :header="t('common.name')" sortable></Column>
+          <Column :header="t('inventory.hierarchyLevel')" style="width: 200px">
+            <template #body="slotProps">
+              <span v-if="slotProps.data.hierarchy_level !== undefined" class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                  :style="{ background: getHierarchyColor(slotProps.data.hierarchy_level) }">
+                  {{ slotProps.data.hierarchy_level }}
+                </span>
+                {{ getHierarchyLabel(slotProps.data.hierarchy_level) }}
+              </span>
+              <span v-else class="opacity-50">-</span>
+            </template>
+          </Column>
           <Column :header="t('common.actions')" style="width: 100px">
             <template #body="slotProps">
               <div class="flex gap-1">
@@ -460,7 +472,7 @@
     </Dialog>
 
     <!-- Type Dialog -->
-    <Dialog v-model:visible="showTypeDialog" modal :header="editingType ? t('common.edit') + ' ' + t('inventory.type') : t('inventory.newType')" :style="{ width: '450px' }" @keydown.enter="onTypeDialogEnter">
+    <Dialog v-model:visible="showTypeDialog" modal :header="editingType ? t('common.edit') + ' ' + t('inventory.type') : t('inventory.newType')" :style="{ width: '500px' }" @keydown.enter="onTypeDialogEnter">
       <div class="flex flex-col gap-4">
         <div>
           <label class="block text-sm font-medium mb-1">{{ t('common.name') }} <span class="text-red-500">*</span></label>
@@ -477,6 +489,18 @@
               <i :class="'pi ' + slotProps.option + ' mr-2'"></i> {{ slotProps.option }}
             </template>
           </Dropdown>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">{{ t('inventory.hierarchyLevel') }}</label>
+          <Dropdown v-model="typeForm.hierarchy_level" :options="hierarchyLevelOptions" optionLabel="label" optionValue="value" class="w-full">
+            <template #option="slotProps">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" :style="{ background: slotProps.option.color }">{{ slotProps.option.value }}</span>
+                <span>{{ slotProps.option.label }}</span>
+              </div>
+            </template>
+          </Dropdown>
+          <small class="opacity-70">{{ t('inventory.hierarchyLevelHint') }}</small>
         </div>
         <div class="flex items-center gap-2 border-t pt-4" style="border-color: var(--border-color);">
           <Checkbox v-model="typeForm.supports_remote_execution" binary inputId="supports_remote" />
@@ -670,7 +694,7 @@ const equipmentForm = ref({
 
 const manufacturerForm = ref({ name: '', website: '', notes: '' });
 const modelForm = ref({ name: '', manufacturer_id: null, equipment_type_id: null });
-const typeForm = ref({ name: '', icon: 'pi-box', supports_remote_execution: false });
+const typeForm = ref({ name: '', icon: 'pi-box', supports_remote_execution: false, hierarchy_level: 3 });
 const locationForm = ref({ site: '', building: '', room: '' });
 const supplierForm = ref({ name: '', contact_email: '', phone: '', website: '', notes: '' });
 
@@ -694,6 +718,16 @@ const locationOptions = computed(() => locations.value.map(l => ({
 })));
 
 const iconOptions = ['pi-server', 'pi-desktop', 'pi-mobile', 'pi-box', 'pi-database', 'pi-wifi', 'pi-globe', 'pi-print', 'pi-shield', 'pi-bolt', 'pi-cog', 'pi-sitemap', 'pi-sliders-h', 'pi-tablet', 'pi-video'];
+
+// Hierarchy level options for topology view ordering
+const hierarchyLevelOptions = computed(() => [
+  { value: 0, label: t('inventory.hierarchyLevelOptions.router'), color: '#7c3aed' },
+  { value: 1, label: t('inventory.hierarchyLevelOptions.firewall'), color: '#dc2626' },
+  { value: 2, label: t('inventory.hierarchyLevelOptions.switch'), color: '#2563eb' },
+  { value: 3, label: t('inventory.hierarchyLevelOptions.server'), color: '#059669' },
+  { value: 4, label: t('inventory.hierarchyLevelOptions.storage'), color: '#0891b2' },
+  { value: 5, label: t('inventory.hierarchyLevelOptions.endpoint'), color: '#64748b' }
+]);
 
 // Filtered equipment
 const filteredEquipment = computed(() => {
@@ -736,6 +770,17 @@ const getStatusLabel = (status) => {
 const formatDate = (date) => {
   if (!date) return '-';
   return new Date(date).toLocaleDateString();
+};
+
+// Hierarchy level helpers for Types table
+const getHierarchyColor = (level) => {
+  const colors = ['#7c3aed', '#dc2626', '#2563eb', '#059669', '#0891b2', '#64748b'];
+  return colors[level] || '#64748b';
+};
+
+const getHierarchyLabel = (level) => {
+  const option = hierarchyLevelOptions.value.find(o => o.value === level);
+  return option ? option.label : '-';
 };
 
 // Data loading
@@ -978,7 +1023,7 @@ const deleteModel = async (id) => {
 // Type CRUD
 const openTypeDialog = (tp = null) => {
   editingType.value = tp;
-  typeForm.value = tp ? { ...tp } : { name: '', icon: 'pi-box', supports_remote_execution: false };
+  typeForm.value = tp ? { ...tp } : { name: '', icon: 'pi-box', supports_remote_execution: false, hierarchy_level: 3 };
   showTypeDialog.value = true;
 };
 

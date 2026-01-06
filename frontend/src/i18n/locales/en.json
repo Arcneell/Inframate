@@ -290,7 +290,17 @@
     "building": "Building",
     "room": "Room",
     "icon": "Icon",
-    "specs": "Specifications"
+    "specs": "Specifications",
+    "hierarchyLevel": "Hierarchy Level",
+    "hierarchyLevelHint": "Determines position in topology view (0 = top, higher = lower)",
+    "hierarchyLevelOptions": {
+      "router": "Level 0 - Core/Router/Gateway",
+      "firewall": "Level 1 - Firewall/Security",
+      "switch": "Level 2 - Switch/Distribution",
+      "server": "Level 3 - Server/Compute",
+      "storage": "Level 4 - Storage/NAS/SAN",
+      "endpoint": "Level 5 - Endpoint/Workstation"
+    }
   },
   "status": {
     "inService": "In Service",

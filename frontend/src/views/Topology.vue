@@ -397,16 +397,14 @@ const loadTopology = async () => {
   }
 };
 
-// Calculate hierarchy level based on equipment type
+// Get hierarchy level from API data (configured in equipment type settings)
 const getHierarchyLevel = (node) => {
-  if (node.type !== 'equipment') return 3;
-  const typeLower = (node.sublabel || node.data?.type || '').toLowerCase();
-  if (typeLower.includes('router') || typeLower.includes('gateway')) return 0;
-  if (typeLower.includes('firewall') || typeLower.includes('pare-feu')) return 1;
-  if (typeLower.includes('switch')) return 2;
-  if (typeLower.includes('server') || typeLower.includes('serveur')) return 3;
-  if (typeLower.includes('storage') || typeLower.includes('nas') || typeLower.includes('san')) return 4;
-  return 3; // Default level for workstations, APs, etc.
+  // Use the level directly from API if available
+  if (typeof node.level === 'number') return node.level;
+  // Fallback to data.hierarchy_level if present
+  if (node.data?.hierarchy_level !== undefined) return node.data.hierarchy_level;
+  // Default to level 3 (middle) for non-equipment nodes
+  return 3;
 };
 
 const renderNetwork = () => {

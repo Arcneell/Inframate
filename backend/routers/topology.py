@@ -248,6 +248,7 @@ def get_physical_topology(
     for eq in equipment_list:
         eq_type = eq.model.equipment_type.name if eq.model and eq.model.equipment_type else "Unknown"
         eq_icon = eq.model.equipment_type.icon if eq.model and eq.model.equipment_type else "pi-box"
+        hierarchy_level = eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else 3
         site_name = eq.location.site if eq.location else "Unassigned"
         room = eq.location.room if eq.location else None
 
@@ -267,11 +268,13 @@ def get_physical_topology(
             "borderColor": STATUS_COLORS.get(eq.status, "#6b7280"),
             "size": 30,
             "group": site_name,
+            "level": hierarchy_level,
             "data": {
                 "id": eq.id,
                 "name": eq.name,
                 "type": eq_type,
                 "status": eq.status,
+                "hierarchy_level": hierarchy_level,
                 "manufacturer": eq.model.manufacturer.name if eq.model and eq.model.manufacturer else None,
                 "model": eq.model.name if eq.model else None,
                 "site": site_name,
@@ -403,6 +406,7 @@ def get_site_topology(
     for eq in equipment_list:
         eq_type = eq.model.equipment_type.name if eq.model and eq.model.equipment_type else "Unknown"
         eq_icon = eq.model.equipment_type.icon if eq.model and eq.model.equipment_type else "pi-box"
+        hierarchy_level = eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else 3
         room = eq.location.room if eq.location else "Unknown"
 
         nodes.append({
@@ -415,11 +419,13 @@ def get_site_topology(
             "color": get_type_color(eq_type),
             "size": 28,
             "group": room,
+            "level": hierarchy_level,
             "data": {
                 "id": eq.id,
                 "name": eq.name,
                 "type": eq_type,
                 "status": eq.status,
+                "hierarchy_level": hierarchy_level,
                 "room": room,
                 "rack": eq.rack.name if eq.rack else None,
             }

@@ -192,7 +192,7 @@ class EquipmentTypeBase(BaseModel):
     name: str
     icon: str = "pi-box"
     supports_remote_execution: bool = False
-    hierarchy_level: int = 3  # 0=top (router), 1=firewall, 2=switch, 3=server, 4=storage
+    hierarchy_level: Optional[int] = 3  # 0=top (router), 1=firewall, 2=switch, 3=server, 4=storage
 
 class EquipmentTypeCreate(EquipmentTypeBase):
     pass

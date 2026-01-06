@@ -248,7 +248,7 @@ def get_physical_topology(
     for eq in equipment_list:
         eq_type = eq.model.equipment_type.name if eq.model and eq.model.equipment_type else "Unknown"
         eq_icon = eq.model.equipment_type.icon if eq.model and eq.model.equipment_type else "pi-box"
-        hierarchy_level = eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else 3
+        hierarchy_level = (eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else None) or 3
         site_name = eq.location.site if eq.location else "Unassigned"
         room = eq.location.room if eq.location else None
 
@@ -406,7 +406,7 @@ def get_site_topology(
     for eq in equipment_list:
         eq_type = eq.model.equipment_type.name if eq.model and eq.model.equipment_type else "Unknown"
         eq_icon = eq.model.equipment_type.icon if eq.model and eq.model.equipment_type else "pi-box"
-        hierarchy_level = eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else 3
+        hierarchy_level = (eq.model.equipment_type.hierarchy_level if eq.model and eq.model.equipment_type else None) or 3
         room = eq.location.room if eq.location else "Unknown"
 
         nodes.append({

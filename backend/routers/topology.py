@@ -641,7 +641,7 @@ def delete_link(
     ).all()
 
     link_found = False
-    deleted_ports = []
+    disconnected_ports = []
 
     for source_port in source_ports:
         target_port = db.query(models.NetworkPort).filter(
@@ -652,14 +652,15 @@ def delete_link(
             link_found = True
 
             # Store info for logging
-            deleted_ports.append({
+            disconnected_ports.append({
                 "source_port": source_port.name,
                 "target_port": target_port.name
             })
 
-            # Delete both ports (this removes the connection)
-            db.delete(source_port)
-            db.delete(target_port)
+            # Break the connection by setting connected_to_id to None on both sides
+            # This avoids circular dependency issues when deleting
+            source_port.connected_to_id = None
+            target_port.connected_to_id = None
 
     if not link_found:
         raise HTTPException(
@@ -687,6 +688,6 @@ def delete_link(
 
     return {
         "ok": True,
-        "deleted_count": len(deleted_ports),
-        "deleted_ports": deleted_ports
+        "disconnected_count": len(disconnected_ports),
+        "disconnected_ports": disconnected_ports
     }

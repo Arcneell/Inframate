@@ -809,6 +809,7 @@
     "linkExists": "Un lien existe déjà entre ces équipements",
     "noLinks": "Aucune connexion",
     "ethernet": "Ethernet",
+    "copper": "Cuivre",
     "sfp": "SFP/SFP+"
   }
 }

@@ -809,6 +809,7 @@
     "linkExists": "A link already exists between these equipment",
     "noLinks": "No connections",
     "ethernet": "Ethernet",
+    "copper": "Copper",
     "sfp": "SFP/SFP+"
   }
 }

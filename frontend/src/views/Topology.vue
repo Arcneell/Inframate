@@ -265,11 +265,11 @@ const speedOptions = [
   { label: '100 Gbps', value: '100G' }
 ];
 
-const typeOptions = [
-  { label: 'Ethernet (Copper)', value: 'ethernet' },
-  { label: 'Fiber', value: 'fiber' },
-  { label: 'SFP/SFP+', value: 'sfp' }
-];
+const typeOptions = computed(() => [
+  { label: t('topology.ethernet') + ' (' + t('topology.copper') + ')', value: 'ethernet' },
+  { label: t('topology.fiber'), value: 'fiber' },
+  { label: t('topology.sfp'), value: 'sfp' }
+]);
 
 // Format icon class - ensure it has 'pi ' prefix
 const formatIconClass = (icon) => {
@@ -416,13 +416,23 @@ const renderNetwork = () => {
         group: node.group,
         shape: 'image',
         image: createIconSvg(iconClass, node.color),
-        size: 22,
+        size: 24,
         font: {
           color: textColor,
-          size: 10,
+          size: 12,
           face: 'Inter, system-ui, sans-serif',
           background: bgColor,
-          strokeWidth: 0
+          strokeWidth: 0,
+          vadjust: 2
+        },
+        scaling: {
+          label: {
+            enabled: true,
+            min: 10,
+            max: 16,
+            maxVisible: 30,
+            drawThreshold: 5
+          }
         },
         _data: node
       };
@@ -438,10 +448,23 @@ const renderNetwork = () => {
           highlight: { background: node.color + '50', border: node.color },
           hover: { background: node.color + '40', border: node.color }
         },
-        font: { color: textColor, size: 10 },
+        font: {
+          color: textColor,
+          size: 12,
+          background: bgColor
+        },
         borderWidth: 2,
         shape: node.shape || 'dot',
         size: node.size || 18,
+        scaling: {
+          label: {
+            enabled: true,
+            min: 10,
+            max: 14,
+            maxVisible: 25,
+            drawThreshold: 5
+          }
+        },
         _data: node
       };
     }
@@ -460,13 +483,32 @@ const renderNetwork = () => {
   const options = {
     nodes: {
       font: {
-        face: 'Inter, system-ui, sans-serif'
+        face: 'Inter, system-ui, sans-serif',
+        size: 12,
+        strokeWidth: 3,
+        strokeColor: bgColor
       },
-      shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 8, x: 0, y: 3 }
+      shadow: { enabled: true, color: 'rgba(0,0,0,0.1)', size: 8, x: 0, y: 3 },
+      scaling: {
+        label: {
+          enabled: true,
+          min: 10,
+          max: 18,
+          maxVisible: 40,
+          drawThreshold: 3
+        }
+      }
     },
     edges: {
       smooth: { type: 'continuous', roundness: 0.15 },
-      arrows: { to: { enabled: false } }
+      arrows: { to: { enabled: false } },
+      font: {
+        size: 9,
+        color: textColor,
+        strokeWidth: 2,
+        strokeColor: bgColor,
+        align: 'middle'
+      }
     },
     physics: {
       enabled: true,
@@ -474,7 +516,7 @@ const renderNetwork = () => {
       forceAtlas2Based: {
         gravitationalConstant: -200,
         centralGravity: 0.003,
-        springLength: 250,
+        springLength: 280,
         springConstant: 0.03,
         damping: 0.8,
         avoidOverlap: 1
@@ -488,7 +530,9 @@ const renderNetwork = () => {
       tooltipDelay: 200,
       dragNodes: true,
       dragView: true,
-      zoomView: true
+      zoomView: true,
+      hideEdgesOnDrag: false,
+      hideEdgesOnZoom: false
     },
     layout: {
       improvedLayout: true,

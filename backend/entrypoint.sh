@@ -79,7 +79,7 @@ echo ""
 echo "Initializing database..."
 python -c "
 from backend.core.database import init_db
-from backend.app import create_default_admin
+from backend.core.setup import create_default_admin_sync
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -91,7 +91,7 @@ try:
     logger.info('✓ Database tables created')
 
     logger.info('Creating default admin user...')
-    create_default_admin()
+    create_default_admin_sync()
     logger.info('✓ Initialization complete')
 except Exception as e:
     logger.error(f'Initialization error: {e}')

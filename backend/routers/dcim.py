@@ -3,6 +3,7 @@ DCIM Router - Rack and PDU management for datacenter infrastructure.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List
 import logging
 
@@ -83,8 +84,13 @@ def list_racks(
     query = db.query(models.Rack)
 
     entity_filter = get_user_entity_filter(current_user)
-    if entity_filter:
-        query = query.filter(models.Rack.entity_id == entity_filter)
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Rack.entity_id == entity_filter,
+                models.Rack.entity_id == None  # noqa: E711
+            )
+        )
 
     if location_id:
         query = query.filter(models.Rack.location_id == location_id)
@@ -104,9 +110,8 @@ def get_rack(
     rack = db.query(models.Rack).filter(models.Rack.id == rack_id).first()
     if not rack:
         raise HTTPException(status_code=404, detail="Rack not found")
-
     entity_filter = get_user_entity_filter(current_user)
-    if entity_filter and rack.entity_id != entity_filter:
+    if entity_filter is not None and rack.entity_id not in (entity_filter, None):
         raise HTTPException(status_code=403, detail="Access denied to this rack")
 
     return rack

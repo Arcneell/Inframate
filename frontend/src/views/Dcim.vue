@@ -48,7 +48,16 @@
         </div>
 
         <div class="flex-1 overflow-auto">
-          <DataTable :value="filteredRacks" stripedRows paginator :rows="10" class="text-sm">
+          <DataTable
+            :value="filteredRacks"
+            stripedRows
+            scrollable
+            scrollHeight="100%"
+            :virtualScrollerOptions="{ itemSize: 64, delay: 50 }"
+            paginator
+            :rows="20"
+            class="text-sm"
+          >
             <Column field="name" :header="t('common.name')" sortable></Column>
             <Column :header="t('inventory.location')">
               <template #body="slotProps">
@@ -89,7 +98,16 @@
         </div>
 
         <div class="flex-1 overflow-auto">
-          <DataTable :value="pdus" stripedRows paginator :rows="10" class="text-sm">
+          <DataTable
+            :value="pdus"
+            stripedRows
+            scrollable
+            scrollHeight="100%"
+            :virtualScrollerOptions="{ itemSize: 60, delay: 50 }"
+            paginator
+            :rows="20"
+            class="text-sm"
+          >
             <Column field="name" :header="t('common.name')" sortable></Column>
             <Column :header="t('dcim.racks')">
               <template #body="slotProps">

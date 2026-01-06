@@ -54,7 +54,7 @@ class UserBase(BaseModel):
     email: Optional[str] = None
     is_active: bool = True
     role: str = "user"  # user, tech, admin, superadmin
-    permissions: Optional[List[str]] = []  # Granular permissions for tech/admin
+    permissions: List[str] = Field(default_factory=list)  # Granular permissions for tech/admin
     entity_id: Optional[int] = None
 
 class UserCreate(UserBase):
@@ -119,7 +119,7 @@ class SubnetWithEquipment(BaseModel):
     cidr: str
     name: Optional[str] = None
     description: Optional[str] = None
-    ips: List[IPAddressWithEquipment] = []
+    ips: List[IPAddressWithEquipment] = Field(default_factory=list)
     class Config:
         from_attributes = True
 
@@ -133,7 +133,7 @@ class SubnetCreate(SubnetBase):
 
 class Subnet(SubnetBase):
     id: int
-    ips: List[IPAddress] = []
+    ips: List[IPAddress] = Field(default_factory=list)
     class Config:
         from_attributes = True
 
@@ -341,7 +341,7 @@ class EquipmentFull(Equipment):
     model: Optional[EquipmentModelFull] = None
     location: Optional[Location] = None
     supplier: Optional[Supplier] = None
-    ip_addresses: List[IPAddress] = []
+    ip_addresses: List[IPAddress] = Field(default_factory=list)
 
 
 # --- IP Link ---
@@ -442,7 +442,7 @@ class RackLayoutResponse(BaseModel):
     rack: dict
     layout: List[RackSlot]
     pdus: List[dict]
-    unassigned_equipment: List[dict] = []
+    unassigned_equipment: List[dict] = Field(default_factory=list)
 
 
 # ==================== CONTRACT SCHEMAS ====================
@@ -754,9 +754,9 @@ class TicketFull(Ticket):
     requester_name: Optional[str] = None
     assigned_to_name: Optional[str] = None
     equipment_name: Optional[str] = None
-    comments: List[TicketCommentFull] = []
-    history: List[TicketHistoryItem] = []
-    attachments: List[TicketAttachment] = []
+    comments: List[TicketCommentFull] = Field(default_factory=list)
+    history: List[TicketHistoryItem] = Field(default_factory=list)
+    attachments: List[TicketAttachment] = Field(default_factory=list)
 
 
 class TicketStats(BaseModel):
@@ -811,7 +811,7 @@ class KnowledgeArticleBase(BaseModel):
     content: str
     summary: Optional[str] = None
     category: Optional[str] = None
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
     is_published: bool = False
     is_internal: bool = False
 

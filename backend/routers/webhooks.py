@@ -6,7 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
+from urllib.parse import urlparse
+import ipaddress
+import socket
 import hashlib
 import hmac
 import httpx
@@ -97,6 +100,62 @@ AVAILABLE_EVENTS = [
     "user.deleted",
     "sla.breached",
 ]
+
+
+def validate_webhook_url(url: str) -> str:
+    """Validate webhook URL to prevent SSRF toward internal networks."""
+    parsed = urlparse(url)
+
+    if parsed.scheme != "https":
+        raise HTTPException(
+            status_code=400,
+            detail="Webhook URL must use https"
+        )
+
+    if not parsed.hostname:
+        raise HTTPException(status_code=400, detail="Webhook URL must include a host")
+
+    hostname = parsed.hostname.lower()
+    if hostname in {"localhost", "127.0.0.1", "::1"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Webhook URL cannot target localhost"
+        )
+
+    def _is_blocked_ip(ip_str: str) -> bool:
+        ip = ipaddress.ip_address(ip_str)
+        return any([
+            ip.is_private,
+            ip.is_loopback,
+            ip.is_link_local,
+            ip.is_reserved,
+            ip.is_multicast,
+        ])
+
+    # Validate direct IP
+    try:
+        if _is_blocked_ip(hostname):
+            raise HTTPException(
+                status_code=400,
+                detail="Webhook URL cannot target private or internal addresses"
+            )
+        return url
+    except ValueError:
+        # Hostname - resolve and check returned addresses
+        try:
+            infos = socket.getaddrinfo(hostname, None)
+        except socket.gaierror:
+            raise HTTPException(status_code=400, detail="Webhook host cannot be resolved")
+
+        for info in infos:
+            ip_str = info[4][0]
+            if _is_blocked_ip(ip_str):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Webhook URL cannot target private or internal addresses"
+                )
+
+    return url
 
 
 # ==================== WEBHOOK DELIVERY FUNCTION ====================
@@ -300,9 +359,11 @@ def create_webhook(
             detail=f"Invalid events: {', '.join(invalid_events)}. Available: {', '.join(AVAILABLE_EVENTS)}"
         )
 
+    safe_url = validate_webhook_url(webhook_data.url)
+
     webhook = models.Webhook(
         name=webhook_data.name,
-        url=webhook_data.url,
+        url=safe_url,
         secret=webhook_data.secret,
         events=webhook_data.events,
         is_active=webhook_data.is_active,
@@ -342,6 +403,9 @@ def update_webhook(
                 status_code=400,
                 detail=f"Invalid events: {', '.join(invalid_events)}"
             )
+
+    if "url" in update_data:
+        update_data["url"] = validate_webhook_url(update_data["url"])
 
     for field, value in update_data.items():
         setattr(webhook, field, value)

@@ -76,7 +76,18 @@
         </div>
 
         <div class="flex-1 overflow-auto">
-          <DataTable :value="filteredEquipment" stripedRows paginator :rows="10" v-model:expandedRows="expandedRows" dataKey="id" class="text-sm">
+          <DataTable
+            :value="filteredEquipment"
+            stripedRows
+            scrollable
+            scrollHeight="100%"
+            :virtualScrollerOptions="{ itemSize: 68, delay: 50 }"
+            paginator
+            :rows="25"
+            v-model:expandedRows="expandedRows"
+            dataKey="id"
+            class="text-sm"
+          >
             <Column expander style="width: 3rem" />
             <Column field="name" :header="t('common.name')" sortable></Column>
             <Column :header="t('inventory.type')">

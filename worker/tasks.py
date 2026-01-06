@@ -10,13 +10,15 @@ import socket
 import json
 import tempfile
 import uuid
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 import nmap
 import paramiko
 import winrm
 from celery import Celery
 from sqlalchemy.orm import Session
+import redis
+from cryptography.fernet import Fernet
 
 # Structured logging
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ def get_json_logger():
 # Configuration from environment
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL", CELERY_BROKER_URL)
 
 celery_app = Celery("inframate_worker", broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 
@@ -51,6 +54,37 @@ DOCKER_SANDBOX_MEMORY = os.environ.get("DOCKER_SANDBOX_MEMORY", "256m")
 DOCKER_SANDBOX_CPU = float(os.environ.get("DOCKER_SANDBOX_CPU", "0.5"))
 DOCKER_SANDBOX_NETWORK = os.environ.get("DOCKER_SANDBOX_NETWORK", "none")
 
+# Connection pools
+_ssh_client_cache: Dict[Tuple[str, int, str], paramiko.SSHClient] = {}
+_winrm_session_cache: Dict[Tuple[str, int, str, bool], winrm.Session] = {}
+
+# Heartbeat
+HEARTBEAT_KEY = "celery:heartbeat"
+
+
+def _redis_client() -> Optional[redis.Redis]:
+    try:
+        client = redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=3, socket_connect_timeout=3)
+        client.ping()
+        return client
+    except Exception:
+        return None
+
+
+@celery_app.task
+def send_heartbeat():
+    """Publish a heartbeat timestamp for health monitoring."""
+    client = _redis_client()
+    if not client:
+        return
+    client.set(HEARTBEAT_KEY, str(datetime.now(timezone.utc).timestamp()))
+
+
+@celery_app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    # Heartbeat every 30s
+    sender.add_periodic_task(30.0, send_heartbeat.s(), name="worker_heartbeat")
+
 
 def log_event(event_type: str, **kwargs):
     """Log structured event."""
@@ -67,6 +101,49 @@ def truncate_output(output: str, max_size: int = MAX_OUTPUT_SIZE) -> str:
     if len(output) > max_size:
         return output[:max_size] + "\n\n[Output truncated - exceeded maximum size]"
     return output
+
+
+def _get_ssh_client(host: str, port: int, username: str, password: Optional[str]) -> paramiko.SSHClient:
+    """Get or create a pooled SSH client."""
+    cache_key = (host, port, username)
+    client = _ssh_client_cache.get(cache_key)
+    if client and client.get_transport() and client.get_transport().is_active():
+        return client
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.connect(
+        hostname=host,
+        port=port,
+        username=username,
+        password=password,
+        timeout=SSH_TIMEOUT,
+        banner_timeout=SSH_BANNER_TIMEOUT,
+        auth_timeout=SSH_TIMEOUT,
+        allow_agent=False,
+        look_for_keys=False
+    )
+    _ssh_client_cache[cache_key] = client
+    return client
+
+
+def _get_winrm_session(host: str, port: int, username: str, password: str, use_ssl: bool) -> winrm.Session:
+    """Get or create a pooled WinRM session."""
+    cache_key = (host, port, username, use_ssl)
+    session = _winrm_session_cache.get(cache_key)
+    if session:
+        return session
+
+    endpoint = f"{'https' if use_ssl else 'http'}://{host}:{port}/wsman"
+    session = winrm.Session(
+        endpoint,
+        auth=(username, password),
+        transport='ntlm',
+        server_cert_validation='ignore' if use_ssl else 'validate'
+    )
+    _winrm_session_cache[cache_key] = session
+    return session
 
 
 class DockerSandbox:
@@ -314,9 +391,6 @@ def run_ssh_with_args(
     args_str: str
 ) -> Tuple[int, str, str]:
     """Execute a script on a remote server via SSH."""
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
     port = equipment.remote_port or 22
     remote_ip = equipment.remote_ip
     username = equipment.remote_username
@@ -340,17 +414,7 @@ def run_ssh_with_args(
             username=username
         )
 
-        client.connect(
-            hostname=remote_ip,
-            port=port,
-            username=username,
-            password=password,
-            timeout=SSH_TIMEOUT,
-            banner_timeout=SSH_BANNER_TIMEOUT,
-            auth_timeout=SSH_TIMEOUT,
-            allow_agent=False,
-            look_for_keys=False
-        )
+        client = _get_ssh_client(remote_ip, port, username, password)
 
         # Upload script
         sftp = client.open_sftp()
@@ -391,8 +455,6 @@ def run_ssh_with_args(
         except Exception:
             pass
 
-        client.close()
-
         log_event(
             "ssh_execution_complete",
             host=remote_ip,
@@ -416,11 +478,6 @@ def run_ssh_with_args(
     except Exception as e:
         log_event("ssh_unexpected_error", host=remote_ip, error=str(e))
         return -1, "", f"SSH Error: {str(e)}"
-    finally:
-        try:
-            client.close()
-        except Exception:
-            pass
 
 
 def run_winrm_with_args(
@@ -454,19 +511,13 @@ def run_winrm_with_args(
             ssl=use_ssl
         )
 
-        if use_ssl:
-            session = winrm.Session(
-                f'https://{equipment.remote_ip}:{port}/wsman',
-                auth=(equipment.remote_username, password),
-                transport='ntlm',
-                server_cert_validation='ignore'
-            )
-        else:
-            session = winrm.Session(
-                f'http://{equipment.remote_ip}:{port}/wsman',
-                auth=(equipment.remote_username, password),
-                transport='ntlm'
-            )
+        session = _get_winrm_session(
+            equipment.remote_ip,
+            port,
+            equipment.remote_username,
+            password,
+            use_ssl
+        )
 
         # Prepare script
         if script_args:
@@ -705,11 +756,14 @@ def scan_subnet_task(self, subnet_id: int):
 
         nm = nmap.PortScanner()
 
+        offline_hosts = 0
         try:
             nm.scan(hosts=str(subnet.cidr), arguments='-sn -PR -R --max-retries 2')
         except nmap.PortScannerError as e:
-            log_event("nmap_error", subnet_id=subnet_id, error=str(e))
-            return f"Scan failed: {str(e)}"
+            detail = str(e)
+            status = "permission_denied" if "privileged" in detail.lower() else "nmap_error"
+            log_event(status, subnet_id=subnet_id, error=detail)
+            return f"Scan failed: {detail}"
         except Exception as e:
             log_event("scan_error", subnet_id=subnet_id, error=str(e))
             return f"Scan failed: {str(e)}"
@@ -723,6 +777,8 @@ def scan_subnet_task(self, subnet_id: int):
 
         for host in scanned_hosts:
             status = 'active' if nm[host].state() == 'up' else 'available'
+            if status != 'active':
+                offline_hosts += 1
             hostname = nm[host].hostname() if nm[host].hostname() else None
             mac = None
             if 'addresses' in nm[host] and 'mac' in nm[host]['addresses']:
@@ -751,16 +807,21 @@ def scan_subnet_task(self, subnet_id: int):
                 )
                 db.add(new_ip)
 
-        db.commit()
+            # Commit per host to allow safe resume on interruption
+            db.commit()
 
         log_event(
             "subnet_scan_complete",
             subnet_id=subnet_id,
             cidr=str(subnet.cidr),
-            hosts_found=len(scanned_hosts)
+            hosts_found=len(scanned_hosts),
+            hosts_offline=offline_hosts
         )
 
-        return f"Scan complete for {subnet.cidr}. Found {len(scanned_hosts)} hosts."
+        return (
+            f"Scan complete for {subnet.cidr}. "
+            f"Found {len(scanned_hosts)} hosts ({offline_hosts} offline)."
+        )
 
     except Exception as e:
         log_event(
@@ -1005,6 +1066,68 @@ def check_all_expirations_task(self, days_threshold: int = 30):
     }
 
 
+@celery_app.task(bind=True)
+def rotate_encryption_key_task(self, old_key: str, new_key: str):
+    """
+    Rotate encryption keys for sensitive fields without downtime.
+    Decrypt with old_key (Fernet) and re-encrypt with new_key.
+    """
+    from backend.core.database import SessionLocal
+    from backend.models import User, Equipment
+
+    db: Session = SessionLocal()
+    updated_users = 0
+    updated_equipment = 0
+    errors = []
+
+    try:
+        old_fernet = Fernet(old_key)
+        new_fernet = Fernet(new_key)
+
+        users = db.query(User).filter(User.totp_secret.isnot(None)).all()
+        for user in users:
+            try:
+                decrypted = old_fernet.decrypt(user.totp_secret.encode()).decode()
+                user.totp_secret = new_fernet.encrypt(decrypted.encode()).decode()
+                updated_users += 1
+            except Exception as e:
+                errors.append(f"user:{user.id}:{type(e).__name__}")
+
+        equipments = db.query(Equipment).filter(Equipment.remote_password.isnot(None)).all()
+        for equipment in equipments:
+            try:
+                decrypted = old_fernet.decrypt(equipment.remote_password.encode()).decode()
+                equipment.remote_password = new_fernet.encrypt(decrypted.encode()).decode()
+                updated_equipment += 1
+            except Exception as e:
+                errors.append(f"equipment:{equipment.id}:{type(e).__name__}")
+
+        db.commit()
+
+        log_event(
+            "encryption_rotation_complete",
+            users=updated_users,
+            equipment=updated_equipment,
+            errors=len(errors)
+        )
+        return {
+            "status": "complete",
+            "users_rotated": updated_users,
+            "equipment_rotated": updated_equipment,
+            "errors": errors
+        }
+    except Exception as e:
+        db.rollback()
+        log_event(
+            "encryption_rotation_error",
+            error_type=type(e).__name__,
+            error_message=str(e)
+        )
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+
 # ==================== SOFTWARE COLLECTION TASKS ====================
 
 @celery_app.task(bind=True)
@@ -1138,9 +1261,6 @@ def collect_software_inventory_task(self, equipment_id: int):
 
 def _collect_via_ssh(equipment, command: str) -> Tuple[int, str, str]:
     """Execute collection command via SSH."""
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
     try:
         from backend.core.security import decrypt_value
         password = equipment.remote_password
@@ -1149,14 +1269,11 @@ def _collect_via_ssh(equipment, command: str) -> Tuple[int, str, str]:
         except Exception:
             pass
 
-        client.connect(
-            hostname=equipment.remote_ip,
-            port=equipment.remote_port or 22,
-            username=equipment.remote_username,
-            password=password,
-            timeout=SSH_TIMEOUT,
-            allow_agent=False,
-            look_for_keys=False
+        client = _get_ssh_client(
+            equipment.remote_ip,
+            equipment.remote_port or 22,
+            equipment.remote_username,
+            password
         )
 
         stdin, stdout, stderr = client.exec_command(command, timeout=60)
@@ -1169,8 +1286,6 @@ def _collect_via_ssh(equipment, command: str) -> Tuple[int, str, str]:
         )
     except Exception as e:
         return -1, "", str(e)
-    finally:
-        client.close()
 
 
 def _collect_via_winrm(equipment, command: str) -> Tuple[int, str, str]:
@@ -1186,19 +1301,13 @@ def _collect_via_winrm(equipment, command: str) -> Tuple[int, str, str]:
         port = equipment.remote_port or 5985
         use_ssl = port == 5986
 
-        if use_ssl:
-            session = winrm.Session(
-                f'https://{equipment.remote_ip}:{port}/wsman',
-                auth=(equipment.remote_username, password),
-                transport='ntlm',
-                server_cert_validation='ignore'
-            )
-        else:
-            session = winrm.Session(
-                f'http://{equipment.remote_ip}:{port}/wsman',
-                auth=(equipment.remote_username, password),
-                transport='ntlm'
-            )
+        session = _get_winrm_session(
+            equipment.remote_ip,
+            port,
+            equipment.remote_username,
+            password,
+            use_ssl
+        )
 
         result = session.run_ps(command)
         return (

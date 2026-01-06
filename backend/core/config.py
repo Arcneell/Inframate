@@ -9,6 +9,8 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator, model_validator
 import os
+import base64
+import binascii
 
 
 def _read_secret_file(file_path: str) -> str:
@@ -17,6 +19,16 @@ def _read_secret_file(file_path: str) -> str:
         return Path(file_path).read_text().strip()
     except Exception:
         return ""
+
+
+def _decode_base64(value: str) -> bytes:
+    """Decode a base64 string, raising ValueError on failure."""
+    try:
+        # Ensure proper padding
+        padding = "=" * (-len(value) % 4)
+        return base64.urlsafe_b64decode(value + padding)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Invalid base64 encoding: {e}") from e
 
 
 class Settings(BaseSettings):
@@ -147,6 +159,43 @@ class Settings(BaseSettings):
                 "or ENCRYPTION_KEY_FILE for Docker secrets."
             )
         return self
+
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_key(cls, v: str) -> str:
+        """
+        Validate JWT secret.
+        Prefer base64 decoding to ensure entropy; fall back to accepting legacy
+        raw strings of length >= 32 characters.
+        """
+        try:
+            decoded = _decode_base64(v)
+            if len(decoded) < 32:
+                raise ValueError("JWT_SECRET_KEY must decode to at least 32 bytes")
+            return v
+        except ValueError:
+            # Legacy tolerance: accept raw strings of reasonable length
+            if len(v) >= 32:
+                return v
+            raise ValueError("JWT_SECRET_KEY must be base64 or at least 32 characters")
+
+    @field_validator("encryption_key")
+    @classmethod
+    def validate_encryption_key(cls, v: str) -> str:
+        """
+        Validate Fernet key format (base64, 32 bytes) but allow legacy
+        non-standard keys to keep backward compatibility for rotation.
+        """
+        try:
+            decoded = _decode_base64(v)
+            if len(decoded) != 32:
+                raise ValueError("ENCRYPTION_KEY must decode to 32 bytes (Fernet key)")
+            return v
+        except ValueError:
+            # Legacy tolerance: accept raw strings (non-base64) of reasonable length
+            if len(v) >= 16:
+                return v
+            raise
 
     @field_validator("database_url")
     @classmethod

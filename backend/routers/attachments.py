@@ -4,6 +4,7 @@ Attachments Router - File storage for equipment documents.
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List, Optional
 import os
 import uuid
@@ -27,6 +28,23 @@ def check_attachment_permission(current_user: models.User):
     """Check if user has attachments permission (tech with attachments, admin, superadmin)."""
     if not has_permission(current_user, "attachments"):
         raise HTTPException(status_code=403, detail="Permission denied")
+
+def get_entity_filter(current_user: models.User) -> int | None:
+    """
+    Entity scope for reads.
+    Admin without entity sees all; others filter by their entity_id (which may be None).
+    """
+    if current_user.role == "admin" and not current_user.entity_id:
+        return None
+    return current_user.entity_id
+
+
+def get_entity_for_write(current_user: models.User) -> int | None:
+    """
+    Entity to stamp on new records.
+    If the user has an entity, use it; otherwise write as global (None).
+    """
+    return current_user.entity_id
 
 
 def get_file_extension(filename: str) -> str:
@@ -64,10 +82,19 @@ def list_equipment_attachments(
 ):
     """List all attachments for an equipment."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    equipment = db.query(models.Equipment).filter(
+    equipment_query = db.query(models.Equipment).filter(
         models.Equipment.id == equipment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        equipment_query = equipment_query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    equipment = equipment_query.first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
@@ -89,10 +116,19 @@ def get_attachment(
 ):
     """Get attachment metadata."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    attachment = db.query(models.Attachment).filter(
+    query = db.query(models.Attachment).join(models.Equipment).filter(
         models.Attachment.id == attachment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    attachment = query.first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -107,10 +143,19 @@ def download_attachment(
 ):
     """Download an attachment file."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    attachment = db.query(models.Attachment).filter(
+    query = db.query(models.Attachment).join(models.Equipment).filter(
         models.Attachment.id == attachment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    attachment = query.first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -136,11 +181,20 @@ async def upload_attachment(
 ):
     """Upload an attachment for equipment."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
     # Verify equipment exists
-    equipment = db.query(models.Equipment).filter(
+    equipment_query = db.query(models.Equipment).filter(
         models.Equipment.id == equipment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        equipment_query = equipment_query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    equipment = equipment_query.first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
@@ -204,10 +258,19 @@ def update_attachment(
 ):
     """Update attachment metadata."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    attachment = db.query(models.Attachment).filter(
+    query = db.query(models.Attachment).join(models.Equipment).filter(
         models.Attachment.id == attachment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    attachment = query.first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
@@ -230,10 +293,19 @@ def delete_attachment(
 ):
     """Delete an attachment."""
     check_attachment_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    attachment = db.query(models.Attachment).filter(
+    query = db.query(models.Attachment).join(models.Equipment).filter(
         models.Attachment.id == attachment_id
-    ).first()
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Equipment.entity_id == entity_filter,
+                models.Equipment.entity_id == None  # noqa: E711
+            )
+        )
+    attachment = query.first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 

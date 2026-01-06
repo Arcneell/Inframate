@@ -3,6 +3,7 @@ IPAM Router - IP Address Management endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List
 import ipaddress
 import logging
@@ -21,6 +22,22 @@ def check_ipam_permission(current_user: models.User):
     if not has_permission(current_user, "ipam"):
         raise HTTPException(status_code=403, detail="Permission denied")
 
+def get_entity_filter(current_user: models.User) -> int | None:
+    """Entity scope for reads. Admin without entity sees all."""
+    if current_user.role == "admin" and not current_user.entity_id:
+        return None
+    return current_user.entity_id
+
+
+def get_entity_for_write(current_user: models.User) -> int | None:
+    """
+    Entity to stamp on new records.
+    - If user has an entity, use it.
+    - Admin/superadmin without entity write global (None).
+    - Tech without entity writes global (keeps seamless, matches current request).
+    """
+    return current_user.entity_id
+
 
 @router.post("/", response_model=schemas.Subnet)
 def create_subnet(
@@ -30,6 +47,7 @@ def create_subnet(
 ):
     """Create a new subnet."""
     check_ipam_permission(current_user)
+    entity_id = get_entity_for_write(current_user)
 
     try:
         ipaddress.ip_network(subnet.cidr)
@@ -39,7 +57,8 @@ def create_subnet(
     db_subnet = models.Subnet(
         cidr=subnet.cidr,
         name=subnet.name,
-        description=subnet.description
+        description=subnet.description,
+        entity_id=entity_id
     )
     db.add(db_subnet)
     db.commit()
@@ -58,10 +77,20 @@ def read_subnets(
 ):
     """List all subnets with their IPs (tech with ipam, admin, superadmin)."""
     check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    subnets = db.query(models.Subnet).options(
+    query = db.query(models.Subnet).options(
         joinedload(models.Subnet.ips).joinedload(models.IPAddress.equipment)
-    ).offset(skip).limit(limit).all()
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Subnet.entity_id == entity_filter,
+                models.Subnet.entity_id == None  # noqa: E711
+            )
+        )
+
+    subnets = query.offset(skip).limit(limit).all()
 
     return subnets
 
@@ -75,8 +104,17 @@ def create_ip_for_subnet(
 ):
     """Allocate an IP address in a subnet."""
     check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    subnet = db.query(models.Subnet).filter(models.Subnet.id == subnet_id).first()
+    subnet_query = db.query(models.Subnet).filter(models.Subnet.id == subnet_id)
+    if entity_filter is not None:
+        subnet_query = subnet_query.filter(
+            or_(
+                models.Subnet.entity_id == entity_filter,
+                models.Subnet.entity_id == None  # noqa: E711
+            )
+        )
+    subnet = subnet_query.first()
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")
 
@@ -116,8 +154,17 @@ def scan_subnet(
 ):
     """Start a subnet scan task."""
     check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    subnet = db.query(models.Subnet).filter(models.Subnet.id == subnet_id).first()
+    subnet_query = db.query(models.Subnet).filter(models.Subnet.id == subnet_id)
+    if entity_filter is not None:
+        subnet_query = subnet_query.filter(
+            or_(
+                models.Subnet.entity_id == entity_filter,
+                models.Subnet.entity_id == None  # noqa: E711
+            )
+        )
+    subnet = subnet_query.first()
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")
 
@@ -135,7 +182,17 @@ def delete_subnet(
 ):
     """Delete a subnet and all its IPs (ipam permission required)."""
     check_ipam_permission(current_user)
-    subnet = db.query(models.Subnet).filter(models.Subnet.id == subnet_id).first()
+    entity_filter = get_entity_filter(current_user)
+
+    subnet_query = db.query(models.Subnet).filter(models.Subnet.id == subnet_id)
+    if entity_filter is not None:
+        subnet_query = subnet_query.filter(
+            or_(
+                models.Subnet.entity_id == entity_filter,
+                models.Subnet.entity_id == None  # noqa: E711
+            )
+        )
+    subnet = subnet_query.first()
     if not subnet:
         raise HTTPException(status_code=404, detail="Subnet not found")
 
@@ -156,11 +213,20 @@ def delete_ip(
 ):
     """Delete an IP address from a subnet."""
     check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
 
-    ip = db.query(models.IPAddress).filter(
+    query = db.query(models.IPAddress).join(models.Subnet).filter(
         models.IPAddress.id == ip_id,
-        models.IPAddress.subnet_id == subnet_id
-    ).first()
+        models.IPAddress.subnet_id == subnet_id,
+    )
+    if entity_filter is not None:
+        query = query.filter(
+            or_(
+                models.Subnet.entity_id == entity_filter,
+                models.Subnet.entity_id == None  # noqa: E711
+            )
+        )
+    ip = query.first()
 
     if not ip:
         raise HTTPException(status_code=404, detail="IP address not found")

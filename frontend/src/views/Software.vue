@@ -281,6 +281,7 @@
         <Button :label="t('common.close')" @click="showInstallationsDialog = false" />
       </template>
     </Dialog>
+    </div>
   </div>
 </template>
 

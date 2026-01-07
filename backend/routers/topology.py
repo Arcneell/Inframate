@@ -775,8 +775,8 @@ def get_layout(
     check_topology_permission(current_user)
 
     # Get layout from system_settings
-    setting = db.query(models.SystemSetting).filter(
-        models.SystemSetting.key == "topology_layout"
+    setting = db.query(models.SystemSettings).filter(
+        models.SystemSettings.key == "topology_layout"
     ).first()
 
     if not setting or not setting.value:
@@ -807,14 +807,14 @@ def save_layout(
     }
 
     # Get or create the setting
-    setting = db.query(models.SystemSetting).filter(
-        models.SystemSetting.key == "topology_layout"
+    setting = db.query(models.SystemSettings).filter(
+        models.SystemSettings.key == "topology_layout"
     ).first()
 
     if setting:
         setting.value = json.dumps(positions_dict)
     else:
-        setting = models.SystemSetting(
+        setting = models.SystemSettings(
             key="topology_layout",
             value=json.dumps(positions_dict),
             category="topology",

@@ -1,5 +1,8 @@
 <template>
   <div class="flex flex-col h-full gap-4">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div class="flex items-center gap-3">
@@ -302,10 +305,16 @@ import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { Network } from 'vis-network';
 import api from '../api';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const { t } = useI18n();
 const router = useRouter();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('nav.topology'), icon: 'pi-share-alt' }
+]);
 
 const loading = ref(false);
 const networkContainer = ref(null);

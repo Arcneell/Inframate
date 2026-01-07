@@ -51,6 +51,18 @@ app.use(i18n)
 app.use(PrimeVue, { ripple: true })
 app.use(ToastService)
 
+// Initialize theme before mount (prevents flash and ensures consistent state)
+const initTheme = () => {
+  const savedTheme = localStorage.getItem('theme')
+  // Default to light theme for new users
+  if (savedTheme === 'dark') {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+}
+initTheme()
+
 // Register directive
 app.directive('tooltip', Tooltip)
 

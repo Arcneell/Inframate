@@ -1,5 +1,7 @@
 <template>
   <div class="flex flex-col gap-6">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
 
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -262,9 +264,15 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { FilterMatchMode } from 'primevue/api';
 import api from '../api';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const { t } = useI18n();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('users.title'), icon: 'pi-users' }
+]);
 
 const users = ref([]);
 const loading = ref(false);

@@ -1,5 +1,8 @@
 <template>
-  <div>
+  <div class="flex flex-col h-full">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
     <div class="flex justify-end mb-6">
       <Button :label="t('dashboard.newSubnet')" icon="pi pi-plus" @click="showSubnetDialog = true" />
     </div>
@@ -109,13 +112,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const { t } = useI18n();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('ipam.title'), icon: 'pi-sitemap' }
+]);
+
 const subnets = ref([]);
 const expandedRows = ref({});
 const showSubnetDialog = ref(false);

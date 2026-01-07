@@ -474,7 +474,14 @@
     "contractCreated": "Contract created successfully",
     "contractUpdated": "Contract updated successfully",
     "contractDeleted": "Contract deleted successfully",
-    "period": "Period"
+    "period": "Period",
+    "linkedContracts": "Linked Contracts",
+    "noLinkedContracts": "No contracts linked to this equipment",
+    "expiredDaysAgo": "Expired {days} days ago",
+    "expiresToday": "Expires today",
+    "expiresTomorrow": "Expires tomorrow",
+    "daysRemainingLabel": "{days} days remaining",
+    "expired": "Expired"
   },
   "software": {
     "title": "Software",
@@ -632,7 +639,10 @@
     "historyAssigned": "assigned to",
     "historyStatusChanged": "changed status from",
     "historyUpdated": "updated",
-    "viewAll": "View all tickets"
+    "viewAll": "View all tickets",
+    "openTickets": "Open Tickets",
+    "noOpenTickets": "No open tickets for this equipment",
+    "createTicket": "Create Ticket"
   },
   "notifications": {
     "title": "Notifications",
@@ -880,17 +890,7 @@
     "createTicket": "Create New Ticket",
     "createEquipment": "Create New Equipment"
   },
-  "contracts": {
-    "linkedContracts": "Linked Contracts",
-    "noLinkedContracts": "No contracts linked to this equipment",
-    "expiredDaysAgo": "Expired {days} days ago",
-    "expiresToday": "Expires today",
-    "expiresTomorrow": "Expires tomorrow",
-    "daysRemainingLabel": "{days} days remaining"
-  },
-  "tickets": {
-    "openTickets": "Open Tickets",
-    "noOpenTickets": "No open tickets for this equipment",
-    "createTicket": "Create Ticket"
+  "status": {
+    "expired": "Expired"
   }
 }

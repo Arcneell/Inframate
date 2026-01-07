@@ -1,5 +1,9 @@
 <template>
-  <div class="flex gap-6 h-full">
+  <div class="flex flex-col h-full">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
+    <div class="flex gap-6 flex-1 overflow-hidden">
     <!-- Sidebar with compliance -->
     <div class="w-72 flex-shrink-0">
       <div class="card p-4 mb-4">
@@ -286,12 +290,18 @@ import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const route = useRoute();
 const router = useRouter();
 
 const { t } = useI18n();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('software.title'), icon: 'pi-desktop' }
+]);
 
 // Data
 const software = ref([]);

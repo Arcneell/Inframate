@@ -1,5 +1,9 @@
 <template>
-  <div class="flex gap-6 h-full">
+  <div class="flex flex-col h-full">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
+    <div class="flex gap-6 flex-1 overflow-hidden">
     <!-- Sidebar Menu -->
     <div class="w-64 flex-shrink-0">
       <div class="card p-0 overflow-hidden">
@@ -374,6 +378,7 @@
 
     <!-- Context Menu for Equipment -->
     <ContextMenu ref="equipmentMenu" :model="equipmentMenuItems" />
+    </div>
   </div>
 </template>
 
@@ -382,11 +387,25 @@ import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 import api from '../api';
 
 const { t } = useI18n();
 const toast = useToast();
 const router = useRouter();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => {
+  const items = [{ label: t('dcim.title'), icon: 'pi-server' }]
+  if (activeSection.value !== 'racks') {
+    const sectionLabels = {
+      pdus: t('dcim.pdus'),
+      rackView: t('dcim.rackView')
+    }
+    items.push({ label: sectionLabels[activeSection.value] || activeSection.value })
+  }
+  return items
+})
 
 // Active section
 const activeSection = ref('racks');

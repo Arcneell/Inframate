@@ -1,5 +1,8 @@
 <template>
-  <div>
+  <div class="flex flex-col h-full">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
       <!-- Upload & List -->
@@ -197,9 +200,16 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../api';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const { t } = useI18n();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('nav.scripts'), icon: 'pi-code' }
+]);
+
 const scripts = ref([]);
 const executions = ref([]);
 const executableEquipment = ref([]);

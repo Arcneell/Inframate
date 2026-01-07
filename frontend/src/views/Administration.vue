@@ -1,5 +1,8 @@
 <template>
   <div class="p-6">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
     <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">{{ t('admin.title') }}</h1>
 
     <TabView v-model:activeIndex="activeTab" class="admin-tabs">
@@ -193,10 +196,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
 import api from '../api'
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import InputText from 'primevue/inputtext'
@@ -209,6 +213,11 @@ import Button from 'primevue/button'
 
 const { t } = useI18n()
 const toast = useToast()
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('admin.title'), icon: 'pi-sliders-h' }
+])
 
 const activeTab = ref(0)
 const saving = ref(false)

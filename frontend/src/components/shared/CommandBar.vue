@@ -18,17 +18,17 @@
         <div class="command-bar-container rounded-xl shadow-2xl overflow-hidden">
           <!-- Search Input -->
           <div class="relative border-b" style="border-color: var(--border-color);">
-            <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-lg opacity-50"></i>
+            <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-lg" style="color: var(--text-muted);"></i>
             <input
               ref="searchInput"
               v-model="query"
               type="text"
               :placeholder="t('search.placeholder')"
-              class="w-full py-4 pl-12 pr-4 bg-transparent text-lg focus:outline-none"
+              class="command-bar-input"
               @keydown="handleKeydown"
             />
             <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <kbd class="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700">ESC</kbd>
+              <kbd class="command-bar-kbd">ESC</kbd>
             </div>
           </div>
 
@@ -49,7 +49,7 @@
             <div v-else-if="results.length > 0">
               <div v-for="(group, category) in groupedResults" :key="category" class="mb-2">
                 <!-- Category Header -->
-                <div class="px-4 py-2 text-xs font-semibold uppercase opacity-50 sticky top-0" style="background-color: var(--bg-card);">
+                <div class="command-bar-category">
                   {{ getCategoryLabel(category) }}
                 </div>
 
@@ -58,8 +58,8 @@
                   v-for="(result, index) in group"
                   :key="`${category}-${result.id}`"
                   :class="[
-                    'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors',
-                    selectedIndex === getAbsoluteIndex(category, index) ? 'bg-blue-500 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                    'command-bar-item',
+                    selectedIndex === getAbsoluteIndex(category, index) ? 'selected' : ''
                   ]"
                   @click="navigateTo(result)"
                   @mouseenter="selectedIndex = getAbsoluteIndex(category, index)"
@@ -67,24 +67,24 @@
                   <i :class="['pi', getResultIcon(result), 'text-lg']"></i>
                   <div class="flex-1 min-w-0">
                     <div class="font-medium truncate">{{ result.title || result.name }}</div>
-                    <div class="text-sm opacity-60 truncate">{{ getResultSubtitle(result) }}</div>
+                    <div class="command-bar-subtitle">{{ getResultSubtitle(result) }}</div>
                   </div>
-                  <i class="pi pi-arrow-right text-sm opacity-50"></i>
+                  <i class="pi pi-arrow-right text-sm" style="color: var(--text-muted);"></i>
                 </div>
               </div>
             </div>
 
             <!-- Quick Actions (when no query) -->
             <div v-else class="p-2">
-              <div class="px-4 py-2 text-xs font-semibold uppercase opacity-50">
+              <div class="command-bar-category">
                 {{ t('search.quickActions') }}
               </div>
               <div
                 v-for="(action, index) in quickActions"
                 :key="action.id"
                 :class="[
-                  'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors rounded-lg',
-                  selectedIndex === index ? 'bg-blue-500 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  'command-bar-item rounded-lg',
+                  selectedIndex === index ? 'selected' : ''
                 ]"
                 @click="executeAction(action)"
                 @mouseenter="selectedIndex = index"
@@ -96,10 +96,10 @@
           </div>
 
           <!-- Footer -->
-          <div class="px-4 py-2 border-t text-xs opacity-50 flex items-center gap-4" style="border-color: var(--border-color); background-color: var(--bg-app);">
-            <span><kbd class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 mr-1">&uarr;&darr;</kbd> {{ t('search.navigate') }}</span>
-            <span><kbd class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 mr-1">Enter</kbd> {{ t('search.open') }}</span>
-            <span><kbd class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 mr-1">Esc</kbd> {{ t('search.close') }}</span>
+          <div class="command-bar-footer">
+            <span><kbd class="command-bar-kbd">&uarr;&darr;</kbd> {{ t('search.navigate') }}</span>
+            <span><kbd class="command-bar-kbd">Enter</kbd> {{ t('search.open') }}</span>
+            <span><kbd class="command-bar-kbd">Esc</kbd> {{ t('search.close') }}</span>
           </div>
         </div>
       </div>
@@ -348,8 +348,88 @@ onUnmounted(() => {
 
 <style scoped>
 .command-bar-container {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-card-solid);
+  border: 1px solid var(--border-default);
+}
+
+.command-bar-input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  background: transparent;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  border: none;
+  outline: none;
+}
+
+.command-bar-input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-bar-category {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-card-solid);
+}
+
+.command-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+}
+
+.command-bar-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.command-bar-item.selected {
+  background-color: var(--primary);
+  color: white;
+}
+
+.command-bar-item.selected .command-bar-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.command-bar-item.selected i {
+  color: white !important;
+}
+
+.command-bar-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.command-bar-footer {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border-default);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: var(--bg-secondary);
+}
+
+.command-bar-kbd {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
 }
 
 .fade-enter-active,
@@ -371,9 +451,5 @@ onUnmounted(() => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translate(-50%, -10px);
-}
-
-kbd {
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
 }
 </style>

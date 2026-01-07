@@ -1,5 +1,9 @@
 <template>
-  <div class="flex gap-6 h-full">
+  <div class="flex flex-col h-full">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
+
+    <div class="flex gap-6 flex-1 overflow-hidden">
     <!-- Sidebar with stats -->
     <div class="w-72 flex-shrink-0">
       <div class="card p-4 mb-4">
@@ -400,6 +404,7 @@
         </div>
       </template>
     </Dialog>
+    </div>
   </div>
 </template>
 
@@ -410,6 +415,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { useTicketsStore } from '../stores/tickets';
 import { useAuthStore } from '../stores/auth';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 import api from '../api';
 
 const route = useRoute();
@@ -422,6 +428,11 @@ const authStore = useAuthStore();
 
 // User info for permission checks
 const currentUser = computed(() => authStore.user);
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('tickets.title'), icon: 'pi-ticket' }
+])
 
 // Permission check: can manage tickets (tech with tickets_admin, admin, superadmin)
 const canManageTickets = computed(() => {

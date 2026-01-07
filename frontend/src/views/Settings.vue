@@ -1,5 +1,7 @@
 <template>
   <div class="flex flex-col gap-6 max-w-4xl mx-auto">
+    <!-- Breadcrumbs -->
+    <Breadcrumbs :items="breadcrumbItems" />
 
     <!-- Profile Header with Avatar -->
     <div class="card p-6">
@@ -218,9 +220,15 @@ import { useI18n } from 'vue-i18n';
 import QRCode from 'qrcode';
 import api from '../api';
 import { validateAvatarFile, validateMfaCode } from '../utils/validation';
+import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 
 const { t } = useI18n();
 const toast = useToast();
+
+// Breadcrumbs
+const breadcrumbItems = computed(() => [
+  { label: t('nav.settings'), icon: 'pi-cog' }
+]);
 
 const currentUser = ref({ role: 'user', mfa_enabled: false });
 const avatarInput = ref(null);

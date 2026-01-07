@@ -43,20 +43,19 @@
 
             <!-- IP Table with pagination and scroll -->
             <template v-else-if="subnetIps[slotProps.data.id]?.items?.length > 0">
-              <DataTable
-                :value="subnetIps[slotProps.data.id].items"
-                size="small"
-                stripedRows
-                lazy
-                paginator
-                :rows="50"
-                :totalRecords="subnetIps[slotProps.data.id].total"
-                :first="subnetIps[slotProps.data.id].skip || 0"
-                @page="(e) => onIpPage(e, slotProps.data.id)"
-                :rowsPerPageOptions="[25, 50, 100]"
-                scrollable
-                scrollHeight="400px"
-              >
+              <div class="ip-table-container" style="max-height: 450px; overflow-y: auto;">
+                <DataTable
+                  :value="subnetIps[slotProps.data.id].items"
+                  size="small"
+                  stripedRows
+                  lazy
+                  paginator
+                  :rows="50"
+                  :totalRecords="subnetIps[slotProps.data.id].total"
+                  :first="subnetIps[slotProps.data.id].skip || 0"
+                  @page="(e) => onIpPage(e, slotProps.data.id)"
+                  :rowsPerPageOptions="[25, 50, 100]"
+                >
                 <Column field="address" :header="t('ipam.address')" sortable class="font-mono text-sm"></Column>
                 <Column field="hostname" :header="t('ipam.hostname')" class="text-sm"></Column>
                 <Column field="mac_address" :header="t('ipam.mac')" class="font-mono text-xs opacity-70"></Column>
@@ -79,7 +78,8 @@
                       <Tag :value="ipSlot.data.status" :severity="getStatusSeverity(ipSlot.data.status)" />
                    </template>
                 </Column>
-              </DataTable>
+                </DataTable>
+              </div>
             </template>
 
             <div v-else class="opacity-50 text-sm italic py-4 text-center">{{ t('ipam.noIps') }}</div>

@@ -48,9 +48,9 @@ class SearchResults(BaseModel):
 
 @router.get("/", response_model=SearchResults)
 def global_search(
-    q: str = Query(..., min_length=2, max_length=100, description="Search query"),
+    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
     types: Optional[str] = Query(None, description="Comma-separated types to search: equipment,tickets,articles,subnets,contracts,software"),
-    limit: int = Query(default=20, le=50, description="Max results per type"),
+    limit: int = Query(default=30, le=100, description="Max results per type"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -66,6 +66,7 @@ def global_search(
     - Software (name, publisher)
     """
     search_term = f"%{q.lower()}%"
+    search_term_exact = q.lower()  # For relevance scoring
     results: List[SearchResultItem] = []
     type_counts = {}
 
@@ -115,6 +116,10 @@ def global_search(
             eq_type_name = None
             if eq.model and eq.model.equipment_type:
                 eq_type_name = eq.model.equipment_type.name
+            # Calculate relevance score
+            score = 0.5
+            if eq.name and search_term_exact in eq.name.lower():
+                score = 1.0 if eq.name.lower().startswith(search_term_exact) else 0.8
             results.append(SearchResultItem(
                 id=eq.id,
                 type="equipment",
@@ -122,7 +127,8 @@ def global_search(
                 subtitle=eq_type_name,
                 description=f"S/N: {eq.serial_number}" if eq.serial_number else None,
                 status=eq.status,
-                url=f"/inventory?id={eq.id}"
+                url=f"/inventory?id={eq.id}",
+                score=score
             ))
 
     # ==================== SEARCH TICKETS ====================
@@ -151,6 +157,12 @@ def global_search(
         logger.debug(f"Tickets search: found {len(tickets)} results")
 
         for t in tickets:
+            # Calculate relevance score
+            score = 0.5
+            if t.title and search_term_exact in t.title.lower():
+                score = 1.0 if t.title.lower().startswith(search_term_exact) else 0.8
+            elif t.ticket_number and search_term_exact in t.ticket_number.lower():
+                score = 0.9
             results.append(SearchResultItem(
                 id=t.id,
                 type="ticket",
@@ -158,7 +170,8 @@ def global_search(
                 subtitle=f"{t.ticket_type.capitalize()} - {t.priority.capitalize()}",
                 description=t.description[:100] if t.description else None,
                 status=t.status,
-                url=f"/tickets?id={t.id}"
+                url=f"/tickets?id={t.id}",
+                score=score
             ))
 
     # ==================== SEARCH KNOWLEDGE ARTICLES ====================
@@ -184,6 +197,10 @@ def global_search(
         logger.debug(f"Articles search: found {len(articles)} results")
 
         for a in articles:
+            # Calculate relevance score
+            score = 0.5
+            if a.title and search_term_exact in a.title.lower():
+                score = 1.0 if a.title.lower().startswith(search_term_exact) else 0.8
             results.append(SearchResultItem(
                 id=a.id,
                 type="article",
@@ -191,7 +208,8 @@ def global_search(
                 subtitle=a.category,
                 description=a.summary[:100] if a.summary else None,
                 status="published" if a.is_published else "draft",
-                url=f"/knowledge/{a.slug}"
+                url=f"/knowledge/{a.slug}",
+                score=score
             ))
 
     # ==================== SEARCH SUBNETS ====================
@@ -215,22 +233,33 @@ def global_search(
         logger.debug(f"Subnets search: found {len(subnets)} results")
 
         for s in subnets:
+            # Calculate relevance score
+            score = 0.5
+            cidr_str = str(s.cidr) if s.cidr else ""
+            if search_term_exact in cidr_str.lower():
+                score = 1.0 if cidr_str.lower().startswith(search_term_exact) else 0.8
+            elif s.name and search_term_exact in s.name.lower():
+                score = 0.9
             results.append(SearchResultItem(
                 id=s.id,
                 type="subnet",
-                title=str(s.cidr),
+                title=cidr_str,
                 subtitle=s.name,
                 description=s.description[:100] if s.description else None,
                 status=None,
-                url=f"/ipam?subnet={s.id}"
+                url=f"/ipam?subnet={s.id}",
+                score=score
             ))
 
     # ==================== SEARCH CONTRACTS ====================
     if "contracts" in search_types and can_search_contracts:
-        contracts_query = db.query(models.Contract).filter(
+        contracts_query = db.query(models.Contract).options(
+            joinedload(models.Contract.supplier)
+        ).filter(
             or_(
                 func.lower(func.coalesce(models.Contract.name, '')).like(search_term),
                 func.lower(func.coalesce(models.Contract.contract_number, '')).like(search_term),
+                func.lower(func.coalesce(models.Contract.contract_type, '')).like(search_term),
                 func.lower(func.coalesce(models.Contract.notes, '')).like(search_term)
             )
         )
@@ -245,14 +274,26 @@ def global_search(
         logger.debug(f"Contracts search: found {len(contracts)} results")
 
         for c in contracts:
+            # Calculate relevance score
+            score = 0.5
+            if c.name and search_term_exact in c.name.lower():
+                score = 1.0 if c.name.lower().startswith(search_term_exact) else 0.8
+            elif c.contract_number and search_term_exact in c.contract_number.lower():
+                score = 0.9
+            # Get supplier name if available
+            supplier_name = c.supplier.name if c.supplier else None
+            subtitle_parts = [c.contract_type.capitalize() if c.contract_type else ""]
+            if supplier_name:
+                subtitle_parts.append(supplier_name)
             results.append(SearchResultItem(
                 id=c.id,
                 type="contract",
                 title=c.name,
-                subtitle=f"{c.contract_type.capitalize()} - {c.status.capitalize()}",
+                subtitle=" - ".join(filter(None, subtitle_parts)),
                 description=c.contract_number,
-                status=c.status,
-                url=f"/contracts?id={c.id}"
+                status=None,
+                url=f"/contracts?id={c.id}",
+                score=score
             ))
 
     # ==================== SEARCH SOFTWARE ====================
@@ -275,6 +316,12 @@ def global_search(
         logger.debug(f"Software search: found {len(software)} results")
 
         for sw in software:
+            # Calculate relevance score
+            score = 0.5
+            if sw.name and search_term_exact in sw.name.lower():
+                score = 1.0 if sw.name.lower().startswith(search_term_exact) else 0.8
+            elif sw.publisher and search_term_exact in sw.publisher.lower():
+                score = 0.7
             results.append(SearchResultItem(
                 id=sw.id,
                 type="software",
@@ -282,8 +329,12 @@ def global_search(
                 subtitle=sw.publisher,
                 description=f"v{sw.version}" if sw.version else None,
                 status=None,
-                url=f"/software?id={sw.id}"
+                url=f"/software?id={sw.id}",
+                score=score
             ))
+
+    # Sort results by score (highest first)
+    results.sort(key=lambda x: x.score, reverse=True)
 
     logger.info(f"Global search by {current_user.username}: '{q}' - {len(results)} results")
 

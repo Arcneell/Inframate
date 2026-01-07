@@ -212,19 +212,23 @@ const getResultIcon = (result) => {
 }
 
 const getResultSubtitle = (result) => {
+  // Use subtitle from backend if available, otherwise fallback to type-specific fields
+  if (result.subtitle) {
+    return result.subtitle
+  }
   switch (result.type) {
     case 'equipment':
-      return result.serial_number || result.asset_tag || ''
+      return result.description || ''
     case 'ticket':
-      return result.ticket_number || ''
+      return result.status || ''
     case 'contract':
-      return result.contract_number || result.contract_type || ''
+      return result.description || ''
     case 'article':
       return result.category || ''
     case 'software':
-      return result.publisher || ''
+      return result.description || ''
     case 'subnet':
-      return result.cidr || ''
+      return result.description || ''
     default:
       return ''
   }
@@ -339,7 +343,7 @@ const filterResultsByPermission = (searchResults) => {
 // Search debounce
 let searchTimeout = null
 const search = async () => {
-  if (!query.value || query.value.length < 2) {
+  if (!query.value || query.value.length < 1) {
     results.value = []
     return
   }
@@ -347,7 +351,7 @@ const search = async () => {
   loading.value = true
   try {
     const response = await api.get('/search/', {
-      params: { q: query.value, limit: 20 }
+      params: { q: query.value, limit: 30 }
     })
     const rawResults = response.data.results || response.data || []
     // Filter results based on user permissions

@@ -853,17 +853,21 @@ def create_equipment_with_ip(
     if vlan in store.subnets:
         subnet = store.subnets[vlan]
         base = subnet.cidr.rsplit('.', 1)[0]
-        ip_addr = f"{base}.{ip_suffix}"
+        # Ensure ip_suffix is within valid range (1-254) using modulo
+        valid_suffix = (ip_suffix % 253) + 1  # Maps to 1-254
+        ip_addr = f"{base}.{valid_suffix}"
 
-        ip = models.IPAddress(
-            address=ip_addr,
-            subnet_id=subnet.id,
-            status="active",
-            hostname=f"{name.lower()}.techcorp.local",
-            equipment_id=equipment.id
-        )
-        db.add(ip)
-        store.ip_addresses[ip_addr] = ip
+        # Avoid duplicates by checking if IP already exists
+        if ip_addr not in store.ip_addresses:
+            ip = models.IPAddress(
+                address=ip_addr,
+                subnet_id=subnet.id,
+                status="active",
+                hostname=f"{name.lower()}.techcorp.local",
+                equipment_id=equipment.id
+            )
+            db.add(ip)
+            store.ip_addresses[ip_addr] = ip
 
     return equipment
 

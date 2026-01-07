@@ -1267,5 +1267,12 @@ onMounted(async () => {
   await loadData();
   // Check if we need to open an equipment from URL
   openEquipmentFromUrl();
+
+  // Check if action=create in query params (from CommandBar quick action)
+  if (route.query.action === 'create') {
+    openEquipmentDialog();
+    // Clear the query param after opening dialog
+    router.replace({ path: '/inventory', query: {} });
+  }
 });
 </script>

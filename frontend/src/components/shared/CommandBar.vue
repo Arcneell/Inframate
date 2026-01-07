@@ -111,6 +111,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 
 const props = defineProps({
@@ -121,6 +122,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 // State
 const searchInput = ref(null)
@@ -135,14 +137,34 @@ const visible = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
-const quickActions = computed(() => [
-  { id: 'new-ticket', icon: 'pi-ticket', label: t('search.createTicket'), route: '/tickets', action: 'create-ticket' },
-  { id: 'new-equipment', icon: 'pi-box', label: t('search.createEquipment'), route: '/inventory', action: 'create-equipment' },
-  { id: 'dashboard', icon: 'pi-chart-bar', label: t('nav.dashboard'), route: '/' },
-  { id: 'tickets', icon: 'pi-ticket', label: t('nav.tickets'), route: '/tickets' },
-  { id: 'inventory', icon: 'pi-box', label: t('nav.inventory'), route: '/inventory' },
-  { id: 'contracts', icon: 'pi-file', label: t('nav.contracts'), route: '/contracts' }
-])
+// Define all possible quick actions with their permission requirements
+const allQuickActions = [
+  { id: 'new-ticket', icon: 'pi-ticket', label: () => t('search.createTicket'), route: '/tickets', action: 'create', permission: null }, // All users can create tickets
+  { id: 'new-equipment', icon: 'pi-box', label: () => t('search.createEquipment'), route: '/inventory', action: 'create', permission: 'inventory' },
+  { id: 'dashboard', icon: 'pi-chart-bar', label: () => t('nav.dashboard'), route: '/', permission: null },
+  { id: 'tickets', icon: 'pi-ticket', label: () => t('nav.tickets'), route: '/tickets', permission: null },
+  { id: 'inventory', icon: 'pi-box', label: () => t('nav.inventory'), route: '/inventory', permission: 'inventory' },
+  { id: 'contracts', icon: 'pi-file', label: () => t('nav.contracts'), route: '/contracts', permission: 'contracts' },
+  { id: 'ipam', icon: 'pi-sitemap', label: () => t('nav.ipam'), route: '/ipam', permission: 'ipam' },
+  { id: 'dcim', icon: 'pi-server', label: () => t('nav.dcim'), route: '/dcim', permission: 'dcim' },
+  { id: 'software', icon: 'pi-desktop', label: () => t('nav.software'), route: '/software', permission: 'software' },
+  { id: 'knowledge', icon: 'pi-book', label: () => t('nav.knowledge'), route: '/knowledge', permission: 'knowledge' }
+]
+
+// Filter quick actions based on user permissions
+const quickActions = computed(() => {
+  return allQuickActions
+    .filter(action => {
+      // No permission required = everyone can access
+      if (!action.permission) return true
+      // Check if user has the required permission
+      return authStore.hasPermission(action.permission)
+    })
+    .map(action => ({
+      ...action,
+      label: action.label() // Resolve the label function
+    }))
+})
 
 const groupedResults = computed(() => {
   const groups = {}
@@ -255,7 +277,12 @@ const navigateTo = (result) => {
 
 const executeAction = (action) => {
   if (action.route) {
-    router.push(action.route)
+    // If action has 'create' action, append query param to trigger dialog
+    if (action.action === 'create') {
+      router.push({ path: action.route, query: { action: 'create' } })
+    } else {
+      router.push(action.route)
+    }
   }
   close()
 }
@@ -288,6 +315,27 @@ const handleKeydown = (event) => {
   }
 }
 
+// Map search result types to required permissions
+const resultTypePermissions = {
+  equipment: 'inventory',
+  ticket: null, // All users can access tickets
+  contract: 'contracts',
+  article: 'knowledge',
+  software: 'software',
+  subnet: 'ipam'
+}
+
+// Filter search results based on user permissions
+const filterResultsByPermission = (searchResults) => {
+  return searchResults.filter(result => {
+    const requiredPermission = resultTypePermissions[result.type]
+    // No permission required = everyone can access
+    if (!requiredPermission) return true
+    // Check if user has the required permission
+    return authStore.hasPermission(requiredPermission)
+  })
+}
+
 // Search debounce
 let searchTimeout = null
 const search = async () => {
@@ -301,7 +349,9 @@ const search = async () => {
     const response = await api.get('/search/', {
       params: { q: query.value, limit: 20 }
     })
-    results.value = response.data.results || response.data || []
+    const rawResults = response.data.results || response.data || []
+    // Filter results based on user permissions
+    results.value = filterResultsByPermission(rawResults)
     selectedIndex.value = 0
   } catch (error) {
     console.error('Search error:', error)

@@ -798,6 +798,13 @@ onMounted(async () => {
   if (ticketId) {
     openTicketById(ticketId);
   }
+
+  // Check if action=create in query params (from CommandBar quick action)
+  if (route.query.action === 'create') {
+    openTicketDialog();
+    // Clear the query param after opening dialog
+    router.replace({ path: '/tickets', query: {} });
+  }
 });
 </script>
 

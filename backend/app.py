@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import redis
+import secrets
 from sqlalchemy import text
 
 from backend.core.config import get_settings
@@ -114,6 +115,21 @@ def create_app() -> FastAPI:
     # Audit Logging Middleware for POST/PUT/DELETE actions
     add_audit_middleware(app)
 
+    # Global Exception Handler
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request, exc):
+        import traceback
+        error_id = secrets.token_hex(4)
+        logger.error(f"Global error {error_id}: {exc}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Internal Server Error",
+                "error_id": error_id,
+                "message": str(exc) if settings.debug else "An unexpected error occurred."
+            }
+        )
+
     # Register routers with API prefix
     api_prefix = "/api/v1"
 
@@ -158,9 +174,8 @@ def create_app() -> FastAPI:
 
         # Check Database
         try:
-            db = SessionLocal()
-            db.execute(text("SELECT 1"))
-            db.close()
+            with SessionLocal() as db:
+                db.execute(text("SELECT 1"))
             health_status["services"]["database"] = {"status": "healthy"}
         except Exception as e:
             health_status["services"]["database"] = {"status": "unhealthy", "error": str(e)}

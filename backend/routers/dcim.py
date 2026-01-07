@@ -220,10 +220,19 @@ def place_equipment_in_rack(
     if not rack:
         raise HTTPException(status_code=404, detail="Rack not found")
 
+    # Verify entity access for rack
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and rack.entity_id not in (entity_filter, None):
+        raise HTTPException(status_code=403, detail="Access denied to this rack")
+
     # Verify equipment exists
     equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
+
+    # Verify entity access for equipment
+    if entity_filter and equipment.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this equipment")
 
     # Validate position
     if position_u < 1 or position_u > rack.height_u:
@@ -269,11 +278,20 @@ def update_equipment_position(
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
+    # Verify entity access for equipment
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and equipment.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this equipment")
+
     # If changing rack or position, validate
     if rack_id:
         rack = db.query(models.Rack).filter(models.Rack.id == rack_id).first()
         if not rack:
             raise HTTPException(status_code=404, detail="Rack not found")
+
+        # Verify entity access for new rack
+        if entity_filter and rack.entity_id not in (entity_filter, None):
+            raise HTTPException(status_code=403, detail="Access denied to this rack")
 
         if position_u is not None:
             # Validate position
@@ -316,6 +334,11 @@ def remove_equipment_from_rack(
     equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
+
+    # Verify entity access
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and equipment.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this equipment")
 
     old_rack_id = equipment.rack_id
     old_position = equipment.position_u
@@ -371,6 +394,11 @@ def update_rack(
     if not db_rack:
         raise HTTPException(status_code=404, detail="Rack not found")
 
+    # Verify entity access
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and db_rack.entity_id not in (entity_filter, None):
+        raise HTTPException(status_code=403, detail="Access denied to this rack")
+
     for key, value in rack.model_dump().items():
         setattr(db_rack, key, value)
 
@@ -390,6 +418,11 @@ def delete_rack(
     db_rack = db.query(models.Rack).filter(models.Rack.id == rack_id).first()
     if not db_rack:
         raise HTTPException(status_code=404, detail="Rack not found")
+
+    # Verify entity access
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and db_rack.entity_id not in (entity_filter, None):
+        raise HTTPException(status_code=403, detail="Access denied to this rack")
 
     # Check for equipment in rack
     equipment_count = db.query(models.Equipment).filter(
@@ -456,27 +489,27 @@ def get_pdu_ports(
     if not pdu:
         raise HTTPException(status_code=404, detail="PDU not found")
 
-    # Get equipment connected to this PDU
-    primary_equipment = db.query(models.Equipment).filter(
-        models.Equipment.pdu_id == pdu_id
-    ).all()
-
-    redundant_equipment = db.query(models.Equipment).filter(
-        models.Equipment.redundant_pdu_id == pdu_id
+    # Get equipment connected to this PDU (primary or redundant) in one query
+    connected_equipment = db.query(models.Equipment).filter(
+        or_(
+            models.Equipment.pdu_id == pdu_id,
+            models.Equipment.redundant_pdu_id == pdu_id
+        )
     ).all()
 
     ports = []
-    for eq in primary_equipment:
-        if eq.pdu_port:
+    for eq in connected_equipment:
+        # Check primary connection
+        if eq.pdu_id == pdu_id and eq.pdu_port:
             ports.append({
                 "port": eq.pdu_port,
                 "equipment_id": eq.id,
                 "equipment_name": eq.name,
                 "is_redundant": False
             })
-
-    for eq in redundant_equipment:
-        if eq.redundant_pdu_port:
+        
+        # Check redundant connection
+        if eq.redundant_pdu_id == pdu_id and eq.redundant_pdu_port:
             ports.append({
                 "port": eq.redundant_pdu_port,
                 "equipment_id": eq.id,
@@ -523,6 +556,11 @@ def update_pdu(
     if not db_pdu:
         raise HTTPException(status_code=404, detail="PDU not found")
 
+    # Verify entity access (via rack)
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and db_pdu.rack and db_pdu.rack.entity_id not in (entity_filter, None):
+        raise HTTPException(status_code=403, detail="Access denied to this PDU")
+
     for key, value in pdu.model_dump().items():
         setattr(db_pdu, key, value)
 
@@ -542,6 +580,11 @@ def delete_pdu(
     db_pdu = db.query(models.PDU).filter(models.PDU.id == pdu_id).first()
     if not db_pdu:
         raise HTTPException(status_code=404, detail="PDU not found")
+
+    # Verify entity access (via rack)
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and db_pdu.rack and db_pdu.rack.entity_id not in (entity_filter, None):
+        raise HTTPException(status_code=403, detail="Access denied to this PDU")
 
     # Check for equipment using this PDU
     equipment_count = db.query(models.Equipment).filter(

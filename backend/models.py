@@ -52,28 +52,9 @@ class EncryptedString(TypeDecorator):
                 # Log decryption failure for security audit
                 logger = logging.getLogger(__name__)
                 logger.error(f"Failed to decrypt sensitive field: {type(e).__name__} - {e}")
-                # Return None instead of encrypted value to prevent data leak
-                return None
+                # Raise exception instead of returning None to prevent data corruption/hiding
+                raise ValueError("Failed to decrypt sensitive data") from e
         return value
-
-
-# Legacy helper functions (kept for backward compatibility with existing code)
-def _encrypt_sensitive_field(value: str) -> str:
-    """Encrypt a sensitive field value if not already encrypted."""
-    if not value:
-        return value
-    # Check if already encrypted (Fernet tokens start with 'gAAAA')
-    if value.startswith('gAAAA'):
-        return value
-    from backend.core.security import encrypt_value
-    return encrypt_value(value)
-
-
-def _is_encrypted(value: str) -> bool:
-    """Check if a value appears to be Fernet-encrypted."""
-    if not value:
-        return False
-    return value.startswith('gAAAA')
 
 
 # ==================== MULTI-ENTITY MODEL ====================
@@ -122,7 +103,7 @@ class User(Base):
 
     # MFA/TOTP fields
     mfa_enabled = Column(Boolean, default=False)
-    totp_secret = Column(String, nullable=True)  # Encrypted TOTP secret (auto-encrypted via hooks)
+    totp_secret = Column(EncryptedString, nullable=True)  # Encrypted TOTP secret (auto-encrypted via TypeDecorator)
 
     # Granular permissions for tech and admin roles (JSON array of permission strings)
     # Available: ipam, inventory, dcim, contracts, software, topology, knowledge, network_ports, attachments
@@ -135,22 +116,6 @@ class User(Base):
     __table_args__ = (
         Index('ix_users_permissions_gin', permissions, postgresql_using='gin'),
     )
-
-
-# ==================== USER TOTP SECRET ENCRYPTION HOOKS ====================
-
-@event.listens_for(User, 'before_insert')
-def encrypt_user_totp_on_insert(mapper, connection, target):
-    """Automatically encrypt totp_secret before inserting User."""
-    if target.totp_secret and not _is_encrypted(target.totp_secret):
-        target.totp_secret = _encrypt_sensitive_field(target.totp_secret)
-
-
-@event.listens_for(User, 'before_update')
-def encrypt_user_totp_on_update(mapper, connection, target):
-    """Automatically encrypt totp_secret before updating User."""
-    if target.totp_secret and not _is_encrypted(target.totp_secret):
-        target.totp_secret = _encrypt_sensitive_field(target.totp_secret)
 
 
 class UserToken(Base):
@@ -348,7 +313,7 @@ class Equipment(Base):
     os_type = Column(String, nullable=True)  # linux, windows
     connection_type = Column(String, nullable=True)  # ssh, winrm
     remote_username = Column(String, nullable=True)
-    remote_password = Column(String, nullable=True)
+    remote_password = Column(EncryptedString, nullable=True)
     remote_port = Column(Integer, nullable=True)
 
     # Relationships
@@ -364,22 +329,6 @@ class Equipment(Base):
     software_installations = relationship("SoftwareInstallation", back_populates="equipment", cascade="all, delete-orphan")
     attachments = relationship("Attachment", back_populates="equipment", cascade="all, delete-orphan")
     contracts = relationship("ContractEquipment", back_populates="equipment")
-
-
-# ==================== EQUIPMENT ENCRYPTION HOOKS ====================
-
-@event.listens_for(Equipment, 'before_insert')
-def encrypt_equipment_password_on_insert(mapper, connection, target):
-    """Automatically encrypt remote_password before inserting Equipment."""
-    if target.remote_password and not _is_encrypted(target.remote_password):
-        target.remote_password = _encrypt_sensitive_field(target.remote_password)
-
-
-@event.listens_for(Equipment, 'before_update')
-def encrypt_equipment_password_on_update(mapper, connection, target):
-    """Automatically encrypt remote_password before updating Equipment."""
-    if target.remote_password and not _is_encrypted(target.remote_password):
-        target.remote_password = _encrypt_sensitive_field(target.remote_password)
 
 
 # ==================== DCIM MODELS ====================
@@ -753,22 +702,41 @@ def generate_ticket_number_on_insert(mapper, connection, target):
     lock_key = int(today)  # Convert date string to integer for advisory lock
 
     # Acquire advisory lock, get max ticket number, and release in one transaction
-    result = connection.execute(
-        text("""
-            SELECT pg_advisory_xact_lock(:lock_key);
-            SELECT COALESCE(
-                MAX(
-                    CAST(
-                        SUBSTRING(ticket_number FROM 'TKT-[0-9]{8}-([0-9]+)') AS INTEGER
-                    )
-                ),
-                0
-            ) + 1
-            FROM tickets
-            WHERE ticket_number LIKE :pattern
-        """),
-        {"lock_key": lock_key, "pattern": pattern}
-    ).scalar()
+    # CHECK DIALECT: Only use advisory locks on PostgreSQL
+    if connection.dialect.name == 'postgresql':
+        result = connection.execute(
+            text("""
+                SELECT pg_advisory_xact_lock(:lock_key);
+                SELECT COALESCE(
+                    MAX(
+                        CAST(
+                            SUBSTRING(ticket_number FROM 'TKT-[0-9]{8}-([0-9]+)') AS INTEGER
+                        )
+                    ),
+                    0
+                ) + 1
+                FROM tickets
+                WHERE ticket_number LIKE :pattern
+            """),
+            {"lock_key": lock_key, "pattern": pattern}
+        ).scalar()
+    else:
+        # Fallback for SQLite/others: No advisory lock (less concurrency safe but compatible)
+        result = connection.execute(
+            text("""
+                SELECT COALESCE(
+                    MAX(
+                        CAST(
+                            SUBSTR(ticket_number, 14) AS INTEGER
+                        )
+                    ),
+                    0
+                ) + 1
+                FROM tickets
+                WHERE ticket_number LIKE :pattern
+            """),
+            {"pattern": pattern}
+        ).scalar()
 
     target.ticket_number = f"TKT-{today}-{result:04d}"
 
@@ -1033,27 +1001,9 @@ class SystemSettings(Base):
     updated_by = relationship("User", backref="settings_updates")
 
 
-# ==================== ROLE PERMISSIONS REFERENCE ====================
+# ==================== HELPER FUNCTION ====================
 
-# Available permissions for tech/admin roles:
-AVAILABLE_PERMISSIONS = [
-    "ipam",           # IP Address Management (subnets, IPs)
-    "inventory",      # Equipment, manufacturers, models, locations
-    "dcim",           # Racks, PDUs, datacenter management
-    "contracts",      # Contract management
-    "software",       # Software catalog and licenses
-    "topology",       # Network topology visualization
-    "knowledge",      # Knowledge base management (create/edit articles)
-    "network_ports",  # Physical network connectivity
-    "attachments",    # Equipment attachments
-    "tickets_admin",  # Ticket management (assign, resolve for others)
-    "reports",        # Access to reports and exports
-]
-
-# Role hierarchy (higher number = more privileges)
-ROLE_HIERARCHY = {
-    "user": 0,        # Helpdesk only
-    "tech": 1,        # Granular permissions
-    "admin": 2,       # All tech + user management
-    "superadmin": 3,  # Full access
-}
+def get_role_hierarchy():
+    """Import role hierarchy from security module to avoid circular imports."""
+    from backend.core.security import ROLE_HIERARCHY
+    return ROLE_HIERARCHY

@@ -660,6 +660,11 @@ def delete_equipment(
     if not db_equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
+    # Verify entity access
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and db_equipment.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this equipment")
+
     # Unlink IPs
     db.query(models.IPAddress).filter(
         models.IPAddress.equipment_id == equipment_id
@@ -693,11 +698,20 @@ def link_ip_to_equipment(
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
+    # Verify entity access for equipment
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and equipment.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this equipment")
+
     ip = db.query(models.IPAddress).filter(
         models.IPAddress.id == link_request.ip_address_id
     ).first()
     if not ip:
         raise HTTPException(status_code=404, detail="IP address not found")
+
+    # Verify entity access for IP (via subnet)
+    if entity_filter and ip.subnet.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this IP address")
 
     if ip.equipment_id and ip.equipment_id != equipment_id:
         raise HTTPException(
@@ -721,6 +735,15 @@ def unlink_ip_from_equipment(
 ):
     check_inventory_permission(current_user)
 
+    # First check equipment access
+    equipment = db.query(models.Equipment).filter(
+        models.Equipment.id == equipment_id
+    ).first()
+    if equipment:
+        entity_filter = get_user_entity_filter(current_user)
+        if entity_filter and equipment.entity_id != entity_filter:
+            raise HTTPException(status_code=403, detail="Access denied to this equipment")
+
     ip = db.query(models.IPAddress).filter(
         models.IPAddress.id == ip_id,
         models.IPAddress.equipment_id == equipment_id
@@ -730,6 +753,11 @@ def unlink_ip_from_equipment(
             status_code=404,
             detail="IP address not found or not linked to this equipment"
         )
+    
+    # Also check IP access just in case
+    entity_filter = get_user_entity_filter(current_user)
+    if entity_filter and ip.subnet.entity_id != entity_filter:
+        raise HTTPException(status_code=403, detail="Access denied to this IP address")
 
     ip.equipment_id = None
     db.commit()
@@ -788,6 +816,43 @@ def get_equipment_qrcode(
     if size < 50 or size > 500:
         raise HTTPException(status_code=400, detail="Size must be between 50 and 500 pixels")
 
+    # Check cache first
+    cache_key = build_cache_key("qrcode", equipment_id, size)
+    cached_data = cache_get(cache_key)
+
+    if cached_data:
+        # Cache hit
+        b64_string = cached_data.get("image_base64")
+        qr_data = cached_data.get("qr_data")
+        asset_tag = cached_data.get("asset_tag")
+        
+        # Verify entity access for cached item (requires DB lookup still, but saves QR gen CPU)
+        equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+        if not equipment:
+             raise HTTPException(status_code=404, detail="Equipment not found")
+        
+        entity_filter = get_user_entity_filter(current_user)
+        if entity_filter and equipment.entity_id != entity_filter:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        if format.lower() == "base64":
+            return {
+                "equipment_id": equipment_id,
+                "asset_tag": asset_tag,
+                "qr_data": qr_data,
+                "image_base64": f"data:image/png;base64,{b64_string}"
+            }
+        else:
+            # Decode base64 to bytes for PNG response
+            img_bytes = base64.b64decode(b64_string)
+            return Response(
+                content=img_bytes,
+                media_type="image/png",
+                headers={
+                    "Content-Disposition": f"inline; filename=qr_{asset_tag or equipment_id}.png"
+                }
+            )
+
     # Get equipment
     equipment = db.query(models.Equipment).filter(
         models.Equipment.id == equipment_id
@@ -833,10 +898,19 @@ def get_equipment_qrcode(
     img.save(img_buffer, format="PNG")
     img_buffer.seek(0)
     img_bytes = img_buffer.getvalue()
+    
+    # Cache result (store as base64 string + metadata)
+    b64_string = base64.b64encode(img_bytes).decode("utf-8")
+    cache_data = {
+        "image_base64": b64_string,
+        "qr_data": qr_content,
+        "asset_tag": equipment.asset_tag
+    }
+    # Cache for 24 hours (QR codes don't change often)
+    cache_set(cache_key, cache_data, expire_seconds=86400)
 
     if format.lower() == "base64":
         # Return as JSON with base64-encoded image
-        b64_string = base64.b64encode(img_bytes).decode("utf-8")
         return {
             "equipment_id": equipment.id,
             "asset_tag": equipment.asset_tag,

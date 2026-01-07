@@ -429,7 +429,8 @@
     "dismiss": "Ignorer",
     "refresh": "Actualiser",
     "loadMore": "Charger plus",
-    "views": "vues"
+    "views": "vues",
+    "view": "Voir"
   },
   "dcim": {
     "title": "DCIM",

@@ -429,7 +429,8 @@
     "dismiss": "Dismiss",
     "refresh": "Refresh",
     "loadMore": "Load More",
-    "views": "views"
+    "views": "views",
+    "view": "View"
   },
   "dcim": {
     "title": "DCIM",

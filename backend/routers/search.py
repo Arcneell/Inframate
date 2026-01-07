@@ -10,7 +10,7 @@ from datetime import datetime
 import logging
 
 from backend.core.database import get_db
-from backend.core.security import get_current_user
+from backend.core.security import get_current_user, has_permission
 from backend import models
 from pydantic import BaseModel
 
@@ -76,10 +76,15 @@ def global_search(
     else:
         search_types = allowed_types
 
-    is_admin = current_user.role == "admin"
+    # Check user permissions for different search types
+    can_search_inventory = has_permission(current_user, "inventory")
+    can_search_ipam = has_permission(current_user, "ipam")
+    can_search_contracts = has_permission(current_user, "contracts")
+    can_search_software = has_permission(current_user, "software")
+    can_search_knowledge = has_permission(current_user, "knowledge")
 
     # ==================== SEARCH EQUIPMENT ====================
-    if "equipment" in search_types and is_admin:
+    if "equipment" in search_types and can_search_inventory:
         equipment_query = db.query(models.Equipment).options(
             joinedload(models.Equipment.equipment_type)
         ).filter(
@@ -120,12 +125,13 @@ def global_search(
             )
         )
 
-        # Access control
-        if not is_admin:
+        # Access control - users only see their own tickets, tech/admin/superadmin see all
+        can_see_all_tickets = current_user.role in ("tech", "admin", "superadmin")
+        if not can_see_all_tickets:
             tickets_query = tickets_query.filter(
                 models.Ticket.requester_id == current_user.id
             )
-        elif current_user.entity_id:
+        elif can_see_all_tickets and current_user.entity_id:
             tickets_query = tickets_query.filter(
                 models.Ticket.entity_id == current_user.entity_id
             )
@@ -145,7 +151,7 @@ def global_search(
             ))
 
     # ==================== SEARCH KNOWLEDGE ARTICLES ====================
-    if "articles" in search_types:
+    if "articles" in search_types and can_search_knowledge:
         articles_query = db.query(models.KnowledgeArticle).filter(
             models.KnowledgeArticle.status == "published",
             or_(
@@ -155,8 +161,9 @@ def global_search(
             )
         )
 
-        # Non-admin users can't see internal articles
-        if not is_admin:
+        # Only tech/admin/superadmin can see internal articles
+        can_see_internal = current_user.role in ("tech", "admin", "superadmin")
+        if not can_see_internal:
             articles_query = articles_query.filter(
                 models.KnowledgeArticle.is_internal == False
             )
@@ -176,7 +183,7 @@ def global_search(
             ))
 
     # ==================== SEARCH SUBNETS ====================
-    if "subnets" in search_types and is_admin:
+    if "subnets" in search_types and can_search_ipam:
         subnets_query = db.query(models.Subnet).filter(
             or_(
                 func.lower(models.Subnet.cidr).like(search_term),
@@ -205,7 +212,7 @@ def global_search(
             ))
 
     # ==================== SEARCH CONTRACTS ====================
-    if "contracts" in search_types and is_admin:
+    if "contracts" in search_types and can_search_contracts:
         contracts_query = db.query(models.Contract).filter(
             or_(
                 func.lower(models.Contract.name).like(search_term),
@@ -234,7 +241,7 @@ def global_search(
             ))
 
     # ==================== SEARCH SOFTWARE ====================
-    if "software" in search_types and is_admin:
+    if "software" in search_types and can_search_software:
         software_query = db.query(models.Software).filter(
             or_(
                 func.lower(models.Software.name).like(search_term),

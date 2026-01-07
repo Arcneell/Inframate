@@ -114,6 +114,7 @@
     "name": "Nom",
     "description": "Description",
     "ips": "IPs",
+    "ipsPerPage": "IPs par page",
     "actions": "Actions",
     "scanSubnet": "Scanner",
     "addIp": "Ajouter IP",

@@ -346,6 +346,7 @@
     "maintenance": "Maintenance",
     "active": "Active",
     "available": "Available",
+    "reserved": "Reserved",
     "warning": "Warning",
     "expired": "Expired"
   },

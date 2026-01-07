@@ -2368,6 +2368,8 @@ def seed_massive_tickets(db: Session, count: int = 200) -> None:
             ticket.closed_at = ticket.resolved_at + timedelta(hours=random.randint(1, 24))
 
         db.add(ticket)
+        # Flush after each ticket to trigger the before_insert hook that generates ticket_number
+        db.flush()
 
         # Commit in batches
         if (i + 1) % 50 == 0:

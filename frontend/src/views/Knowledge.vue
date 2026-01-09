@@ -5,9 +5,13 @@
 
     <div class="flex gap-6 flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <div class="w-72 flex-shrink-0">
-      <div class="card p-4 mb-4">
-        <h3 class="font-bold text-lg mb-4">{{ t('knowledge.title') }}</h3>
+    <div class="w-72 flex-shrink-0 flex flex-col">
+      <div class="card p-4 flex-1 overflow-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-lg">{{ t('knowledge.title') }}</h3>
+          <Button v-if="canManageKnowledge" icon="pi pi-plus" rounded size="small"
+                  v-tooltip="t('knowledge.newArticle')" @click="openArticleDialog()" />
+        </div>
 
         <!-- Search -->
         <div class="mb-4">
@@ -58,11 +62,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Admin Actions -->
-      <div v-if="canManageKnowledge" class="card p-4">
-        <Button :label="t('knowledge.newArticle')" icon="pi pi-plus" class="w-full" @click="openArticleDialog()" />
       </div>
     </div>
 

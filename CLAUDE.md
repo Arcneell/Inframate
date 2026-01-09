@@ -8,9 +8,13 @@ Plateforme de gestion IT complète (ITSM/ITAM) auto-hébergée, entièrement gé
 
 **Après chaque modification de code, Claude doit systématiquement :**
 
-1. **Expliquer les changements** et comment les tester
-2. **Attendre la validation** de l'utilisateur avant de commit
-3. **Commit et Push** uniquement après validation explicite de l'utilisateur
+1. **Exécuter le script de validation** : `python scripts/validate.py`
+   - Vérifier les erreurs de syntaxe Python
+   - Vérifier les traductions i18n manquantes
+   - Vérifier la structure des fichiers Vue
+   - Si des erreurs sont détectées, les corriger avant de continuer
+2. **Commit** les changements avec un message descriptif
+3. **Push** vers le repository distant
 4. **Mettre à jour README.md** si les changements affectent :
    - Les fonctionnalités documentées
    - Les instructions d'installation/utilisation
@@ -23,7 +27,43 @@ Plateforme de gestion IT complète (ITSM/ITAM) auto-hébergée, entièrement gé
    - Nouveaux endpoints API
    - Modifications de la structure de base de données
 
-**IMPORTANT:** Ne jamais commit/push automatiquement. Toujours attendre que l'utilisateur teste et valide les changements.
+## Script de Validation
+
+Le script `scripts/validate.py` est un outil de validation cross-platform qui vérifie la qualité du code avant chaque commit.
+
+### Utilisation
+
+```bash
+# Validation complète (recommandé avant chaque commit)
+python scripts/validate.py
+
+# Validation rapide (syntaxe uniquement)
+python scripts/validate.py --quick
+
+# Afficher les suggestions de correction pour les traductions
+python scripts/validate.py --fix
+
+# Mode CI (code de sortie non-zéro en cas d'erreur)
+python scripts/validate.py --ci
+```
+
+### Vérifications effectuées
+
+1. **Syntaxe Python** : Vérifie tous les fichiers `.py` dans `backend/`, `worker/`, `scripts/`
+2. **Syntaxe JSON** : Vérifie les fichiers de traduction et `package.json`
+3. **Traductions i18n** : Détecte les clés manquantes dans EN ou FR, et les clés non synchronisées
+4. **Structure Vue** : Vérifie la présence des sections `<template>` et `<script>`
+
+### Règles pour les traductions
+
+- Toutes les clés i18n doivent suivre le format `namespace.key` (ex: `tickets.status`)
+- Les namespaces valides sont définis dans le script
+- Une clé utilisée dans le code doit exister dans EN **et** FR
+- Utiliser `--fix` pour voir les suggestions de correction
+
+### Intégration dans le workflow
+
+Claude exécute automatiquement ce script après chaque modification et corrige les erreurs avant de commit. Si des traductions manquent, elles sont ajoutées aux deux fichiers de langue.
 
 ## Stack Technique
 

@@ -159,25 +159,25 @@
             :style="{ width: '800px' }">
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.ticketTitle') }} <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('knowledge.articleTitle') }} <span class="text-red-500">*</span></label>
           <InputText v-model="articleForm.title" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.description') }}</label>
-          <InputText v-model="articleForm.summary" class="w-full" placeholder="Short summary for search results" />
+          <label class="block text-sm font-medium mb-1">{{ t('knowledge.summary') }}</label>
+          <InputText v-model="articleForm.summary" class="w-full" :placeholder="t('knowledge.summaryPlaceholder')" />
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-1">{{ t('tickets.category') }}</label>
-            <Dropdown v-model="articleForm.category" :options="categoryOptions" class="w-full" editable showClear />
+            <label class="block text-sm font-medium mb-1">{{ t('knowledge.category') }}</label>
+            <Dropdown v-model="articleForm.category" :options="categoryOptions" optionLabel="label" optionValue="value" class="w-full" editable showClear />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">Tags</label>
+            <label class="block text-sm font-medium mb-1">{{ t('knowledge.tags') }}</label>
             <Chips v-model="articleForm.tags" class="w-full" />
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Content <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium mb-1">{{ t('knowledge.content') }} <span class="text-red-500">*</span></label>
           <Textarea v-model="articleForm.content" rows="12" class="w-full font-mono" />
         </div>
         <div class="flex gap-4">
@@ -251,7 +251,13 @@ const articleForm = ref({
   is_internal: false
 });
 
-const categoryOptions = ['troubleshooting', 'how-to', 'faq', 'policy', 'documentation'];
+const categoryOptions = computed(() => [
+  { label: t('knowledge.categoryTroubleshooting'), value: 'troubleshooting' },
+  { label: t('knowledge.categoryHowTo'), value: 'how-to' },
+  { label: t('knowledge.categoryFaq'), value: 'faq' },
+  { label: t('knowledge.categoryPolicy'), value: 'policy' },
+  { label: t('knowledge.categoryDocumentation'), value: 'documentation' }
+]);
 
 // Computed - Check if user can manage knowledge (tech with permission, admin, superadmin)
 const canManageKnowledge = computed(() => {

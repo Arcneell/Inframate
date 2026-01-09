@@ -785,7 +785,18 @@
     "wasHelpful": "Cet article vous a-t-il aidé ?",
     "yes": "Oui",
     "no": "Non",
-    "feedbackThanks": "Merci pour votre retour !"
+    "feedbackThanks": "Merci pour votre retour !",
+    "articleTitle": "Titre",
+    "summary": "Résumé",
+    "summaryPlaceholder": "Court résumé pour les résultats de recherche",
+    "category": "Catégorie",
+    "tags": "Tags",
+    "content": "Contenu",
+    "categoryTroubleshooting": "Dépannage",
+    "categoryHowTo": "Guide pratique",
+    "categoryFaq": "FAQ",
+    "categoryPolicy": "Politique",
+    "categoryDocumentation": "Documentation"
   },
   "admin": {
     "title": "Administration",

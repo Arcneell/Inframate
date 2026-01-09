@@ -785,7 +785,18 @@
     "wasHelpful": "Was this helpful?",
     "yes": "Yes",
     "no": "No",
-    "feedbackThanks": "Thanks for your feedback!"
+    "feedbackThanks": "Thanks for your feedback!",
+    "articleTitle": "Title",
+    "summary": "Summary",
+    "summaryPlaceholder": "Short summary for search results",
+    "category": "Category",
+    "tags": "Tags",
+    "content": "Content",
+    "categoryTroubleshooting": "Troubleshooting",
+    "categoryHowTo": "How-to",
+    "categoryFaq": "FAQ",
+    "categoryPolicy": "Policy",
+    "categoryDocumentation": "Documentation"
   },
   "admin": {
     "title": "Administration",

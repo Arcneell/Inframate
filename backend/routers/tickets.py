@@ -1086,6 +1086,189 @@ def bulk_assign_tickets(
     )
 
 
+@router.post("/bulk-priority", response_model=schemas.BulkOperationResult)
+def bulk_update_priority(
+    request: schemas.BulkTicketPriority,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Update priority of multiple tickets at once.
+    Requires tech, admin or superadmin role.
+    """
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket priority")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ticket_id in request.ticket_ids:
+        try:
+            ticket = db.query(models.Ticket).filter(
+                models.Ticket.id == ticket_id,
+                models.Ticket.is_deleted == False  # noqa: E712
+            ).first()
+
+            if not ticket:
+                failed += 1
+                errors.append(f"Ticket {ticket_id} not found")
+                continue
+
+            # Entity check
+            if current_user.entity_id and ticket.entity_id != current_user.entity_id:
+                failed += 1
+                errors.append(f"Ticket {ticket_id}: access denied")
+                continue
+
+            old_priority = ticket.priority
+            ticket.priority = request.priority
+
+            add_ticket_history(
+                db, ticket_id, current_user.id, "updated",
+                "priority", old_priority, request.priority
+            )
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"Ticket {ticket_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk priority: {processed} tickets set to {request.priority} by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
+@router.post("/bulk-status", response_model=schemas.BulkOperationResult)
+def bulk_update_status(
+    request: schemas.BulkTicketStatus,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Update status of multiple tickets at once.
+    Requires tech, admin or superadmin role.
+    """
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket status")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ticket_id in request.ticket_ids:
+        try:
+            ticket = db.query(models.Ticket).filter(
+                models.Ticket.id == ticket_id,
+                models.Ticket.is_deleted == False  # noqa: E712
+            ).first()
+
+            if not ticket:
+                failed += 1
+                errors.append(f"Ticket {ticket_id} not found")
+                continue
+
+            # Entity check
+            if current_user.entity_id and ticket.entity_id != current_user.entity_id:
+                failed += 1
+                errors.append(f"Ticket {ticket_id}: access denied")
+                continue
+
+            old_status = ticket.status
+            ticket.status = request.status
+
+            # Update timestamps based on status change
+            if request.status == "closed" and old_status != "closed":
+                ticket.closed_at = datetime.now(timezone.utc)
+            elif request.status == "resolved" and old_status != "resolved":
+                ticket.resolved_at = datetime.now(timezone.utc)
+
+            add_ticket_history(
+                db, ticket_id, current_user.id, "updated",
+                "status", old_status, request.status
+            )
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"Ticket {ticket_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk status: {processed} tickets set to {request.status} by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
+@router.post("/bulk-type", response_model=schemas.BulkOperationResult)
+def bulk_update_type(
+    request: schemas.BulkTicketType,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Update type of multiple tickets at once.
+    Requires tech, admin or superadmin role.
+    """
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket type")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ticket_id in request.ticket_ids:
+        try:
+            ticket = db.query(models.Ticket).filter(
+                models.Ticket.id == ticket_id,
+                models.Ticket.is_deleted == False  # noqa: E712
+            ).first()
+
+            if not ticket:
+                failed += 1
+                errors.append(f"Ticket {ticket_id} not found")
+                continue
+
+            # Entity check
+            if current_user.entity_id and ticket.entity_id != current_user.entity_id:
+                failed += 1
+                errors.append(f"Ticket {ticket_id}: access denied")
+                continue
+
+            old_type = ticket.ticket_type
+            ticket.ticket_type = request.ticket_type
+
+            add_ticket_history(
+                db, ticket_id, current_user.id, "updated",
+                "ticket_type", old_type, request.ticket_type
+            )
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"Ticket {ticket_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk type: {processed} tickets set to {request.ticket_type} by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
 # ==================== TICKET TEMPLATES ====================
 
 @router.get("/templates/", response_model=List[schemas.TicketTemplate])

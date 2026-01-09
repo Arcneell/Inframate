@@ -728,8 +728,8 @@
       <!-- Change Location Action -->
       <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkLocationAction = !showBulkLocationAction">
         <div class="flex items-center gap-4">
-          <div class="action-icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.1) 100%);">
-            <i class="pi pi-map-marker text-yellow-500"></i>
+          <div class="action-icon action-icon-warning">
+            <i class="pi pi-map-marker"></i>
           </div>
           <div class="flex-1">
             <div class="font-semibold">{{ t('bulk.changeLocation') }}</div>
@@ -748,11 +748,11 @@
       <!-- Delete Action -->
       <div class="action-card action-card-danger p-4 rounded-xl cursor-pointer" @click="confirmBulkDelete">
         <div class="flex items-center gap-4">
-          <div class="action-icon" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);">
-            <i class="pi pi-trash text-red-500"></i>
+          <div class="action-icon action-icon-danger">
+            <i class="pi pi-trash"></i>
           </div>
           <div class="flex-1">
-            <div class="font-semibold text-red-500">{{ t('bulk.deleteItems') }}</div>
+            <div class="font-semibold" style="color: var(--danger);">{{ t('bulk.deleteItems') }}</div>
             <div class="text-sm opacity-60">{{ t('bulk.deleteItemsDesc') }}</div>
           </div>
           <i class="pi pi-chevron-right"></i>
@@ -1531,11 +1531,13 @@ onMounted(async () => {
 .action-card:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  background-color: var(--bg-hover);
 }
 
 .action-card-danger:hover {
-  border-color: rgba(239, 68, 68, 0.5);
+  border-color: var(--danger);
+  background-color: var(--danger-light);
 }
 
 .action-icon {
@@ -1545,10 +1547,34 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+  background: var(--primary-light);
 }
 
 .action-icon i {
-  color: rgb(14, 165, 233);
+  color: var(--primary);
+}
+
+.action-icon-warning {
+  background: var(--warning-light);
+}
+
+.action-icon-warning i {
+  color: var(--warning);
+}
+
+.action-icon-danger {
+  background: var(--danger-light);
+}
+
+.action-icon-danger i {
+  color: var(--danger);
+}
+
+.action-icon-success {
+  background: var(--success-light);
+}
+
+.action-icon-success i {
+  color: var(--success);
 }
 </style>

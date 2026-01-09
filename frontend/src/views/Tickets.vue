@@ -445,11 +445,71 @@
         </div>
       </div>
 
+      <!-- Change Priority Action -->
+      <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkPriorityAction = !showBulkPriorityAction">
+        <div class="flex items-center gap-4">
+          <div class="action-icon action-icon-warning">
+            <i class="pi pi-flag"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold">{{ t('bulk.changePriority') }}</div>
+            <div class="text-sm opacity-60">{{ t('bulk.changePriorityDesc') }}</div>
+          </div>
+          <i :class="['pi transition-transform', showBulkPriorityAction ? 'pi-chevron-up' : 'pi-chevron-down']"></i>
+        </div>
+        <div v-if="showBulkPriorityAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
+          <Dropdown v-model="bulkPriority" :options="priorityOptions" optionLabel="label" optionValue="value"
+                    :placeholder="t('tickets.priority')" class="w-full mb-3" />
+          <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
+                  class="w-full" @click="applyBulkPriority" :disabled="!bulkPriority" :loading="bulkLoading" />
+        </div>
+      </div>
+
+      <!-- Change Status Action -->
+      <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkStatusAction = !showBulkStatusAction">
+        <div class="flex items-center gap-4">
+          <div class="action-icon">
+            <i class="pi pi-sync"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold">{{ t('bulk.changeStatus') }}</div>
+            <div class="text-sm opacity-60">{{ t('bulk.changeStatusDesc') }}</div>
+          </div>
+          <i :class="['pi transition-transform', showBulkStatusAction ? 'pi-chevron-up' : 'pi-chevron-down']"></i>
+        </div>
+        <div v-if="showBulkStatusAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
+          <Dropdown v-model="bulkStatus" :options="bulkStatusOptions" optionLabel="label" optionValue="value"
+                    :placeholder="t('tickets.status')" class="w-full mb-3" />
+          <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
+                  class="w-full" @click="applyBulkStatus" :disabled="!bulkStatus" :loading="bulkLoading" />
+        </div>
+      </div>
+
+      <!-- Change Type Action -->
+      <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkTypeAction = !showBulkTypeAction">
+        <div class="flex items-center gap-4">
+          <div class="action-icon action-icon-info">
+            <i class="pi pi-tag"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold">{{ t('bulk.changeType') }}</div>
+            <div class="text-sm opacity-60">{{ t('bulk.changeTypeDesc') }}</div>
+          </div>
+          <i :class="['pi transition-transform', showBulkTypeAction ? 'pi-chevron-up' : 'pi-chevron-down']"></i>
+        </div>
+        <div v-if="showBulkTypeAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
+          <Dropdown v-model="bulkType" :options="typeOptions" optionLabel="label" optionValue="value"
+                    :placeholder="t('tickets.type')" class="w-full mb-3" />
+          <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
+                  class="w-full" @click="applyBulkType" :disabled="!bulkType" :loading="bulkLoading" />
+        </div>
+      </div>
+
       <!-- Close Action -->
       <div class="action-card p-4 rounded-xl cursor-pointer" @click="applyBulkClose">
         <div class="flex items-center gap-4">
-          <div class="action-icon" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);">
-            <i class="pi pi-lock text-green-500"></i>
+          <div class="action-icon action-icon-success">
+            <i class="pi pi-lock"></i>
           </div>
           <div class="flex-1">
             <div class="font-semibold">{{ t('bulk.closeItems') }}</div>
@@ -559,14 +619,29 @@ const assignToUserId = ref(null);
 // Bulk operations state
 const selectedTickets = ref([]);
 const bulkAssignee = ref(undefined);
+const bulkPriority = ref(null);
+const bulkStatus = ref(null);
+const bulkType = ref(null);
 const bulkLoading = ref(false);
 const showBulkSlideOver = ref(false);
 const showBulkAssignAction = ref(false);
+const showBulkPriorityAction = ref(false);
+const showBulkStatusAction = ref(false);
+const showBulkTypeAction = ref(false);
 
 // Users with unassign option for bulk operations
 const usersWithUnassign = computed(() => {
   return [{ id: null, username: t('tickets.unassign') }, ...users.value];
 });
+
+// Bulk status options
+const bulkStatusOptions = computed(() => [
+  { label: t('tickets.statusNew'), value: 'new' },
+  { label: t('tickets.statusOpen'), value: 'open' },
+  { label: t('tickets.statusPending'), value: 'pending' },
+  { label: t('tickets.statusResolved'), value: 'resolved' },
+  { label: t('tickets.statusClosed'), value: 'closed' }
+]);
 
 // Options
 const priorityOptions = [
@@ -929,6 +1004,84 @@ const applyBulkClose = async () => {
   }
 };
 
+const applyBulkPriority = async () => {
+  if (!bulkPriority.value || selectedTickets.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/tickets/bulk-priority', {
+      ticket_ids: selectedTickets.value.map(t => t.id),
+      priority: bulkPriority.value
+    });
+    const result = response.data;
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.bulkPrioritySuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('tickets.bulkPriorityPartial', { processed: result.processed, failed: result.failed }) });
+    }
+    selectedTickets.value = [];
+    bulkPriority.value = null;
+    showBulkSlideOver.value = false;
+    showBulkPriorityAction.value = false;
+    loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkStatus = async () => {
+  if (!bulkStatus.value || selectedTickets.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/tickets/bulk-status', {
+      ticket_ids: selectedTickets.value.map(t => t.id),
+      status: bulkStatus.value
+    });
+    const result = response.data;
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.bulkStatusSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('tickets.bulkStatusPartial', { processed: result.processed, failed: result.failed }) });
+    }
+    selectedTickets.value = [];
+    bulkStatus.value = null;
+    showBulkSlideOver.value = false;
+    showBulkStatusAction.value = false;
+    loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkType = async () => {
+  if (!bulkType.value || selectedTickets.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/tickets/bulk-type', {
+      ticket_ids: selectedTickets.value.map(t => t.id),
+      ticket_type: bulkType.value
+    });
+    const result = response.data;
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.bulkTypeSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('tickets.bulkTypePartial', { processed: result.processed, failed: result.failed }) });
+    }
+    selectedTickets.value = [];
+    bulkType.value = null;
+    showBulkSlideOver.value = false;
+    showBulkTypeAction.value = false;
+    loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   // Load tickets and reference data in parallel, but wait for both
   await Promise.all([
@@ -970,7 +1123,8 @@ onMounted(async () => {
 .action-card:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  background-color: var(--bg-hover);
 }
 
 .action-icon {
@@ -980,10 +1134,34 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+  background: var(--primary-light);
 }
 
 .action-icon i {
-  color: rgb(14, 165, 233);
+  color: var(--primary);
+}
+
+.action-icon-warning {
+  background: var(--warning-light);
+}
+
+.action-icon-warning i {
+  color: var(--warning);
+}
+
+.action-icon-success {
+  background: var(--success-light);
+}
+
+.action-icon-success i {
+  color: var(--success);
+}
+
+.action-icon-info {
+  background: var(--info-light);
+}
+
+.action-icon-info i {
+  color: var(--info);
 }
 </style>

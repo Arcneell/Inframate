@@ -491,6 +491,21 @@ class BulkTicketAssign(BaseModel):
     ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
     assigned_to_id: Optional[int] = None  # None to unassign
 
+class BulkTicketPriority(BaseModel):
+    """Request to update priority of multiple tickets."""
+    ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
+    priority: str = Field(..., pattern="^(low|medium|high|critical)$")
+
+class BulkTicketStatus(BaseModel):
+    """Request to update status of multiple tickets."""
+    ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
+    status: str = Field(..., pattern="^(new|open|pending|resolved|closed)$")
+
+class BulkTicketType(BaseModel):
+    """Request to update type of multiple tickets."""
+    ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
+    ticket_type: str = Field(..., pattern="^(incident|request|problem|change)$")
+
 class BulkIPStatusUpdate(BaseModel):
     """Request to update status of multiple IP addresses."""
     ip_ids: List[int] = Field(..., min_length=1, max_length=100)

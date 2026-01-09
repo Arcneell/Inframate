@@ -229,10 +229,10 @@
   <Dialog v-model:visible="showBulkDialog" modal :header="t('bulk.title')" :style="{ width: '450px' }">
     <div class="space-y-4">
       <!-- Selection Summary -->
-      <div class="p-4 rounded-xl" style="background: var(--bg-secondary); border: 1px solid var(--border-default);">
+      <div class="p-4 rounded-xl selection-summary">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);">
-            <i class="pi pi-check-square text-sky-500 text-lg"></i>
+          <div class="action-icon">
+            <i class="pi pi-check-square"></i>
           </div>
           <div>
             <div class="text-2xl font-bold">{{ selectedIps.length }}</div>
@@ -264,8 +264,8 @@
       <!-- Release Action -->
       <div class="action-card p-4 rounded-xl cursor-pointer" @click="applyBulkRelease">
         <div class="flex items-center gap-4">
-          <div class="action-icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.1) 100%);">
-            <i class="pi pi-undo text-yellow-500"></i>
+          <div class="action-icon action-icon-warning">
+            <i class="pi pi-undo"></i>
           </div>
           <div class="flex-1">
             <div class="font-semibold">{{ t('bulk.releaseItems') }}</div>
@@ -665,24 +665,41 @@ watch(() => [props.modelValue, props.subnetId], ([isVisible, id]) => {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-default);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 0.75rem;
 }
 
 .action-card:hover {
   border-color: var(--border-strong);
   background-color: var(--bg-hover);
-}
-
-.action-card.danger:hover {
-  border-color: rgb(239 68 68 / 0.5);
-  background-color: rgb(239 68 68 / 0.1);
-}
-
-.action-card.danger:hover .action-icon {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.2) 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .action-icon {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-light);
   transition: all 0.2s ease;
+}
+
+.action-icon i {
+  color: var(--primary);
+}
+
+.action-icon-warning {
+  background: var(--warning-light);
+}
+
+.action-icon-warning i {
+  color: var(--warning);
+}
+
+.selection-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
 }
 </style>

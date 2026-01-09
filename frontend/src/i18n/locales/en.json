@@ -741,7 +741,13 @@
     "bulkAssignSuccess": "{count} tickets assigned successfully",
     "bulkAssignPartial": "{processed} assigned, {failed} failed",
     "bulkCloseSuccess": "{count} tickets closed successfully",
-    "bulkClosePartial": "{processed} closed, {failed} failed"
+    "bulkClosePartial": "{processed} closed, {failed} failed",
+    "bulkPrioritySuccess": "{count} tickets priority updated",
+    "bulkPriorityPartial": "{processed} updated, {failed} failed",
+    "bulkStatusSuccess": "{count} tickets status updated",
+    "bulkStatusPartial": "{processed} updated, {failed} failed",
+    "bulkTypeSuccess": "{count} tickets type updated",
+    "bulkTypePartial": "{processed} updated, {failed} failed"
   },
   "notifications": {
     "title": "Notifications",
@@ -1002,6 +1008,10 @@
     "changeStatusDesc": "Update the status of all selected items",
     "changeLocation": "Change Location",
     "changeLocationDesc": "Move all selected items to a different location",
+    "changePriority": "Change Priority",
+    "changePriorityDesc": "Update the priority of all selected items",
+    "changeType": "Change Type",
+    "changeTypeDesc": "Update the type of all selected items",
     "deleteItems": "Delete Items",
     "deleteItemsDesc": "Permanently delete all selected items",
     "assignTo": "Assign To",

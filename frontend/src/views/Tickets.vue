@@ -105,9 +105,22 @@
           <Button :label="t('tickets.newTicket')" icon="pi pi-plus" @click="openTicketDialog()" />
         </div>
 
+        <!-- Bulk Actions Bar -->
+        <div v-if="selectedTickets.length > 0 && canManageTickets" class="flex items-center gap-3 mb-4 p-3 rounded-lg" style="background-color: var(--bg-app);">
+          <span class="font-medium">{{ selectedTickets.length }} {{ t('common.selected') }}</span>
+          <div class="flex-1"></div>
+          <Dropdown v-model="bulkAssignee" :options="usersWithUnassign" optionLabel="username" optionValue="id"
+                    :placeholder="t('tickets.assignTo')" class="w-48" />
+          <Button :label="t('common.apply')" icon="pi pi-check" size="small" @click="applyBulkAssign" :disabled="bulkAssignee === undefined" :loading="bulkLoading" />
+          <Button :label="t('tickets.bulkClose')" icon="pi pi-lock" size="small" severity="secondary" @click="applyBulkClose" :loading="bulkLoading" />
+          <Button icon="pi pi-times" text rounded size="small" @click="selectedTickets = []" v-tooltip.top="t('common.clearSelection')" />
+        </div>
+
         <div class="flex-1 overflow-auto">
           <DataTable :value="tickets" stripedRows lazy paginator :rows="ticketsRows" :totalRecords="ticketsTotal" :first="ticketsFirst" @page="onTicketsPage" dataKey="id" :loading="loading"
+                     v-model:selection="selectedTickets"
                      class="text-sm" @row-click="openTicketDetail">
+            <Column v-if="canManageTickets" selectionMode="multiple" headerStyle="width: 3rem" />
             <Column field="ticket_number" :header="t('tickets.ticketNumber')" sortable style="width: 140px">
               <template #body="slotProps">
                 <span class="font-mono text-sky-400 cursor-pointer hover:underline">
@@ -500,6 +513,16 @@ const resolutionText = ref('');
 const resolutionCode = ref('fixed');
 const assignToUserId = ref(null);
 
+// Bulk operations state
+const selectedTickets = ref([]);
+const bulkAssignee = ref(undefined);
+const bulkLoading = ref(false);
+
+// Users with unassign option for bulk operations
+const usersWithUnassign = computed(() => {
+  return [{ id: null, username: t('tickets.unassign') }, ...users.value];
+});
+
 // Options
 const priorityOptions = [
   { label: t('tickets.priorityCritical'), value: 'critical' },
@@ -808,6 +831,53 @@ const assignCurrentTicket = async () => {
     toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.ticketAssigned') });
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail });
+  }
+};
+
+// Bulk operations
+const applyBulkAssign = async () => {
+  if (bulkAssignee.value === undefined || selectedTickets.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/tickets/bulk-assign', {
+      ticket_ids: selectedTickets.value.map(t => t.id),
+      assigned_to_id: bulkAssignee.value
+    });
+    const result = response.data;
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.bulkAssignSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('tickets.bulkAssignPartial', { processed: result.processed, failed: result.failed }) });
+    }
+    selectedTickets.value = [];
+    bulkAssignee.value = undefined;
+    loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkClose = async () => {
+  if (selectedTickets.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/tickets/bulk-close', {
+      ticket_ids: selectedTickets.value.map(t => t.id)
+    });
+    const result = response.data;
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.bulkCloseSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('tickets.bulkClosePartial', { processed: result.processed, failed: result.failed }) });
+    }
+    selectedTickets.value = [];
+    loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
   }
 };
 

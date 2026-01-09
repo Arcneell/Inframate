@@ -338,3 +338,116 @@ def delete_ip(
 
     logger.info(f"IP '{address}' deleted by '{current_user.username}'")
     return {"ok": True}
+
+
+# ==================== BULK OPERATIONS ====================
+
+@router.post("/ips/bulk-status", response_model=schemas.BulkOperationResult)
+def bulk_update_ip_status(
+    request: schemas.BulkIPStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Update status of multiple IP addresses at once.
+    Requires ipam permission.
+    """
+    check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ip_id in request.ip_ids:
+        try:
+            query = db.query(models.IPAddress).join(models.Subnet).filter(
+                models.IPAddress.id == ip_id
+            )
+            if entity_filter is not None:
+                query = query.filter(
+                    or_(
+                        models.Subnet.entity_id == entity_filter,
+                        models.Subnet.entity_id == None  # noqa: E711
+                    )
+                )
+            ip = query.first()
+
+            if not ip:
+                failed += 1
+                errors.append(f"IP {ip_id} not found")
+                continue
+
+            ip.status = request.status
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"IP {ip_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk status update: {processed} IPs set to {request.status} by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
+@router.post("/ips/bulk-release", response_model=schemas.BulkOperationResult)
+def bulk_release_ips(
+    request: schemas.BulkIPRelease,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Release multiple IP addresses at once.
+    Sets status to 'available' and clears equipment_id.
+    Requires ipam permission.
+    """
+    check_ipam_permission(current_user)
+    entity_filter = get_entity_filter(current_user)
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ip_id in request.ip_ids:
+        try:
+            query = db.query(models.IPAddress).join(models.Subnet).filter(
+                models.IPAddress.id == ip_id
+            )
+            if entity_filter is not None:
+                query = query.filter(
+                    or_(
+                        models.Subnet.entity_id == entity_filter,
+                        models.Subnet.entity_id == None  # noqa: E711
+                    )
+                )
+            ip = query.first()
+
+            if not ip:
+                failed += 1
+                errors.append(f"IP {ip_id} not found")
+                continue
+
+            ip.status = "available"
+            ip.equipment_id = None
+            ip.hostname = None
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"IP {ip_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk release: {processed} IPs released by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )

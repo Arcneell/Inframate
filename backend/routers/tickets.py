@@ -929,6 +929,163 @@ def reopen_ticket(
     return {"message": "Ticket reopened"}
 
 
+# ==================== BULK OPERATIONS ====================
+
+@router.post("/bulk-close", response_model=schemas.BulkOperationResult)
+def bulk_close_tickets(
+    request: schemas.BulkTicketClose,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Close multiple tickets at once.
+    Requires tech, admin or superadmin role.
+    Only resolved tickets can be closed.
+    """
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can close tickets")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ticket_id in request.ticket_ids:
+        try:
+            ticket = db.query(models.Ticket).filter(
+                models.Ticket.id == ticket_id,
+                models.Ticket.is_deleted == False  # noqa: E712
+            ).first()
+
+            if not ticket:
+                failed += 1
+                errors.append(f"Ticket {ticket_id} not found")
+                continue
+
+            # Entity check
+            if current_user.entity_id and ticket.entity_id != current_user.entity_id:
+                failed += 1
+                errors.append(f"Ticket {ticket_id}: access denied")
+                continue
+
+            # Only resolved tickets can be closed
+            if ticket.status not in ["resolved", "closed"]:
+                failed += 1
+                errors.append(f"Ticket {ticket.ticket_number}: only resolved tickets can be closed")
+                continue
+
+            if ticket.status == "closed":
+                # Already closed, skip
+                processed += 1
+                continue
+
+            ticket.status = "closed"
+            ticket.closed_at = datetime.now(timezone.utc)
+
+            add_ticket_history(db, ticket_id, current_user.id, "closed")
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"Ticket {ticket_id}: {str(e)}")
+
+    db.commit()
+    logger.info(f"Bulk close: {processed} tickets closed by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]  # Limit errors returned
+    )
+
+
+@router.post("/bulk-assign", response_model=schemas.BulkOperationResult)
+def bulk_assign_tickets(
+    request: schemas.BulkTicketAssign,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Assign multiple tickets to a user.
+    Requires tech, admin or superadmin role.
+    Set assigned_to_id to null to unassign.
+    """
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can assign tickets")
+
+    # Validate assignee exists if provided
+    assignee = None
+    if request.assigned_to_id:
+        assignee = db.query(models.User).filter(models.User.id == request.assigned_to_id).first()
+        if not assignee:
+            raise HTTPException(status_code=404, detail="Assignee user not found")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for ticket_id in request.ticket_ids:
+        try:
+            ticket = db.query(models.Ticket).filter(
+                models.Ticket.id == ticket_id,
+                models.Ticket.is_deleted == False  # noqa: E712
+            ).first()
+
+            if not ticket:
+                failed += 1
+                errors.append(f"Ticket {ticket_id} not found")
+                continue
+
+            # Entity check
+            if current_user.entity_id and ticket.entity_id != current_user.entity_id:
+                failed += 1
+                errors.append(f"Ticket {ticket_id}: access denied")
+                continue
+
+            old_assignee = ticket.assigned_to_id
+            ticket.assigned_to_id = request.assigned_to_id
+
+            # Open ticket if it's new and being assigned
+            if ticket.status == "new" and request.assigned_to_id:
+                ticket.status = "open"
+
+            add_ticket_history(
+                db, ticket_id, current_user.id, "assigned",
+                "assigned_to_id",
+                str(old_assignee) if old_assignee else None,
+                str(request.assigned_to_id) if request.assigned_to_id else None
+            )
+
+            # Notify new assignee
+            if request.assigned_to_id and request.assigned_to_id != current_user.id:
+                create_notification(
+                    db,
+                    request.assigned_to_id,
+                    f"Ticket assigned: {ticket.ticket_number}",
+                    f"Ticket '{ticket.title}' has been assigned to you.",
+                    "ticket",
+                    "ticket",
+                    ticket.id
+                )
+
+            processed += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append(f"Ticket {ticket_id}: {str(e)}")
+
+    db.commit()
+    assignee_name = assignee.username if assignee else "unassigned"
+    logger.info(f"Bulk assign: {processed} tickets assigned to {assignee_name} by {current_user.username}")
+
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
 # ==================== TICKET TEMPLATES ====================
 
 @router.get("/templates/", response_model=List[schemas.TicketTemplate])

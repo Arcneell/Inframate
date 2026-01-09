@@ -465,6 +465,49 @@ class RackLayoutResponse(BaseModel):
     unassigned_equipment: List[dict] = Field(default_factory=list)
 
 
+# ==================== BULK OPERATION SCHEMAS ====================
+
+class BulkEquipmentDelete(BaseModel):
+    """Request to delete multiple equipment."""
+    equipment_ids: List[int] = Field(..., min_length=1, max_length=100)
+
+class BulkEquipmentStatusUpdate(BaseModel):
+    """Request to update status of multiple equipment."""
+    equipment_ids: List[int] = Field(..., min_length=1, max_length=100)
+    status: str = Field(..., pattern="^(in_service|in_stock|retired|maintenance)$")
+
+class BulkEquipmentLocationUpdate(BaseModel):
+    """Request to update location of multiple equipment."""
+    equipment_ids: List[int] = Field(..., min_length=1, max_length=100)
+    location_id: Optional[int] = None  # None to clear location
+
+class BulkTicketClose(BaseModel):
+    """Request to close multiple tickets."""
+    ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
+    resolution: Optional[str] = None
+
+class BulkTicketAssign(BaseModel):
+    """Request to assign multiple tickets."""
+    ticket_ids: List[int] = Field(..., min_length=1, max_length=100)
+    assigned_to_id: Optional[int] = None  # None to unassign
+
+class BulkIPStatusUpdate(BaseModel):
+    """Request to update status of multiple IP addresses."""
+    ip_ids: List[int] = Field(..., min_length=1, max_length=100)
+    status: str = Field(..., pattern="^(available|reserved|assigned|dhcp)$")
+
+class BulkIPRelease(BaseModel):
+    """Request to release multiple IP addresses (set to available, clear equipment link)."""
+    ip_ids: List[int] = Field(..., min_length=1, max_length=100)
+
+class BulkOperationResult(BaseModel):
+    """Result of a bulk operation."""
+    success: bool
+    processed: int
+    failed: int
+    errors: List[str] = Field(default_factory=list)
+
+
 # ==================== CONTRACT SCHEMAS ====================
 
 class ContractBase(BaseModel):

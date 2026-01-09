@@ -719,6 +719,170 @@ def delete_equipment(
     return {"ok": True}
 
 
+# --- Bulk Operations ---
+
+@router.post("/equipment/bulk-delete", response_model=schemas.BulkOperationResult)
+def bulk_delete_equipment(
+    request: schemas.BulkEquipmentDelete,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Delete multiple equipment at once."""
+    check_inventory_permission(current_user)
+    entity_filter = get_user_entity_filter(current_user)
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for equipment_id in request.equipment_ids:
+        try:
+            equipment = db.query(models.Equipment).filter(
+                models.Equipment.id == equipment_id
+            ).first()
+
+            if not equipment:
+                failed += 1
+                errors.append(f"Equipment {equipment_id} not found")
+                continue
+
+            # Verify entity access
+            if entity_filter and equipment.entity_id != entity_filter:
+                failed += 1
+                errors.append(f"Access denied to equipment {equipment_id}")
+                continue
+
+            # Unlink IPs
+            db.query(models.IPAddress).filter(
+                models.IPAddress.equipment_id == equipment_id
+            ).update({"equipment_id": None})
+
+            db.delete(equipment)
+            processed += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"Error deleting equipment {equipment_id}: {str(e)}")
+
+    db.commit()
+    invalidate_equipment_cache()
+    invalidate_topology_cache()
+
+    logger.info(f"Bulk delete: {processed} equipment deleted by '{current_user.username}'")
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]  # Limit errors to prevent huge responses
+    )
+
+
+@router.post("/equipment/bulk-status", response_model=schemas.BulkOperationResult)
+def bulk_update_equipment_status(
+    request: schemas.BulkEquipmentStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Update status of multiple equipment at once."""
+    check_inventory_permission(current_user)
+    entity_filter = get_user_entity_filter(current_user)
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for equipment_id in request.equipment_ids:
+        try:
+            equipment = db.query(models.Equipment).filter(
+                models.Equipment.id == equipment_id
+            ).first()
+
+            if not equipment:
+                failed += 1
+                errors.append(f"Equipment {equipment_id} not found")
+                continue
+
+            # Verify entity access
+            if entity_filter and equipment.entity_id != entity_filter:
+                failed += 1
+                errors.append(f"Access denied to equipment {equipment_id}")
+                continue
+
+            equipment.status = request.status
+            processed += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"Error updating equipment {equipment_id}: {str(e)}")
+
+    db.commit()
+    invalidate_equipment_cache()
+
+    logger.info(f"Bulk status update: {processed} equipment set to '{request.status}' by '{current_user.username}'")
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
+@router.post("/equipment/bulk-location", response_model=schemas.BulkOperationResult)
+def bulk_update_equipment_location(
+    request: schemas.BulkEquipmentLocationUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Update location of multiple equipment at once."""
+    check_inventory_permission(current_user)
+    entity_filter = get_user_entity_filter(current_user)
+
+    # Verify location exists if provided
+    if request.location_id:
+        location = db.query(models.Location).filter(
+            models.Location.id == request.location_id
+        ).first()
+        if not location:
+            raise HTTPException(status_code=404, detail="Location not found")
+
+    processed = 0
+    failed = 0
+    errors = []
+
+    for equipment_id in request.equipment_ids:
+        try:
+            equipment = db.query(models.Equipment).filter(
+                models.Equipment.id == equipment_id
+            ).first()
+
+            if not equipment:
+                failed += 1
+                errors.append(f"Equipment {equipment_id} not found")
+                continue
+
+            # Verify entity access
+            if entity_filter and equipment.entity_id != entity_filter:
+                failed += 1
+                errors.append(f"Access denied to equipment {equipment_id}")
+                continue
+
+            equipment.location_id = request.location_id
+            processed += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"Error updating equipment {equipment_id}: {str(e)}")
+
+    db.commit()
+    invalidate_equipment_cache()
+
+    location_name = f"location {request.location_id}" if request.location_id else "no location"
+    logger.info(f"Bulk location update: {processed} equipment moved to {location_name} by '{current_user.username}'")
+    return schemas.BulkOperationResult(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        errors=errors[:10]
+    )
+
+
 # --- Equipment-IP Linking ---
 
 @router.post("/equipment/{equipment_id}/link-ip")

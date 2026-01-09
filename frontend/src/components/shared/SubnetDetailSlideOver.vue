@@ -90,6 +90,17 @@
             />
           </div>
 
+          <!-- Bulk Actions Bar -->
+          <div v-if="selectedIps.length > 0" class="flex items-center gap-3 mb-4 p-3 rounded-lg" style="background-color: var(--bg-secondary);">
+            <span class="font-medium text-sm">{{ selectedIps.length }} {{ t('common.selected') }}</span>
+            <div class="flex-1"></div>
+            <Dropdown v-model="bulkStatus" :options="bulkStatusOptions" optionLabel="label" optionValue="value"
+                      :placeholder="t('ipam.changeStatus')" class="w-40" />
+            <Button :label="t('common.apply')" icon="pi pi-check" size="small" @click="applyBulkStatus" :disabled="!bulkStatus" :loading="bulkLoading" />
+            <Button :label="t('ipam.releaseSelected')" icon="pi pi-undo" size="small" severity="secondary" @click="applyBulkRelease" :loading="bulkLoading" />
+            <Button icon="pi pi-times" text rounded size="small" @click="selectedIps = []" v-tooltip.top="t('common.clearSelection')" />
+          </div>
+
           <!-- IP List -->
           <div v-if="loadingIps" class="flex justify-center py-8">
             <i class="pi pi-spinner pi-spin text-2xl opacity-50"></i>
@@ -100,8 +111,10 @@
               v-for="ip in filteredIps"
               :key="ip.id"
               class="ip-item p-3 rounded-lg flex items-center justify-between"
+              :class="{ 'ring-2 ring-blue-500': isIpSelected(ip) }"
             >
               <div class="flex items-center gap-4 flex-1 min-w-0">
+                <Checkbox :modelValue="isIpSelected(ip)" @update:modelValue="toggleIpSelection(ip)" :binary="true" />
                 <span class="font-mono text-sm font-medium ip-address">{{ ip.address }}</span>
                 <span v-if="ip.hostname" class="text-sm opacity-60 truncate">{{ ip.hostname }}</span>
                 <div v-if="ip.equipment" class="flex items-center gap-2 text-sm">
@@ -250,6 +263,29 @@ const pageSize = ref(50)
 const currentPage = ref(0)
 const statusFilter = ref(null)
 const searchQuery = ref('')
+
+// Bulk operations
+const selectedIps = ref([])
+const bulkStatus = ref(null)
+const bulkLoading = ref(false)
+
+const bulkStatusOptions = computed(() => [
+  { label: t('status.available'), value: 'available' },
+  { label: t('status.reserved'), value: 'reserved' },
+  { label: t('status.assigned'), value: 'assigned' },
+  { label: t('status.dhcp'), value: 'dhcp' }
+])
+
+const isIpSelected = (ip) => selectedIps.value.some(s => s.id === ip.id)
+
+const toggleIpSelection = (ip) => {
+  const index = selectedIps.value.findIndex(s => s.id === ip.id)
+  if (index === -1) {
+    selectedIps.value.push(ip)
+  } else {
+    selectedIps.value.splice(index, 1)
+  }
+}
 
 // Computed
 const visible = computed({
@@ -420,12 +456,63 @@ const onIpDialogEnter = (event) => {
   }
 }
 
+// Bulk operations functions
+const applyBulkStatus = async () => {
+  if (!bulkStatus.value || selectedIps.value.length === 0) return
+  bulkLoading.value = true
+  try {
+    const response = await api.post('/subnets/ips/bulk-status', {
+      ip_ids: selectedIps.value.map(ip => ip.id),
+      status: bulkStatus.value
+    })
+    const result = response.data
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('ipam.bulkStatusSuccess', { count: result.processed }), life: 3000 })
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('ipam.bulkStatusPartial', { processed: result.processed, failed: result.failed }), life: 3000 })
+    }
+    selectedIps.value = []
+    bulkStatus.value = null
+    await loadIps()
+    emit('refresh')
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t('common.error'), life: 3000 })
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+const applyBulkRelease = async () => {
+  if (selectedIps.value.length === 0) return
+  bulkLoading.value = true
+  try {
+    const response = await api.post('/subnets/ips/bulk-release', {
+      ip_ids: selectedIps.value.map(ip => ip.id)
+    })
+    const result = response.data
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('ipam.bulkReleaseSuccess', { count: result.processed }), life: 3000 })
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('ipam.bulkReleasePartial', { processed: result.processed, failed: result.failed }), life: 3000 })
+    }
+    selectedIps.value = []
+    await loadIps()
+    emit('refresh')
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: error.response?.data?.detail || t('common.error'), life: 3000 })
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
 // Watch for changes
 watch(() => [props.modelValue, props.subnetId], ([isVisible, id]) => {
   if (isVisible && id) {
     currentPage.value = 0
     statusFilter.value = null
     searchQuery.value = ''
+    selectedIps.value = []
+    bulkStatus.value = null
     loadSubnetDetails()
   }
 }, { immediate: true })

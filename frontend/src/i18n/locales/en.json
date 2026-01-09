@@ -160,7 +160,13 @@
     "failedLoadSubnet": "Failed to load subnet details",
     "cidrHint": "Example: 192.168.1.0/24",
     "ipDeleted": "IP address deleted",
-    "confirmDeleteIp": "Are you sure you want to delete this IP address?"
+    "confirmDeleteIp": "Are you sure you want to delete this IP address?",
+    "changeStatus": "Change status",
+    "releaseSelected": "Release selected",
+    "bulkStatusSuccess": "{count} IPs status updated",
+    "bulkStatusPartial": "{processed} updated, {failed} failed",
+    "bulkReleaseSuccess": "{count} IPs released",
+    "bulkReleasePartial": "{processed} released, {failed} failed"
   },
   "scripts": {
     "uploadTitle": "Upload Script",
@@ -344,7 +350,17 @@
     "qrCodeGenerated": "QR Code generated for {name}",
     "connections": "Connections",
     "connectedEquipment": "Connected Equipment",
-    "noConnections": "No network connections"
+    "noConnections": "No network connections",
+    "changeStatus": "Change status",
+    "changeLocation": "Change location",
+    "clearLocation": "Clear location",
+    "confirmBulkDelete": "Are you sure you want to delete {count} equipment?",
+    "bulkDeleteSuccess": "{count} equipment deleted successfully",
+    "bulkDeletePartial": "{processed} deleted, {failed} failed",
+    "bulkStatusSuccess": "{count} equipment status updated",
+    "bulkStatusPartial": "{processed} updated, {failed} failed",
+    "bulkLocationSuccess": "{count} equipment location updated",
+    "bulkLocationPartial": "{processed} updated, {failed} failed"
   },
   "status": {
     "inService": "In Service",
@@ -354,6 +370,8 @@
     "active": "Active",
     "available": "Available",
     "reserved": "Reserved",
+    "assigned": "Assigned",
+    "dhcp": "DHCP",
     "warning": "Warning",
     "expired": "Expired"
   },
@@ -438,7 +456,11 @@
     "refresh": "Refresh",
     "loadMore": "Load More",
     "views": "views",
-    "view": "View"
+    "view": "View",
+    "selected": "selected",
+    "apply": "Apply",
+    "clearSelection": "Clear selection",
+    "actionIrreversible": "This action is irreversible."
   },
   "dcim": {
     "title": "DCIM",
@@ -713,7 +735,13 @@
     "priority": "Priority",
     "slaNearBreach": "SLA Near Breach",
     "noHistory": "No history available",
-    "historyPriorityChanged": "changed priority from"
+    "historyPriorityChanged": "changed priority from",
+    "unassign": "Unassign",
+    "bulkClose": "Close selected",
+    "bulkAssignSuccess": "{count} tickets assigned successfully",
+    "bulkAssignPartial": "{processed} assigned, {failed} failed",
+    "bulkCloseSuccess": "{count} tickets closed successfully",
+    "bulkClosePartial": "{processed} closed, {failed} failed"
   },
   "notifications": {
     "title": "Notifications",

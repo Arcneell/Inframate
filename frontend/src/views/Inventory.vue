@@ -79,6 +79,18 @@
           <Dropdown v-model="filterLocation" :options="locationOptions" optionLabel="label" optionValue="id" :placeholder="t('filters.allLocations')" showClear class="w-48" />
         </div>
 
+        <!-- Bulk Actions Bar -->
+        <div v-if="selectedEquipment.length > 0" class="flex items-center gap-3 mb-4 p-3 rounded-lg" style="background-color: var(--bg-app);">
+          <span class="font-medium">{{ selectedEquipment.length }} {{ t('common.selected') }}</span>
+          <div class="flex-1"></div>
+          <Dropdown v-model="bulkStatus" :options="statusOptions" optionLabel="label" optionValue="value" :placeholder="t('inventory.changeStatus')" class="w-40" />
+          <Button :label="t('common.apply')" icon="pi pi-check" size="small" @click="applyBulkStatus" :disabled="!bulkStatus" />
+          <Dropdown v-model="bulkLocation" :options="locationOptionsWithClear" optionLabel="label" optionValue="id" :placeholder="t('inventory.changeLocation')" class="w-48" />
+          <Button :label="t('common.apply')" icon="pi pi-check" size="small" @click="applyBulkLocation" :disabled="bulkLocation === undefined" />
+          <Button :label="t('common.delete')" icon="pi pi-trash" size="small" severity="danger" @click="confirmBulkDelete" />
+          <Button icon="pi pi-times" text rounded size="small" @click="selectedEquipment = []" v-tooltip.top="t('common.clearSelection')" />
+        </div>
+
         <div class="flex-1 overflow-auto">
           <DataTable
             :value="equipment"
@@ -91,9 +103,11 @@
             :first="equipmentFirst"
             @page="onEquipmentPage"
             v-model:expandedRows="expandedRows"
+            v-model:selection="selectedEquipment"
             dataKey="id"
             class="text-sm"
           >
+            <Column selectionMode="multiple" headerStyle="width: 3rem" />
             <Column expander style="width: 3rem" />
             <Column field="name" :header="t('common.name')" sortable>
               <template #body="slotProps">
@@ -661,6 +675,23 @@
       </template>
     </Dialog>
 
+    <!-- Bulk Delete Confirmation -->
+    <Dialog v-model:visible="showBulkDeleteDialog" modal :header="t('common.confirmDelete')" :style="{ width: '450px' }">
+      <div class="flex items-start gap-4">
+        <i class="pi pi-exclamation-triangle text-orange-500 text-3xl"></i>
+        <div>
+          <p class="mb-2">{{ t('inventory.confirmBulkDelete', { count: selectedEquipment.length }) }}</p>
+          <p class="text-sm opacity-70">{{ t('common.actionIrreversible') }}</p>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <Button :label="t('common.cancel')" severity="secondary" outlined @click="showBulkDeleteDialog = false" />
+          <Button :label="t('common.delete')" icon="pi pi-trash" severity="danger" @click="executeBulkDelete" :loading="bulkLoading" />
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Equipment Detail Slide-Over -->
     <EquipmentDetailSlideOver
       v-model="showDetailSlideOver"
@@ -721,8 +752,15 @@ const showLocationDialog = ref(false);
 const showSupplierDialog = ref(false);
 const showLinkIpDialog = ref(false);
 const showDeleteEquipmentDialog = ref(false);
+const showBulkDeleteDialog = ref(false);
 const showDetailSlideOver = ref(false);
 const selectedEquipmentId = ref(null);
+
+// Bulk operations
+const selectedEquipment = ref([]);
+const bulkStatus = ref(null);
+const bulkLocation = ref(undefined);
+const bulkLoading = ref(false);
 
 // Editing states
 const editingEquipment = ref(null);
@@ -771,6 +809,12 @@ const locationOptions = computed(() => locations.value.map(l => ({
   id: l.id,
   label: `${l.site}${l.building ? ' / ' + l.building : ''}${l.room ? ' / ' + l.room : ''}`
 })));
+
+// Location options with "Clear location" option for bulk operations
+const locationOptionsWithClear = computed(() => [
+  { id: null, label: t('inventory.clearLocation') },
+  ...locationOptions.value
+]);
 
 const iconOptions = ['pi-server', 'pi-desktop', 'pi-mobile', 'pi-box', 'pi-database', 'pi-wifi', 'pi-globe', 'pi-print', 'pi-shield', 'pi-bolt', 'pi-cog', 'pi-sitemap', 'pi-sliders-h', 'pi-tablet', 'pi-video'];
 
@@ -1285,6 +1329,87 @@ const onLinkIpDialogEnter = (event) => {
   if (event.target.tagName !== 'TEXTAREA' && selectedIpToLink.value) {
     event.preventDefault();
     linkIp();
+  }
+};
+
+// Bulk operations
+const confirmBulkDelete = () => {
+  showBulkDeleteDialog.value = true;
+};
+
+const executeBulkDelete = async () => {
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/inventory/equipment/bulk-delete', {
+      equipment_ids: selectedEquipment.value.map(e => e.id)
+    });
+    const result = response.data;
+
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('inventory.bulkDeleteSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('inventory.bulkDeletePartial', { processed: result.processed, failed: result.failed }) });
+    }
+
+    showBulkDeleteDialog.value = false;
+    selectedEquipment.value = [];
+    loadEquipment();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkStatus = async () => {
+  if (!bulkStatus.value) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/inventory/equipment/bulk-status', {
+      equipment_ids: selectedEquipment.value.map(e => e.id),
+      status: bulkStatus.value
+    });
+    const result = response.data;
+
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('inventory.bulkStatusSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('inventory.bulkStatusPartial', { processed: result.processed, failed: result.failed }) });
+    }
+
+    bulkStatus.value = null;
+    selectedEquipment.value = [];
+    loadEquipment();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkLocation = async () => {
+  if (bulkLocation.value === undefined) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/inventory/equipment/bulk-location', {
+      equipment_ids: selectedEquipment.value.map(e => e.id),
+      location_id: bulkLocation.value
+    });
+    const result = response.data;
+
+    if (result.success) {
+      toast.add({ severity: 'success', summary: t('common.success'), detail: t('inventory.bulkLocationSuccess', { count: result.processed }) });
+    } else {
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('inventory.bulkLocationPartial', { processed: result.processed, failed: result.failed }) });
+    }
+
+    bulkLocation.value = undefined;
+    selectedEquipment.value = [];
+    loadEquipment();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
   }
 };
 

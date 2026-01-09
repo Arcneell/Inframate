@@ -160,7 +160,13 @@
     "failedLoadSubnet": "Échec du chargement des détails du sous-réseau",
     "cidrHint": "Exemple : 192.168.1.0/24",
     "ipDeleted": "Adresse IP supprimée",
-    "confirmDeleteIp": "Êtes-vous sûr de vouloir supprimer cette adresse IP ?"
+    "confirmDeleteIp": "Êtes-vous sûr de vouloir supprimer cette adresse IP ?",
+    "changeStatus": "Changer le statut",
+    "releaseSelected": "Libérer la sélection",
+    "bulkStatusSuccess": "Statut de {count} IPs mis à jour",
+    "bulkStatusPartial": "{processed} mis à jour, {failed} échoués",
+    "bulkReleaseSuccess": "{count} IPs libérées",
+    "bulkReleasePartial": "{processed} libérées, {failed} échouées"
   },
   "scripts": {
     "uploadTitle": "Uploader un Script",
@@ -344,7 +350,17 @@
     "qrCodeGenerated": "QR Code généré pour {name}",
     "connections": "Connexions",
     "connectedEquipment": "Équipements connectés",
-    "noConnections": "Aucune connexion réseau"
+    "noConnections": "Aucune connexion réseau",
+    "changeStatus": "Changer le statut",
+    "changeLocation": "Changer l'emplacement",
+    "clearLocation": "Retirer l'emplacement",
+    "confirmBulkDelete": "Êtes-vous sûr de vouloir supprimer {count} équipements ?",
+    "bulkDeleteSuccess": "{count} équipements supprimés avec succès",
+    "bulkDeletePartial": "{processed} supprimés, {failed} échoués",
+    "bulkStatusSuccess": "Statut de {count} équipements mis à jour",
+    "bulkStatusPartial": "{processed} mis à jour, {failed} échoués",
+    "bulkLocationSuccess": "Emplacement de {count} équipements mis à jour",
+    "bulkLocationPartial": "{processed} mis à jour, {failed} échoués"
   },
   "status": {
     "inService": "En service",
@@ -354,6 +370,8 @@
     "active": "Actif",
     "available": "Disponible",
     "reserved": "Réservé",
+    "assigned": "Assigné",
+    "dhcp": "DHCP",
     "warning": "Attention",
     "expired": "Expiré"
   },
@@ -438,7 +456,11 @@
     "refresh": "Actualiser",
     "loadMore": "Charger plus",
     "views": "vues",
-    "view": "Voir"
+    "view": "Voir",
+    "selected": "sélectionné(s)",
+    "apply": "Appliquer",
+    "clearSelection": "Effacer la sélection",
+    "actionIrreversible": "Cette action est irréversible."
   },
   "dcim": {
     "title": "DCIM",
@@ -713,7 +735,13 @@
     "priority": "Priorité",
     "slaNearBreach": "SLA Proche du Dépassement",
     "noHistory": "Aucun historique disponible",
-    "historyPriorityChanged": "a changé la priorité de"
+    "historyPriorityChanged": "a changé la priorité de",
+    "unassign": "Désassigner",
+    "bulkClose": "Fermer la sélection",
+    "bulkAssignSuccess": "{count} tickets assignés avec succès",
+    "bulkAssignPartial": "{processed} assignés, {failed} échoués",
+    "bulkCloseSuccess": "{count} tickets fermés avec succès",
+    "bulkClosePartial": "{processed} fermés, {failed} échoués"
   },
   "notifications": {
     "title": "Notifications",

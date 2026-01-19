@@ -56,15 +56,37 @@ def _derive_fernet_key(raw_key: str) -> str:
     return base64.urlsafe_b64encode(derived).decode("utf-8")
 
 
+def _get_env_file_config() -> dict:
+    """Get the configuration dict for SettingsConfigDict with optional .env file.
+    
+    This function checks if the .env file exists and is accessible before
+    including it in the configuration. This prevents PermissionError when 
+    running in Docker containers with non-root users.
+    """
+    config = {
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore"
+    }
+    
+    env_path = Path(".env")
+    if env_path.exists():
+        try:
+            # Try to read the file to check permissions
+            env_path.read_text(encoding="utf-8")
+            config["env_file"] = ".env"
+        except (PermissionError, OSError):
+            # File exists but is not readable - skip it
+            # Environment variables from docker-compose.yml will be used instead
+            pass
+    
+    return config
+
+
 class Settings(BaseSettings):
     """Application settings with strict validation."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(**_get_env_file_config())
 
     # Database - stored as string to support special characters in passwords
     # Format validation is done via field_validator

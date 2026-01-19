@@ -60,43 +60,6 @@ docker-compose up --build
 - API Docs: http://localhost:8000/docs
 - Default login: `admin` / (set via `INITIAL_ADMIN_PASSWORD`)
 
-## Remote Access Configuration
-
-To access Inframate from an external domain (e.g., `example.com`), you need to configure:
-
-### 1. Vite Configuration (Frontend)
-
-Edit `frontend/vite.config.js` and add your domain to `server.allowedHosts`:
-
-```javascript
-server: {
-  host: true,
-  port: 3000,
-  allowedHosts: [
-    'your-domain.com',
-    'localhost',
-    '.localhost'
-  ],
-  // ...
-}
-```
-
-### 2. CORS Configuration (Backend)
-
-In your `.env` file or `docker-compose.yml`, configure `ALLOWED_ORIGINS` to include your domain:
-
-```bash
-ALLOWED_ORIGINS=http://your-domain.com,https://your-domain.com,http://localhost:3000
-```
-
-### 3. Restart
-
-After making changes, restart the containers:
-
-```bash
-docker-compose restart frontend backend
-```
-
 ## Environment Variables
 
 | Variable | Required | Description |

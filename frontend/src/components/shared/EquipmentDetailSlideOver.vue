@@ -50,13 +50,13 @@
       </section>
 
       <!-- Location -->
-      <section class="detail-section">
+      <section class="detail-section" data-agent="location-section">
         <h4 class="section-title">
           <i class="pi pi-map-marker"></i>
           {{ t('inventory.location') }}
         </h4>
         <div class="section-content">
-          <div v-if="equipment.location" class="flex items-center gap-2">
+          <div v-if="equipment.location" class="value flex items-center gap-2">
             <span>{{ equipment.location.site }}</span>
             <i v-if="equipment.location.building" class="pi pi-chevron-right text-xs opacity-50"></i>
             <span v-if="equipment.location.building">{{ equipment.location.building }}</span>
@@ -505,6 +505,7 @@ watch(() => [props.modelValue, props.equipmentId], ([isVisible, id]) => {
     loadEquipmentDetails()
   }
 }, { immediate: true })
+
 </script>
 
 <style scoped>

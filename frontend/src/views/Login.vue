@@ -51,9 +51,9 @@
       <div class="login-card">
         <!-- Logo & Header -->
         <div class="text-center mb-8">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 shadow-lg"
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5 shadow-lg overflow-hidden"
                style="background: var(--primary-gradient); box-shadow: 0 8px 32px rgba(14, 165, 233, 0.3);">
-            <i class="pi pi-server text-white text-3xl"></i>
+            <img :src="robotIcon" alt="Inframate" class="logo-icon w-full h-full object-contain" />
           </div>
           <h1 class="text-3xl font-bold tracking-tight" style="color: var(--text-primary);">
             {{ t('auth.loginTitle') }}
@@ -188,6 +188,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import robotIcon from '../assets/robot.svg'
 import { useAuthStore } from '../stores/auth'
 import { useUIStore } from '../stores/ui'
 
@@ -288,6 +289,10 @@ const backToLogin = () => {
 </script>
 
 <style scoped>
+.logo-icon {
+  filter: brightness(0) invert(1);
+}
+
 /* Login Card */
 .login-card {
   background: var(--bg-card);

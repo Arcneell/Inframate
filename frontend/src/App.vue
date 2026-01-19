@@ -6,8 +6,8 @@
       <!-- Logo -->
       <div class="sidebar-header">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: var(--primary-gradient);">
-            <i class="pi pi-server text-white text-lg"></i>
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden" style="background: var(--primary-gradient);">
+            <img :src="robotIcon" alt="Inframate" class="logo-icon w-full h-full object-contain" />
           </div>
           <div>
             <span class="text-white font-bold text-base tracking-tight">Inframate</span>
@@ -224,6 +224,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from './api';
+import robotIcon from './assets/robot.svg';
 import NotificationBell from './components/shared/NotificationBell.vue';
 import CommandBar from './components/shared/CommandBar.vue';
 import RouteLoadingOverlay from './components/shared/RouteLoadingOverlay.vue';
@@ -367,6 +368,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.logo-icon {
+  filter: brightness(0) invert(1);
+}
+
 /* Sidebar Section Title */
 .sidebar-section-title {
   padding: 1.25rem 1.25rem 0.5rem 1.25rem;

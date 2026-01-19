@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Antenne (dégagée du haut) -->
+  <line x1="16" y1="4" x2="16" y2="8" stroke="#0ea5e9" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="16" cy="3.5" r="0.8" fill="#0ea5e9"/>
+  <!-- Tête avec yeux (creux) -->
+  <path fill-rule="evenodd" fill="#0ea5e9" d="M23 13.5 A7 7 0 0 1 9 13.5 A7 7 0 0 1 23 13.5 M13.2 12.5 A1.2 1.2 0 0 1 10.8 12.5 A1.2 1.2 0 0 1 13.2 12.5 M21.2 12.5 A1.2 1.2 0 0 1 18.8 12.5 A1.2 1.2 0 0 1 21.2 12.5"/>
+  <!-- Bouche cartoon (sourire) -->
+  <path d="M11 17 Q16 19 21 17" fill="none" stroke="#0ea5e9" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Corps avec bouton (creux) -->
+  <path fill-rule="evenodd" fill="#0ea5e9" d="M12.5 21 L19.5 21 Q22 21 22 23.5 L22 26.5 Q22 29 19.5 29 L12.5 29 Q10 29 10 26.5 L10 23.5 Q10 21 12.5 21 M17 25 A1 1 0 0 1 15 25 A1 1 0 0 1 17 25"/>
+</svg>

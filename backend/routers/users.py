@@ -36,10 +36,10 @@ def create_user(
     # Validate username
     if not user.username or len(user.username) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
-    if not re.match(r'^[a-zA-Z0-9_]+$', user.username):
+    if not re.match(r'^[a-zA-Z0-9_.]+$', user.username):
         raise HTTPException(
             status_code=400,
-            detail="Username can only contain letters, numbers, and underscores"
+            detail="Username can only contain letters, numbers, underscores, and dots"
         )
 
     # Validate password strength

@@ -419,13 +419,22 @@ const canDeleteUser = (user) => {
   return true;
 };
 
+const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/;
+
+const getApiErrorDetail = (e) => {
+  const d = e.response?.data?.detail;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d) && d.length) return d.map((x) => x.msg || JSON.stringify(x)).join(' ');
+  return t('common.error');
+};
+
 const loadUsers = async () => {
   loading.value = true;
   try {
     const response = await api.get('/users/');
     users.value = response.data;
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: getApiErrorDetail(e) });
   } finally {
     loading.value = false;
   }
@@ -462,6 +471,10 @@ const saveUser = async () => {
       toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.usernameTooShort') });
       return;
     }
+    if (!USERNAME_REGEX.test(userForm.value.username)) {
+      toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.usernameInvalidChars') });
+      return;
+    }
     if (!userForm.value.password || !isPasswordValid.value) {
       toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.passwordTooShort') });
       return;
@@ -491,7 +504,11 @@ const saveUser = async () => {
     } else {
       // Create user
       const createData = {
-        ...userForm.value,
+        username: userForm.value.username.trim(),
+        email: userForm.value.email?.trim() || null,
+        password: userForm.value.password,
+        role: userForm.value.role,
+        is_active: userForm.value.is_active,
         permissions: userForm.value.role === 'tech' ? userForm.value.permissions : []
       };
       await api.post('/users/', createData);
@@ -500,7 +517,7 @@ const saveUser = async () => {
     showUserDialog.value = false;
     await loadUsers();
   } catch (e) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: getApiErrorDetail(e) });
   } finally {
     saving.value = false;
   }
@@ -523,8 +540,7 @@ const deleteUser = async () => {
     userToDelete.value = null;
     await loadUsers();
   } catch (e) {
-    const msg = e?.response?.data?.detail ?? t('common.error');
-    toast.add({ severity: 'error', summary: t('common.error'), detail: String(msg) });
+    toast.add({ severity: 'error', summary: t('common.error'), detail: getApiErrorDetail(e) });
   } finally {
     deleting.value = false;
   }

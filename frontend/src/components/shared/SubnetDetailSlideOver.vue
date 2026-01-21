@@ -128,7 +128,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <span v-if="ip.mac_address" class="font-mono text-xs opacity-50">{{ ip.mac_address }}</span>
+                <span v-if="ip.mac_address" class="font-mono text-xs text-theme-secondary">{{ ip.mac_address }}</span>
                 <Tag :value="ip.status" :severity="getStatusSeverity(ip.status)" />
                 <Button
                   icon="pi pi-trash"

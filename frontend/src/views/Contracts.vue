@@ -118,7 +118,7 @@
                 </div>
                 <div>
                   <h4 class="font-semibold mb-3 text-blue-500">{{ t('contracts.coveredEquipment') }}</h4>
-                  <Button :label="t('contracts.manageEquipment')" icon="pi pi-link" size="small" @click="openEquipmentDialog(slotProps.data)" />
+                  <Button :label="t('contracts.manageEquipment')" icon="pi pi-link" size="small" @click.stop="openEquipmentDialog(slotProps.data)" />
                 </div>
               </div>
             </template>
@@ -289,8 +289,9 @@ const filteredContracts = computed(() => {
 });
 
 const availableEquipment = computed(() => {
-  const linkedIds = contractEquipment.value.map(e => e.id);
-  return equipment.value.filter(e => !linkedIds.includes(e.id));
+  const list = Array.isArray(equipment.value) ? equipment.value : [];
+  const linkedIds = (Array.isArray(contractEquipment.value) ? contractEquipment.value : []).map(e => e.id);
+  return list.filter(e => !linkedIds.includes(e.id));
 });
 
 // Helpers
@@ -336,12 +337,12 @@ const loadData = async () => {
     const [contractsRes, suppliersRes, equipmentRes, alertsRes] = await Promise.all([
       api.get('/contracts/', { params: { active_only: false } }),
       api.get('/inventory/suppliers/'),
-      api.get('/inventory/equipment/'),
+      api.get('/inventory/equipment/', { params: { limit: 500 } }),
       api.get('/contracts/expiring', { params: { days: 30 } })
     ]);
     contracts.value = contractsRes.data;
     suppliers.value = suppliersRes.data;
-    equipment.value = equipmentRes.data;
+    equipment.value = equipmentRes.data?.items ?? [];
     expiringAlerts.value = alertsRes.data;
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || 'Failed to load data' });
@@ -410,9 +411,10 @@ const openEquipmentDialog = async (contract) => {
   selectedEquipmentToLink.value = null;
   try {
     const response = await api.get(`/contracts/${contract.id}/equipment`);
-    contractEquipment.value = response.data.equipment;
+    contractEquipment.value = response.data?.equipment ?? [];
   } catch (e) {
     contractEquipment.value = [];
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   }
   showEquipmentDialog.value = true;
 };

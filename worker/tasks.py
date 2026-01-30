@@ -404,13 +404,9 @@ def run_ssh_with_args(
     remote_ip = equipment.remote_ip
     username = equipment.remote_username
 
-    # Decrypt password if encrypted
+    # NOTE: remote_password uses EncryptedString TypeDecorator which auto-decrypts
+    # when reading from database. Do NOT call decrypt_value() again.
     password = equipment.remote_password
-    try:
-        from backend.core.security import decrypt_value
-        password = decrypt_value(password)
-    except Exception:
-        pass  # Use password as-is if decryption fails
 
     try:
         if not remote_ip or not username:
@@ -505,13 +501,9 @@ def run_winrm_with_args(
         port = equipment.remote_port or 5985
         use_ssl = port == 5986
 
-        # Decrypt password
+        # NOTE: remote_password uses EncryptedString TypeDecorator which auto-decrypts
+        # when reading from database. Do NOT call decrypt_value() again.
         password = equipment.remote_password
-        try:
-            from backend.core.security import decrypt_value
-            password = decrypt_value(password)
-        except Exception:
-            pass
 
         log_event(
             "winrm_connection_start",
@@ -1217,9 +1209,12 @@ def rotate_encryption_key_task(self, old_key: str, new_key: str):
     """
     Rotate encryption keys for sensitive fields without downtime.
     Decrypt with old_key (Fernet) and re-encrypt with new_key.
+
+    IMPORTANT: Uses raw SQL to bypass EncryptedString TypeDecorator which would
+    auto-decrypt/encrypt values. We need direct access to raw encrypted data.
     """
     from backend.core.database import SessionLocal
-    from backend.models import User, Equipment
+    from sqlalchemy import text
 
     db: Session = SessionLocal()
     updated_users = 0
@@ -1230,23 +1225,46 @@ def rotate_encryption_key_task(self, old_key: str, new_key: str):
         old_fernet = Fernet(old_key)
         new_fernet = Fernet(new_key)
 
-        users = db.query(User).filter(User.totp_secret.isnot(None)).all()
-        for user in users:
-            try:
-                decrypted = old_fernet.decrypt(user.totp_secret.encode()).decode()
-                user.totp_secret = new_fernet.encrypt(decrypted.encode()).decode()
-                updated_users += 1
-            except Exception as e:
-                errors.append(f"user:{user.id}:{type(e).__name__}")
+        # Use raw SQL to bypass EncryptedString TypeDecorator
+        # Get users with encrypted totp_secret
+        users_result = db.execute(
+            text("SELECT id, totp_secret FROM users WHERE totp_secret IS NOT NULL")
+        ).fetchall()
 
-        equipments = db.query(Equipment).filter(Equipment.remote_password.isnot(None)).all()
-        for equipment in equipments:
+        for row in users_result:
+            user_id, encrypted_totp = row
             try:
-                decrypted = old_fernet.decrypt(equipment.remote_password.encode()).decode()
-                equipment.remote_password = new_fernet.encrypt(decrypted.encode()).decode()
-                updated_equipment += 1
+                # Only process if it looks like a Fernet token
+                if encrypted_totp and encrypted_totp.startswith('gAAAA'):
+                    decrypted = old_fernet.decrypt(encrypted_totp.encode()).decode()
+                    new_encrypted = new_fernet.encrypt(decrypted.encode()).decode()
+                    db.execute(
+                        text("UPDATE users SET totp_secret = :secret WHERE id = :id"),
+                        {"secret": new_encrypted, "id": user_id}
+                    )
+                    updated_users += 1
             except Exception as e:
-                errors.append(f"equipment:{equipment.id}:{type(e).__name__}")
+                errors.append(f"user:{user_id}:{type(e).__name__}")
+
+        # Get equipment with encrypted remote_password
+        equipment_result = db.execute(
+            text("SELECT id, remote_password FROM equipment WHERE remote_password IS NOT NULL")
+        ).fetchall()
+
+        for row in equipment_result:
+            equipment_id, encrypted_password = row
+            try:
+                # Only process if it looks like a Fernet token
+                if encrypted_password and encrypted_password.startswith('gAAAA'):
+                    decrypted = old_fernet.decrypt(encrypted_password.encode()).decode()
+                    new_encrypted = new_fernet.encrypt(decrypted.encode()).decode()
+                    db.execute(
+                        text("UPDATE equipment SET remote_password = :password WHERE id = :id"),
+                        {"password": new_encrypted, "id": equipment_id}
+                    )
+                    updated_equipment += 1
+            except Exception as e:
+                errors.append(f"equipment:{equipment_id}:{type(e).__name__}")
 
         db.commit()
 
@@ -1408,12 +1426,9 @@ def collect_software_inventory_task(self, equipment_id: int):
 def _collect_via_ssh(equipment, command: str) -> Tuple[int, str, str]:
     """Execute collection command via SSH."""
     try:
-        from backend.core.security import decrypt_value
+        # NOTE: remote_password uses EncryptedString TypeDecorator which auto-decrypts
+        # when reading from database. Do NOT call decrypt_value() again.
         password = equipment.remote_password
-        try:
-            password = decrypt_value(password)
-        except Exception:
-            pass
 
         client = _get_ssh_client(
             equipment.remote_ip,
@@ -1437,12 +1452,9 @@ def _collect_via_ssh(equipment, command: str) -> Tuple[int, str, str]:
 def _collect_via_winrm(equipment, command: str) -> Tuple[int, str, str]:
     """Execute collection command via WinRM."""
     try:
-        from backend.core.security import decrypt_value
+        # NOTE: remote_password uses EncryptedString TypeDecorator which auto-decrypts
+        # when reading from database. Do NOT call decrypt_value() again.
         password = equipment.remote_password
-        try:
-            password = decrypt_value(password)
-        except Exception:
-            pass
 
         port = equipment.remote_port or 5985
         use_ssl = port == 5986

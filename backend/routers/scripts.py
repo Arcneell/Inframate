@@ -336,7 +336,8 @@ def list_executions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    """List script executions."""
+    """List script executions (superadmin only)."""
+    check_scripts_permission(current_user)
     return db.query(models.ScriptExecution).order_by(
         models.ScriptExecution.started_at.desc()
     ).offset(skip).limit(limit).all()

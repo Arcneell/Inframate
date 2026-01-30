@@ -51,8 +51,8 @@ def list_audit_logs(
     - limit: Maximum number of results (default: 100, max: 500)
     - offset: Pagination offset
     """
-    # Only admins can access audit logs
-    if current_user.role != "admin":
+    # Only admins and superadmins can access audit logs
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can access audit logs"
@@ -62,8 +62,8 @@ def list_audit_logs(
     if limit > 500:
         limit = 500
 
-    # Regular users see only their entity's logs, admins see all
-    entity_filter = None if current_user.role == "admin" else current_user.entity_id
+    # Superadmin and admin without entity see all logs, others see their entity's logs
+    entity_filter = None if current_user.role in ("admin", "superadmin") and not current_user.entity_id else current_user.entity_id
 
     logs = get_audit_logs(
         db=db,
@@ -86,7 +86,7 @@ def get_audit_stats(
     Get audit log statistics (admin only).
     Returns counts by action type and resource type.
     """
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can access audit statistics"

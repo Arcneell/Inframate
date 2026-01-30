@@ -126,8 +126,8 @@ def export_tickets(
         joinedload(models.Ticket.equipment)
     )
 
-    # Access control
-    if current_user.role != "admin":
+    # Access control - tech, admin, and superadmin can see all tickets in their entity
+    if current_user.role not in ("tech", "admin", "superadmin"):
         query = query.filter(models.Ticket.requester_id == current_user.id)
     elif current_user.entity_id:
         query = query.filter(models.Ticket.entity_id == current_user.entity_id)

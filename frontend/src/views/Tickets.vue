@@ -163,53 +163,55 @@
     <ModalPanel v-model="showTicketDialog"
                 :title="editingTicket ? t('tickets.editTicket') : t('tickets.newTicket')"
                 icon="pi-ticket"
-                size="lg">
-      <div class="create-form">
-        <!-- Title -->
-        <label class="field-label">{{ t('tickets.ticketTitle') }} <span class="required">*</span></label>
-        <InputText v-model="ticketForm.title" class="w-full" />
-
-        <!-- Description -->
-        <label class="field-label">{{ t('tickets.description') }} <span class="required">*</span></label>
-        <Textarea v-model="ticketForm.description" rows="4" class="w-full" />
-
-        <!-- Two columns -->
-        <div class="form-row">
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.ticketType') }}</label>
-            <Dropdown v-model="ticketForm.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value" class="w-full" />
+                size="xl">
+      <div class="detail-content">
+        <!-- Info Grid with dropdowns -->
+        <div class="detail-info-grid detail-info-grid--form">
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.ticketType') }}</span>
+            <Dropdown v-model="ticketForm.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value" class="info-dropdown" />
           </div>
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.category') }}</label>
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.category') }}</span>
             <Dropdown v-model="ticketForm.category" :options="categoryOptions" optionLabel="label" optionValue="value"
-                      class="w-full" showClear :placeholder="t('common.select')" />
+                      showClear :placeholder="t('common.select')" class="info-dropdown" />
           </div>
-        </div>
-
-        <!-- Priority & Assignee (Tech/Admin only) -->
-        <div v-if="canManageTickets" class="form-row">
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.ticketPriority') }}</label>
-            <Dropdown v-model="ticketForm.priority" :options="priorityOptions" optionLabel="label" optionValue="value" class="w-full" />
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.impact') }}</span>
+            <Dropdown v-model="ticketForm.impact" :options="impactOptions" optionLabel="label" optionValue="value" class="info-dropdown" />
           </div>
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.assignTo') }}</label>
+          <div v-if="canManageTickets" class="info-item">
+            <span class="info-label">{{ t('tickets.ticketPriority') }}</span>
+            <Dropdown v-model="ticketForm.priority" :options="priorityOptions" optionLabel="label" optionValue="value" class="info-dropdown" />
+          </div>
+          <div v-if="canManageTickets" class="info-item">
+            <span class="info-label">{{ t('tickets.assignTo') }}</span>
             <Dropdown v-model="ticketForm.assigned_to_id" :options="users" optionLabel="username" optionValue="id"
-                      class="w-full" showClear :placeholder="t('tickets.selectUser')" />
+                      showClear :placeholder="t('tickets.selectUser')" class="info-dropdown" />
+          </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.relatedEquipment') }}</span>
+            <Dropdown v-model="ticketForm.equipment_id" :options="equipment" optionLabel="name" optionValue="id"
+                      showClear :placeholder="t('tickets.selectEquipment')" filter class="info-dropdown" />
           </div>
         </div>
 
-        <!-- Equipment & Impact -->
-        <div class="form-row">
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.relatedEquipment') }}</label>
-            <Dropdown v-model="ticketForm.equipment_id" :options="equipment" optionLabel="name" optionValue="id"
-                      class="w-full" showClear :placeholder="t('tickets.selectEquipment')" filter />
-          </div>
-          <div class="form-col">
-            <label class="field-label">{{ t('tickets.impact') }}</label>
-            <Dropdown v-model="ticketForm.impact" :options="impactOptions" optionLabel="label" optionValue="value" class="w-full" />
-          </div>
+        <!-- Title Section -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-tag"></i>
+            {{ t('tickets.ticketTitle') }} <span class="required">*</span>
+          </h4>
+          <InputText v-model="ticketForm.title" :placeholder="t('tickets.ticketTitlePlaceholder')" class="form-input-full" />
+        </div>
+
+        <!-- Description Section -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-align-left"></i>
+            {{ t('tickets.description') }} <span class="required">*</span>
+          </h4>
+          <Textarea v-model="ticketForm.description" rows="5" :placeholder="t('tickets.descriptionPlaceholder')" class="form-input-full" />
         </div>
       </div>
 
@@ -1384,14 +1386,16 @@ onUnmounted(() => {
   background: transparent !important;
 }
 
-/* Clear icon - positioned absolutely after arrow */
+/* Clear icon - aligned with arrow */
 .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon) {
   position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 0.5rem;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  height: fit-content;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
@@ -1752,6 +1756,108 @@ onUnmounted(() => {
 .form-col {
   display: flex;
   flex-direction: column;
+}
+
+/* ==================== Create Form (reuses detail styles) ==================== */
+.detail-info-grid--form {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .detail-info-grid--form {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Form dropdown in info grid - transparent style */
+.info-dropdown.p-dropdown,
+.info-item :deep(.info-dropdown) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+}
+
+.info-item :deep(.info-dropdown.p-focus),
+.info-item :deep(.info-dropdown:hover) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.info-item :deep(.info-dropdown .p-dropdown-label) {
+  padding: 0.25rem 3rem 0.25rem 0.75rem !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-item :deep(.info-dropdown .p-dropdown-label.p-placeholder) {
+  color: var(--text-secondary);
+}
+
+.info-item :deep(.info-dropdown .p-dropdown-trigger) {
+  position: absolute;
+  right: 1.25rem;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  height: fit-content;
+  width: auto;
+  color: var(--text-muted);
+  background: transparent !important;
+}
+
+.info-item :deep(.info-dropdown .p-dropdown-clear-icon) {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  height: fit-content;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.info-item :deep(.info-dropdown .p-dropdown-clear-icon:hover) {
+  color: var(--primary);
+}
+
+/* Full width form inputs */
+.form-input-full.p-inputtext,
+.form-input-full.p-textarea {
+  width: 100%;
+  background: var(--bg-secondary) !important;
+  border: none !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 1rem !important;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.form-input-full.p-inputtext:focus,
+.form-input-full.p-textarea:focus {
+  box-shadow: 0 0 0 2px var(--ring-color) !important;
+}
+
+.form-input-full.p-inputtext::placeholder,
+.form-input-full.p-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.section-title .required {
+  color: #ef4444;
+  font-weight: normal;
 }
 
 .modal-footer-actions {

@@ -488,10 +488,14 @@ async def setup_mfa(
     }
 
 
+class MFAEnableWithSecretRequest(BaseModel):
+    secret: str
+    code: str
+
+
 @router.post("/mfa/enable-with-secret")
 async def enable_mfa_with_secret(
-    secret: str,
-    code: str,
+    mfa_request: MFAEnableWithSecretRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -508,7 +512,7 @@ async def enable_mfa_with_secret(
         )
 
     # Verify the code against the secret
-    if not verify_totp_code(secret, code):
+    if not verify_totp_code(mfa_request.secret, mfa_request.code):
         logger.warning(f"Failed MFA enable attempt for user: {current_user.username}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -516,7 +520,7 @@ async def enable_mfa_with_secret(
         )
 
     # Store the secret (auto-encrypted by SQLAlchemy hook)
-    current_user.totp_secret = secret
+    current_user.totp_secret = mfa_request.secret
     current_user.mfa_enabled = True
     db.commit()
 

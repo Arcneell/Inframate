@@ -1491,7 +1491,7 @@ def create_ticket_from_template(
     db.refresh(ticket)
 
     # Add creation history
-    add_ticket_history(db, ticket.id, current_user.id, "created", extra=f"from template: {template.name}")
+    add_ticket_history(db, ticket.id, current_user.id, "created", field_name="template", new_value=template.name)
     db.commit()
 
     logger.info(f"Ticket {ticket.ticket_number} created from template '{template.name}' by {current_user.username}")

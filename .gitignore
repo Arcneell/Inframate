@@ -52,3 +52,4 @@ secrets/
 # Project specific
 scripts_storage/*.log
 .gemini/
+CLAUDE.md

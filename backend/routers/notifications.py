@@ -190,7 +190,7 @@ def create_notification(
     current_user: models.User = Depends(get_current_user)
 ):
     """Create a notification (admin or system use)."""
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
     # Verify target user exists
@@ -227,7 +227,7 @@ def broadcast_notification(
     current_user: models.User = Depends(get_current_user)
 ):
     """Send notification to all active users (admin only)."""
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Admin access required")
 
     users = db.query(models.User).filter(models.User.is_active == True).all()

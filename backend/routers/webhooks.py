@@ -16,6 +16,7 @@ import httpx
 import json
 import logging
 import time
+import asyncio
 
 from backend.core.database import get_db
 from backend.core.security import get_current_admin_user
@@ -170,7 +171,6 @@ async def deliver_webhook(
     Deliver a webhook payload to the configured URL.
     Handles retries and logs delivery attempts.
     """
-    import httpx
 
     headers = {
         "Content-Type": webhook.content_type,
@@ -265,7 +265,6 @@ async def trigger_webhooks(
     """
     Trigger all active webhooks subscribed to an event.
     """
-    import asyncio
 
     # Find active webhooks subscribed to this event
     query = db.query(models.Webhook).filter(

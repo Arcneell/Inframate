@@ -831,7 +831,13 @@ onMounted(() => {
 }
 
 .stat-card {
-  @apply card p-4 flex flex-col items-center text-center cursor-pointer transition-all hover:scale-105 hover:border-blue-500/50;
+  @apply p-4 flex flex-col items-center text-center cursor-pointer transition-all hover:scale-105 hover:border-blue-500/50;
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
 }
 
 .stat-icon {

@@ -786,7 +786,13 @@ a:hover {
 
 /* === Stat Card === */
 .stat-card {
-    @apply card flex flex-col items-center text-center cursor-pointer p-5;
+    @apply flex flex-col items-center text-center cursor-pointer p-5;
+    background: var(--bg-card);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
     position: relative;
     overflow: hidden;
 }

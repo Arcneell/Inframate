@@ -143,9 +143,9 @@ export const useInventoryStore = defineStore('inventory', () => {
     error.value = null
     try {
       const response = await api.get('/inventory/equipment/')
-      equipment.value = response.data
+      equipment.value = response.data.items || response.data
       cacheTimestamps.value.equipment = Date.now()
-      return response.data
+      return equipment.value
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to fetch equipment'
       throw err

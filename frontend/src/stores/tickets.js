@@ -66,7 +66,7 @@ export const useTicketsStore = defineStore('tickets', () => {
       if (options.limit) params.append('limit', options.limit)
 
       const response = await api.get(`/tickets/?${params}`)
-      tickets.value = response.data
+      tickets.value = response.data.items || response.data
       return response.data
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to fetch tickets'

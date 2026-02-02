@@ -36,11 +36,9 @@ def can_manage_tickets(user: models.User) -> bool:
     return user.role in ("tech", "admin", "superadmin")
 
 
-def generate_ticket_number() -> str:
-    """Generate unique ticket number: TKT-YYYYMMDD-XXXX"""
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
-    unique_id = uuid.uuid4().hex[:4].upper()
-    return f"TKT-{today}-{unique_id}"
+# NOTE: generate_ticket_number() function removed - ticket numbers are now
+# generated exclusively by the SQLAlchemy before_insert hook in models.py
+# to ensure atomicity and proper sequential numbering.
 
 
 def calculate_sla_times(ticket: models.Ticket, db: Session) -> dict:
@@ -668,6 +666,26 @@ def add_comment(
     if not ticket.first_response_at and current_user.id != ticket.requester_id:
         ticket.first_response_at = datetime.now(timezone.utc)
 
+    # Auto-assign ticket to technician if ticket is "new" and unassigned
+    # This happens when a tech adds the first comment
+    auto_assigned = False
+    if (ticket.status == "new" and
+        ticket.assigned_to_id is None and
+        can_manage_tickets(current_user) and
+        current_user.id != ticket.requester_id):
+
+        ticket.assigned_to_id = current_user.id
+        ticket.status = "open"
+        auto_assigned = True
+
+        add_ticket_history(
+            db, ticket_id, current_user.id, "auto_assigned",
+            field_name="assigned_to_id",
+            old_value=None,
+            new_value=str(current_user.id)
+        )
+        logger.info(f"Ticket {ticket.ticket_number} auto-assigned to {current_user.username}")
+
     # Add history entry
     add_ticket_history(db, ticket_id, current_user.id, "commented")
 
@@ -863,10 +881,16 @@ def resolve_ticket(
 @router.post("/{ticket_id}/close")
 def close_ticket(
     ticket_id: int,
+    resolution: Optional[str] = None,
+    resolution_code: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Close a resolved ticket. Requires tech, admin or superadmin role."""
+    """Close a ticket. Requires tech, admin or superadmin role.
+
+    Can close tickets in open, pending, resolved or closed status.
+    Optionally provide a resolution note and code when closing without resolving first.
+    """
     # Permission check: only tech, admin, superadmin can close tickets
     if not can_manage_tickets(current_user):
         raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can close tickets")
@@ -875,8 +899,14 @@ def close_ticket(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    if ticket.status not in ["resolved", "closed"]:
-        raise HTTPException(status_code=400, detail="Only resolved tickets can be closed")
+    if ticket.status not in ["open", "pending", "resolved", "closed"]:
+        raise HTTPException(status_code=400, detail="Cannot close a ticket in 'new' status. Assign or open it first.")
+
+    # If resolution provided and ticket wasn't already resolved, set it
+    if resolution and not ticket.resolution:
+        ticket.resolution = resolution
+    if resolution_code and not ticket.resolution_code:
+        ticket.resolution_code = resolution_code
 
     ticket.status = "closed"
     ticket.closed_at = datetime.now(timezone.utc)
@@ -1505,3 +1535,385 @@ def create_ticket_from_template(
 
     logger.info(f"Ticket {ticket.ticket_number} created from template '{template.name}' by {current_user.username}")
     return ticket
+
+
+# ==================== TICKET RELATIONS ====================
+
+@router.get("/{ticket_id}/relations", response_model=List[schemas.TicketRelationFull])
+def get_ticket_relations(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get all relations for a ticket (both as source and target)."""
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # Get relations where this ticket is the source
+    from_relations = db.query(models.TicketRelation).options(
+        joinedload(models.TicketRelation.target_ticket),
+        joinedload(models.TicketRelation.created_by)
+    ).filter(models.TicketRelation.source_ticket_id == ticket_id).all()
+
+    # Get relations where this ticket is the target
+    to_relations = db.query(models.TicketRelation).options(
+        joinedload(models.TicketRelation.source_ticket),
+        joinedload(models.TicketRelation.created_by)
+    ).filter(models.TicketRelation.target_ticket_id == ticket_id).all()
+
+    result = []
+
+    for r in from_relations:
+        result.append(schemas.TicketRelationFull(
+            id=r.id,
+            source_ticket_id=r.source_ticket_id,
+            target_ticket_id=r.target_ticket_id,
+            relation_type=r.relation_type,
+            notes=r.notes,
+            created_by_id=r.created_by_id,
+            created_at=r.created_at,
+            source_ticket_number=ticket.ticket_number,
+            source_ticket_title=ticket.title,
+            target_ticket_number=r.target_ticket.ticket_number if r.target_ticket else None,
+            target_ticket_title=r.target_ticket.title if r.target_ticket else None,
+            target_ticket_status=r.target_ticket.status if r.target_ticket else None,
+            created_by_name=r.created_by.username if r.created_by else None
+        ))
+
+    for r in to_relations:
+        # Inverse relation type for display (e.g., "blocked_by" becomes "blocks")
+        inverse_type = {
+            "duplicate_of": "has_duplicate",
+            "child_of": "parent_of",
+            "blocked_by": "blocks",
+            "related_to": "related_to"
+        }.get(r.relation_type, r.relation_type)
+
+        result.append(schemas.TicketRelationFull(
+            id=r.id,
+            source_ticket_id=r.source_ticket_id,
+            target_ticket_id=r.target_ticket_id,
+            relation_type=inverse_type,
+            notes=r.notes,
+            created_by_id=r.created_by_id,
+            created_at=r.created_at,
+            source_ticket_number=r.source_ticket.ticket_number if r.source_ticket else None,
+            source_ticket_title=r.source_ticket.title if r.source_ticket else None,
+            target_ticket_number=ticket.ticket_number,
+            target_ticket_title=ticket.title,
+            target_ticket_status=ticket.status,
+            created_by_name=r.created_by.username if r.created_by else None
+        ))
+
+    return result
+
+
+@router.post("/{ticket_id}/relations", response_model=schemas.TicketRelation)
+def create_ticket_relation(
+    ticket_id: int,
+    relation_data: schemas.TicketRelationCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Create a relation between two tickets. Requires tech, admin or superadmin role."""
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    # Validate source ticket
+    source_ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not source_ticket:
+        raise HTTPException(status_code=404, detail="Source ticket not found")
+
+    # Validate target ticket
+    target_ticket = db.query(models.Ticket).filter(models.Ticket.id == relation_data.target_ticket_id).first()
+    if not target_ticket:
+        raise HTTPException(status_code=404, detail="Target ticket not found")
+
+    # Prevent self-relation
+    if ticket_id == relation_data.target_ticket_id:
+        raise HTTPException(status_code=400, detail="Cannot create relation to self")
+
+    # Validate relation type
+    valid_types = ["duplicate_of", "child_of", "blocked_by", "related_to"]
+    if relation_data.relation_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Invalid relation type. Must be one of: {valid_types}")
+
+    # Check for existing relation
+    existing = db.query(models.TicketRelation).filter(
+        models.TicketRelation.source_ticket_id == ticket_id,
+        models.TicketRelation.target_ticket_id == relation_data.target_ticket_id,
+        models.TicketRelation.relation_type == relation_data.relation_type
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="This relation already exists")
+
+    # Create relation
+    relation = models.TicketRelation(
+        source_ticket_id=ticket_id,
+        target_ticket_id=relation_data.target_ticket_id,
+        relation_type=relation_data.relation_type,
+        notes=relation_data.notes,
+        created_by_id=current_user.id
+    )
+    db.add(relation)
+
+    # Add history entry
+    add_ticket_history(
+        db, ticket_id, current_user.id, "relation_added",
+        field_name="relation",
+        new_value=f"{relation_data.relation_type} -> {target_ticket.ticket_number}"
+    )
+
+    db.commit()
+    db.refresh(relation)
+
+    logger.info(f"Ticket relation created: {source_ticket.ticket_number} {relation_data.relation_type} {target_ticket.ticket_number}")
+    return relation
+
+
+@router.delete("/relations/{relation_id}")
+def delete_ticket_relation(
+    relation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete a ticket relation. Requires tech, admin or superadmin role."""
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    relation = db.query(models.TicketRelation).filter(models.TicketRelation.id == relation_id).first()
+    if not relation:
+        raise HTTPException(status_code=404, detail="Relation not found")
+
+    source_id = relation.source_ticket_id
+    db.delete(relation)
+
+    # Add history entry
+    add_ticket_history(db, source_id, current_user.id, "relation_removed")
+
+    db.commit()
+    return {"message": "Relation deleted"}
+
+
+# ==================== TICKET TIME TRACKING ====================
+
+@router.get("/{ticket_id}/time-entries", response_model=List[schemas.TicketTimeEntryFull])
+def get_ticket_time_entries(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get all time entries for a ticket."""
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    entries = db.query(models.TicketTimeEntry).options(
+        joinedload(models.TicketTimeEntry.user)
+    ).filter(
+        models.TicketTimeEntry.ticket_id == ticket_id
+    ).order_by(models.TicketTimeEntry.work_date.desc()).all()
+
+    return [
+        schemas.TicketTimeEntryFull(
+            id=e.id,
+            ticket_id=e.ticket_id,
+            user_id=e.user_id,
+            minutes=e.minutes,
+            description=e.description,
+            work_date=e.work_date,
+            entry_type=e.entry_type,
+            is_billable=e.is_billable,
+            hourly_rate=float(e.hourly_rate) if e.hourly_rate else None,
+            created_at=e.created_at,
+            updated_at=e.updated_at,
+            username=e.user.username if e.user else None,
+            user_avatar=e.user.avatar if e.user else None
+        ) for e in entries
+    ]
+
+
+@router.get("/{ticket_id}/time-stats", response_model=schemas.TicketTimeStats)
+def get_ticket_time_stats(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get time statistics for a ticket."""
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    entries = db.query(models.TicketTimeEntry).options(
+        joinedload(models.TicketTimeEntry.user)
+    ).filter(models.TicketTimeEntry.ticket_id == ticket_id).all()
+
+    total_minutes = sum(e.minutes for e in entries)
+    billable_minutes = sum(e.minutes for e in entries if e.is_billable)
+
+    by_user = {}
+    by_type = {}
+
+    for e in entries:
+        username = e.user.username if e.user else "Unknown"
+        by_user[username] = by_user.get(username, 0) + e.minutes
+        by_type[e.entry_type] = by_type.get(e.entry_type, 0) + e.minutes
+
+    return schemas.TicketTimeStats(
+        total_minutes=total_minutes,
+        total_hours=round(total_minutes / 60, 2),
+        billable_minutes=billable_minutes,
+        non_billable_minutes=total_minutes - billable_minutes,
+        entries_count=len(entries),
+        by_user=by_user,
+        by_type=by_type
+    )
+
+
+@router.post("/{ticket_id}/time-entries", response_model=schemas.TicketTimeEntry)
+def create_time_entry(
+    ticket_id: int,
+    entry_data: schemas.TicketTimeEntryCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Add a time entry to a ticket. Requires tech, admin or superadmin role."""
+    if not can_manage_tickets(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    entry = models.TicketTimeEntry(
+        ticket_id=ticket_id,
+        user_id=current_user.id,
+        minutes=entry_data.minutes,
+        description=entry_data.description,
+        work_date=entry_data.work_date or datetime.now(timezone.utc),
+        entry_type=entry_data.entry_type,
+        is_billable=entry_data.is_billable,
+        hourly_rate=entry_data.hourly_rate
+    )
+    db.add(entry)
+
+    # Add history entry
+    hours = entry_data.minutes / 60
+    add_ticket_history(
+        db, ticket_id, current_user.id, "time_logged",
+        new_value=f"{hours:.1f}h ({entry_data.entry_type})"
+    )
+
+    db.commit()
+    db.refresh(entry)
+
+    logger.info(f"Time entry added to ticket {ticket.ticket_number}: {entry_data.minutes} minutes by {current_user.username}")
+    return entry
+
+
+@router.put("/time-entries/{entry_id}", response_model=schemas.TicketTimeEntry)
+def update_time_entry(
+    entry_id: int,
+    entry_data: schemas.TicketTimeEntryUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Update a time entry. Users can only update their own entries (unless admin)."""
+    entry = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+
+    # Permission check: own entries or admin
+    if entry.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Can only update own time entries")
+
+    # Update fields
+    update_data = entry_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(entry, field, value)
+
+    db.commit()
+    db.refresh(entry)
+
+    return entry
+
+
+@router.delete("/time-entries/{entry_id}")
+def delete_time_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete a time entry. Users can only delete their own entries (unless admin)."""
+    entry = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+
+    # Permission check: own entries or admin
+    if entry.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Can only delete own time entries")
+
+    ticket_id = entry.ticket_id
+    db.delete(entry)
+
+    # Add history entry
+    add_ticket_history(db, ticket_id, current_user.id, "time_removed")
+
+    db.commit()
+    return {"message": "Time entry deleted"}
+
+
+# ==================== CUSTOMER SATISFACTION (CSAT) ====================
+
+@router.post("/{ticket_id}/rating", response_model=schemas.TicketRatingResponse)
+def submit_ticket_rating(
+    ticket_id: int,
+    rating_data: schemas.TicketRatingCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Submit a customer satisfaction rating for a closed/resolved ticket.
+    Only the ticket requester can submit a rating.
+    """
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # Only requester can rate
+    if ticket.requester_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the ticket requester can submit a rating")
+
+    # Only closed/resolved tickets can be rated
+    if ticket.status not in ("resolved", "closed"):
+        raise HTTPException(status_code=400, detail="Can only rate resolved or closed tickets")
+
+    # Check if already rated
+    if ticket.rating is not None:
+        raise HTTPException(status_code=400, detail="This ticket has already been rated")
+
+    # Submit rating
+    ticket.rating = rating_data.rating
+    ticket.rating_comment = rating_data.rating_comment
+    ticket.rating_submitted_at = datetime.now(timezone.utc)
+
+    # Add history entry
+    add_ticket_history(
+        db, ticket_id, current_user.id, "rated",
+        new_value=f"{rating_data.rating}/5"
+    )
+
+    db.commit()
+    db.refresh(ticket)
+
+    logger.info(f"Ticket {ticket.ticket_number} rated {rating_data.rating}/5 by {current_user.username}")
+
+    return schemas.TicketRatingResponse(
+        ticket_id=ticket.id,
+        ticket_number=ticket.ticket_number,
+        rating=ticket.rating,
+        rating_comment=ticket.rating_comment,
+        rating_submitted_at=ticket.rating_submitted_at
+    )

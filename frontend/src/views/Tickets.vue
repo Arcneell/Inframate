@@ -96,7 +96,15 @@
       <div v-else class="tickets-list">
         <!-- Table Header -->
         <div class="tickets-header">
-          <div v-if="canManageTickets" class="header-checkbox"></div>
+          <div v-if="canManageTickets" class="header-checkbox" @click.stop>
+            <Checkbox
+              :modelValue="allPageTicketsSelected"
+              :binary="true"
+              @update:modelValue="toggleSelectAllPage"
+              :indeterminate="somePageTicketsSelected"
+              v-tooltip.top="allPageTicketsSelected ? t('common.deselectAll') : t('common.selectAllOnPage')"
+            />
+          </div>
           <span class="header-col header-col--sortable" @click="toggleSort('ticket_number')">
             {{ t('tickets.ticketNumber') }}
             <i v-if="sortField === 'ticket_number'" :class="['pi', sortOrder === -1 ? 'pi-sort-amount-down' : 'pi-sort-amount-up']"></i>
@@ -154,8 +162,15 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="tickets.length > 0" class="pagination">
-        <Paginator :rows="ticketsRows" :totalRecords="ticketsTotal" :first="ticketsFirst" @page="onTicketsPage" />
+      <div v-if="ticketsTotal > 0" class="pagination">
+        <Paginator
+          :rows="ticketsRows"
+          :totalRecords="ticketsTotal"
+          :first="ticketsFirst"
+          :rowsPerPageOptions="[10, 15, 25, 50]"
+          @page="onTicketsPage"
+          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+        />
       </div>
     </div>
 
@@ -205,13 +220,35 @@
           <InputText v-model="ticketForm.title" :placeholder="t('tickets.ticketTitlePlaceholder')" class="form-input-full" />
         </div>
 
-        <!-- Description Section -->
+        <!-- Description Section with Rich Text Editor -->
         <div class="detail-section">
           <h4 class="section-title">
             <i class="pi pi-align-left"></i>
             {{ t('tickets.description') }} <span class="required">*</span>
           </h4>
-          <Textarea v-model="ticketForm.description" rows="5" :placeholder="t('tickets.descriptionPlaceholder')" class="form-input-full" />
+          <RichTextEditor
+            v-model="ticketForm.description"
+            :placeholder="t('tickets.descriptionPlaceholder')"
+            :max-length="50000"
+            min-height="150px"
+            @image-upload="handleDescriptionImageUpload"
+          />
+        </div>
+
+        <!-- Attachments Section with Drag & Drop -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-paperclip"></i>
+            {{ t('tickets.attachments') }}
+          </h4>
+          <FileDropZone
+            v-model="ticketAttachments"
+            :multiple="true"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
+            :max-size="10485760"
+            :max-files="5"
+            @error="handleAttachmentError"
+          />
         </div>
       </div>
 
@@ -290,48 +327,75 @@
           <div class="resolution-box">{{ currentTicket.resolution }}</div>
         </div>
 
-        <!-- Comments -->
+        <!-- Conversation -->
         <div class="detail-section">
           <h4 class="section-title">
             <i class="pi pi-comments"></i>
-            {{ t('tickets.comments') }} ({{ currentTicket.comments?.length || 0 }})
+            {{ t('tickets.conversation') }} ({{ currentTicket.comments?.length || 0 }})
           </h4>
-          <div class="comments-list">
-            <template v-for="comment in currentTicket.comments" :key="comment.id">
+          <div class="conversation-container">
+            <template v-for="comment in sortedComments" :key="comment.id">
               <div v-if="canManageTickets || !comment.is_internal"
-                   class="comment-item" :class="{ 'comment-item--internal': comment.is_internal }">
-                <div class="comment-avatar">
+                   class="message"
+                   :class="{
+                     'message--requester': isRequesterComment(comment),
+                     'message--tech': !isRequesterComment(comment),
+                     'message--internal': comment.is_internal
+                   }">
+                <div class="message-avatar">
                   <img v-if="comment.user_avatar" :src="`/api/v1/avatars/${comment.user_avatar}`" alt="">
                   <span v-else>{{ getInitials(comment.username) }}</span>
                 </div>
-                <div class="comment-content">
-                  <div class="comment-header">
-                    <span class="comment-author">{{ comment.username || 'System' }}</span>
-                    <span class="comment-time">{{ formatDateTime(comment.created_at) }}</span>
+                <div class="message-bubble">
+                  <div class="message-header">
+                    <span class="message-author">{{ comment.username || 'System' }}</span>
+                    <Tag v-if="comment.is_internal" :value="t('tickets.internalNote')" severity="warning" class="message-tag" />
+                    <span class="message-time">{{ formatDateTime(comment.created_at) }}</span>
                   </div>
-                  <p class="comment-text">{{ comment.content }}</p>
-                  <Tag v-if="comment.is_internal" value="Internal" severity="warning" class="mt-2" />
+                  <div class="message-content" v-html="sanitizeHtml(comment.content)"></div>
                 </div>
               </div>
             </template>
-            <div v-if="!currentTicket.comments?.length" class="comments-empty">
+            <div v-if="!currentTicket.comments?.length" class="conversation-empty">
               <i class="pi pi-comments"></i>
               <span>{{ t('tickets.noComments') }}</span>
+              <p>{{ t('tickets.startConversation') }}</p>
             </div>
           </div>
 
-          <!-- Add Comment -->
-          <div class="add-comment">
-            <Textarea v-model="newComment" :placeholder="t('tickets.addComment')" rows="2" class="w-full" />
-            <div class="add-comment-actions">
-              <div v-if="canManageTickets" class="internal-checkbox">
-                <Checkbox v-model="commentInternal" :binary="true" inputId="internal" />
-                <label for="internal">{{ t('tickets.internalNote') }}</label>
-              </div>
-              <div v-else></div>
-              <Button :label="t('tickets.postComment')" icon="pi pi-send" size="small"
-                      @click="postComment" :disabled="!newComment.trim()" />
+          <!-- Add Reply -->
+          <div class="reply-section">
+            <!-- Ticket closed/resolved - show reopen message -->
+            <div v-if="currentTicket.status === 'resolved' || currentTicket.status === 'closed'" class="reply-closed">
+              <i class="pi pi-lock"></i>
+              <span>{{ t('tickets.replyClosed') }}</span>
+              <Button v-if="canManageTickets" :label="t('tickets.reopen')" icon="pi pi-refresh" size="small" severity="secondary" outlined @click="reopenCurrentTicket" />
             </div>
+            <!-- Normal reply form -->
+            <template v-else>
+              <div class="reply-header">
+                <i class="pi pi-reply"></i>
+                <span>{{ t('tickets.writeReply') }}</span>
+              </div>
+              <RichTextEditor
+                v-model="newComment"
+                :placeholder="t('tickets.replyPlaceholder')"
+                min-height="100px"
+                :max-length="50000"
+              />
+              <div class="reply-actions">
+                <div v-if="canManageTickets" class="internal-toggle">
+                  <Checkbox v-model="commentInternal" :binary="true" inputId="internal" />
+                  <label for="internal">
+                    <i class="pi pi-lock"></i>
+                    {{ t('tickets.internalNote') }}
+                  </label>
+                </div>
+                <div v-else></div>
+                <Button :label="t('tickets.sendReply')" icon="pi pi-send" size="small"
+                        @click="postComment" :disabled="!newCommentHasContent" />
+              </div>
+            </template>
           </div>
         </div>
 
@@ -365,9 +429,9 @@
             <Button v-if="currentTicket.status !== 'resolved' && currentTicket.status !== 'closed'"
                     :label="t('tickets.resolve')" icon="pi pi-check" size="small" severity="success"
                     @click="showResolveDialog = true" />
-            <Button v-if="currentTicket.status === 'resolved'"
-                    :label="t('tickets.close')" icon="pi pi-lock" size="small"
-                    @click="closeCurrentTicket" />
+            <Button v-if="currentTicket.status !== 'new' && currentTicket.status !== 'closed'"
+                    :label="t('tickets.close')" icon="pi pi-lock" size="small" severity="secondary"
+                    @click="showCloseDialog = true" />
             <Button v-if="currentTicket.status === 'resolved' || currentTicket.status === 'closed'"
                     :label="t('tickets.reopen')" icon="pi pi-refresh" size="small" severity="danger"
                     @click="reopenCurrentTicket" />
@@ -416,6 +480,46 @@
         <div class="modal-actions">
           <Button :label="t('common.cancel')" severity="secondary" outlined @click="showAssignDialog = false" />
           <Button :label="t('tickets.assign')" icon="pi pi-user" @click="assignCurrentTicket" :disabled="!assignToUserId" />
+        </div>
+      </template>
+    </ModalPanel>
+
+    <!-- Close Ticket Modal -->
+    <ModalPanel v-model="showCloseDialog"
+                :title="t('tickets.closeTicket')"
+                icon="pi-lock"
+                size="md">
+      <div class="close-dialog-content">
+        <p class="close-info">{{ t('tickets.closeInfo') }}</p>
+
+        <!-- Only show resolution options if not already resolved -->
+        <div v-if="currentTicket?.status !== 'resolved'" class="form-grid">
+          <div class="form-group form-group--full">
+            <label class="form-label">{{ t('tickets.closeReason') }}</label>
+            <Dropdown
+              v-model="closeReasonCode"
+              :options="closeReasonOptions"
+              optionLabel="label"
+              optionValue="value"
+              class="w-full"
+              :placeholder="t('common.select')"
+            />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">{{ t('tickets.closeNote') }}</label>
+            <Textarea
+              v-model="closeNote"
+              rows="3"
+              class="w-full"
+              :placeholder="t('tickets.closeNotePlaceholder')"
+            />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="modal-actions">
+          <Button :label="t('common.cancel')" severity="secondary" outlined @click="showCloseDialog = false" />
+          <Button :label="t('tickets.confirmClose')" icon="pi pi-lock" @click="closeCurrentTicket" />
         </div>
       </template>
     </ModalPanel>
@@ -534,6 +638,8 @@ import { useAuthStore } from '../stores/auth';
 import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 import BulkActionsSlideOver from '../components/shared/BulkActionsSlideOver.vue';
 import ModalPanel from '../components/shared/ModalPanel.vue';
+import RichTextEditor from '../components/shared/RichTextEditor.vue';
+import FileDropZone from '../components/shared/FileDropZone.vue';
 import api from '../api';
 
 const route = useRoute();
@@ -601,6 +707,11 @@ const showTicketDialog = ref(false);
 const showDetailDialog = ref(false);
 const showResolveDialog = ref(false);
 const showAssignDialog = ref(false);
+const showCloseDialog = ref(false);
+
+// Close dialog form
+const closeNote = ref('');
+const closeReasonCode = ref(null);
 
 // Forms
 const editingTicket = ref(null);
@@ -621,6 +732,9 @@ const commentInternal = ref(false);
 const resolutionText = ref('');
 const resolutionCode = ref('fixed');
 const assignToUserId = ref(null);
+
+// Attachments for new tickets
+const ticketAttachments = ref([]);
 
 // Bulk operations state
 const selectedTickets = ref([]);
@@ -686,6 +800,14 @@ const resolutionCodes = computed(() => [
   { label: t('tickets.codeUserError'), value: 'user_error' }
 ]);
 
+const closeReasonOptions = computed(() => [
+  { label: t('tickets.closeReasonResolved'), value: 'resolved' },
+  { label: t('tickets.closeReasonDuplicate'), value: 'duplicate' },
+  { label: t('tickets.closeReasonWithdrawn'), value: 'withdrawn' },
+  { label: t('tickets.closeReasonNoResponse'), value: 'no_response' },
+  { label: t('tickets.closeReasonOutOfScope'), value: 'out_of_scope' }
+]);
+
 // Helpers
 const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 
@@ -731,6 +853,61 @@ const formatHistoryAction = (item) => {
   if (item.action === 'updated') return `${t('tickets.historyUpdated')} ${item.field_name}`;
   return item.action;
 };
+
+// Sanitize HTML content for safe rendering (without external dependency)
+const sanitizeHtml = (html) => {
+  if (!html) return '';
+  // Check if content contains HTML tags
+  if (!/<[^>]+>/.test(html)) {
+    // Plain text - convert newlines to <br> for backward compatibility
+    return html.replace(/\n/g, '<br>');
+  }
+  // Simple sanitization: allow only safe tags and attributes
+  const allowedTags = ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'ul', 'ol', 'li', 'blockquote', 'a', 'h2', 'h3', 'b', 'i'];
+
+  // Remove script tags and event handlers
+  let clean = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+="[^"]*"/gi, '')
+    .replace(/on\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '');
+
+  // Remove disallowed tags but keep their content
+  const tagRegex = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi;
+  clean = clean.replace(tagRegex, (match, tagName) => {
+    if (allowedTags.includes(tagName.toLowerCase())) {
+      // Keep allowed tags but remove dangerous attributes
+      return match
+        .replace(/\s+style\s*=\s*["'][^"']*["']/gi, '')
+        .replace(/\s+onclick\s*=\s*["'][^"']*["']/gi, '')
+        .replace(/\s+onerror\s*=\s*["'][^"']*["']/gi, '');
+    }
+    // Remove tag but this regex only removes the tag, not content
+    return '';
+  });
+
+  return clean;
+};
+
+// Check if comment is from the ticket requester
+const isRequesterComment = (comment) => {
+  return comment.user_id === currentTicket.value?.requester_id;
+};
+
+// Computed property for sorted comments
+const sortedComments = computed(() => {
+  if (!currentTicket.value?.comments) return [];
+  return [...currentTicket.value.comments].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+});
+
+// Check if comment has actual content (not just empty HTML)
+const newCommentHasContent = computed(() => {
+  if (!newComment.value) return false;
+  const textContent = newComment.value.replace(/<[^>]*>/g, '').trim();
+  return textContent.length > 0;
+});
 
 // Debounced search
 let searchTimeout = null;
@@ -814,6 +991,7 @@ const toggleSort = (field) => {
 // Ticket CRUD
 const openTicketDialog = (ticket = null) => {
   editingTicket.value = ticket;
+  ticketAttachments.value = []; // Reset attachments
   if (ticket) {
     ticketForm.value = { ...ticket };
   } else {
@@ -832,21 +1010,70 @@ const openTicketDialog = (ticket = null) => {
   showTicketDialog.value = true;
 };
 
+// Handle image upload from rich text editor
+const handleDescriptionImageUpload = async (file, callback) => {
+  try {
+    // For now, convert to base64. In production, upload to server and return URL.
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      callback(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  } catch (error) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('files.uploadFailed') });
+  }
+};
+
+// Handle attachment errors
+const handleAttachmentError = (errors) => {
+  errors.forEach(error => {
+    toast.add({ severity: 'warn', summary: t('validation.error'), detail: error });
+  });
+};
+
+// Upload attachments after ticket creation
+const uploadTicketAttachments = async (ticketId) => {
+  if (ticketAttachments.value.length === 0) return;
+
+  for (const file of ticketAttachments.value) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/tickets/${ticketId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    } catch (error) {
+      console.error('Failed to upload attachment:', error);
+      toast.add({ severity: 'warn', summary: t('common.warning'), detail: t('files.someUploadsFailed') });
+    }
+  }
+};
+
 const saveTicket = async () => {
-  if (!ticketForm.value.title || !ticketForm.value.description) {
+  // Validate required fields - strip HTML for empty check
+  const descriptionText = ticketForm.value.description?.replace(/<[^>]*>/g, '').trim() || '';
+  if (!ticketForm.value.title || !descriptionText) {
     toast.add({ severity: 'warn', summary: t('validation.error'), detail: t('validation.fillRequiredFields') });
     return;
   }
   saving.value = true;
   try {
+    let ticketId;
     if (editingTicket.value) {
       await api.put(`/tickets/${editingTicket.value.id}`, ticketForm.value);
+      ticketId = editingTicket.value.id;
       toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.ticketUpdated') });
     } else {
-      await api.post('/tickets/', ticketForm.value);
+      const response = await api.post('/tickets/', ticketForm.value);
+      ticketId = response.data.id;
+      // Upload attachments for new ticket
+      if (ticketAttachments.value.length > 0) {
+        await uploadTicketAttachments(ticketId);
+      }
       toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.ticketCreated') });
     }
     showTicketDialog.value = false;
+    ticketAttachments.value = []; // Clear attachments
     loadTickets();
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
@@ -938,7 +1165,21 @@ const resolveCurrentTicket = async () => {
 
 const closeCurrentTicket = async () => {
   try {
-    await api.post(`/tickets/${currentTicket.value.id}/close`);
+    const params = new URLSearchParams();
+    if (closeNote.value) {
+      params.append('resolution', closeNote.value);
+    }
+    if (closeReasonCode.value) {
+      params.append('resolution_code', closeReasonCode.value);
+    }
+
+    const queryString = params.toString();
+    await api.post(`/tickets/${currentTicket.value.id}/close${queryString ? '?' + queryString : ''}`);
+
+    showCloseDialog.value = false;
+    closeNote.value = '';
+    closeReasonCode.value = null;
+
     await refreshCurrentTicket();
     loadTickets();
     toast.add({ severity: 'success', summary: t('common.success'), detail: t('tickets.ticketClosed') });
@@ -1111,6 +1352,37 @@ const toggleTicketSelection = (ticket) => {
     selectedTickets.value.push(ticket);
   } else {
     selectedTickets.value.splice(index, 1);
+  }
+};
+
+// Select all helpers
+const allPageTicketsSelected = computed(() => {
+  if (tickets.value.length === 0) return false;
+  return tickets.value.every(ticket => isTicketSelected(ticket.id));
+});
+
+const somePageTicketsSelected = computed(() => {
+  if (tickets.value.length === 0) return false;
+  const selectedCount = tickets.value.filter(ticket => isTicketSelected(ticket.id)).length;
+  return selectedCount > 0 && selectedCount < tickets.value.length;
+});
+
+const toggleSelectAllPage = () => {
+  if (allPageTicketsSelected.value) {
+    // Deselect all tickets on current page
+    tickets.value.forEach(ticket => {
+      const index = selectedTickets.value.findIndex(t => t.id === ticket.id);
+      if (index !== -1) {
+        selectedTickets.value.splice(index, 1);
+      }
+    });
+  } else {
+    // Select all tickets on current page
+    tickets.value.forEach(ticket => {
+      if (!isTicketSelected(ticket.id)) {
+        selectedTickets.value.push(ticket);
+      }
+    });
   }
 };
 
@@ -1504,6 +1776,9 @@ onUnmounted(() => {
 
 .header-checkbox {
   width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-col {
@@ -1990,31 +2265,42 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 
-/* Comments */
-.comments-list {
+/* Conversation */
+.conversation-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 300px;
+  gap: 1rem;
+  max-height: 400px;
   overflow-y: auto;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
   margin-bottom: 1rem;
 }
 
-.comment-item {
+.message {
   display: flex;
   gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  max-width: 85%;
 }
 
-.comment-item--internal {
+.message--requester {
+  align-self: flex-start;
+}
+
+.message--tech {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.message--internal .message-bubble {
   border-left: 3px solid var(--warning);
+  background: rgba(var(--warning-rgb), 0.1);
 }
 
-.comment-avatar {
-  width: 2rem;
-  height: 2rem;
+.message-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
@@ -2027,73 +2313,190 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-.comment-avatar img {
+.message--tech .message-avatar {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.message-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.comment-content {
-  flex: 1;
-  min-width: 0;
+.message-bubble {
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-default);
 }
 
-.comment-header {
+.message--requester .message-bubble {
+  border-radius: 1rem 1rem 1rem 0.25rem;
+}
+
+.message--tech .message-bubble {
+  border-radius: 1rem 1rem 0.25rem 1rem;
+}
+
+.message-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  flex-wrap: wrap;
 }
 
-.comment-author {
+.message-author {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
 }
 
-.comment-time {
-  font-size: 0.75rem;
+.message-tag {
+  font-size: 0.625rem;
+}
+
+.message-time {
+  font-size: 0.6875rem;
   color: var(--text-muted);
+  margin-left: auto;
 }
 
-.comment-text {
+.message-content {
   font-size: 0.875rem;
-  white-space: pre-wrap;
   line-height: 1.5;
+  color: var(--text-primary);
 }
 
-.comments-empty {
+.message-content p {
+  margin: 0 0 0.5rem 0;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.message-content code {
+  background: var(--bg-secondary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.message-content a {
+  color: var(--primary);
+}
+
+.message-content blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+}
+
+.conversation-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
   padding: 2rem;
   color: var(--text-muted);
+  text-align: center;
 }
 
-.comments-empty i {
-  font-size: 1.5rem;
+.conversation-empty i {
+  font-size: 2rem;
+  opacity: 0.5;
 }
 
-.add-comment {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
+.conversation-empty p {
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+/* Reply Section */
+.reply-section {
   border-top: 1px solid var(--border-default);
+  padding-top: 1rem;
 }
 
-.add-comment-actions {
+.reply-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.reply-header i {
+  color: var(--primary);
+}
+
+.reply-closed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.reply-closed i {
+  font-size: 1rem;
+}
+
+.reply-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 0.75rem;
 }
 
-.internal-checkbox {
+.internal-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
   cursor: pointer;
+}
+
+.internal-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.internal-toggle i {
+  font-size: 0.75rem;
+  color: var(--warning);
+}
+
+/* Close Dialog */
+.close-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.close-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
 }
 
 /* History */

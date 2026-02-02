@@ -38,6 +38,7 @@ import TabPanel from 'primevue/tabpanel'
 import ProgressBar from 'primevue/progressbar'
 import Skeleton from 'primevue/skeleton'
 import ContextMenu from 'primevue/contextmenu'
+import Paginator from 'primevue/paginator'
 
 // Create Vue app
 const app = createApp(App)
@@ -88,6 +89,7 @@ app.component('TabPanel', TabPanel)
 app.component('ProgressBar', ProgressBar)
 app.component('Skeleton', Skeleton)
 app.component('ContextMenu', ContextMenu)
+app.component('Paginator', Paginator)
 
 // Initialize language
 initLang()

@@ -426,10 +426,6 @@
               <i class="pi pi-box text-cyan-400"></i>
               <span>{{ t('dashboard.addEquipment') }}</span>
             </router-link>
-            <router-link v-if="canViewTopology" to="/topology" class="action-btn">
-              <i class="pi pi-share-alt text-green-400"></i>
-              <span>{{ t('dashboard.viewTopology') }}</span>
-            </router-link>
             <router-link v-if="canViewDcim" to="/dcim" class="action-btn">
               <i class="pi pi-server text-indigo-400"></i>
               <span>{{ t('dashboard.manageRacks') }}</span>
@@ -584,7 +580,6 @@ const canViewInventory = computed(() => hasPermission(currentUser.value, 'invent
 const canViewDcim = computed(() => hasPermission(currentUser.value, 'dcim'));
 const canViewContracts = computed(() => hasPermission(currentUser.value, 'contracts'));
 const canViewSoftware = computed(() => hasPermission(currentUser.value, 'software'));
-const canViewTopology = computed(() => hasPermission(currentUser.value, 'topology'));
 
 const currentDate = computed(() => {
   return new Date().toLocaleDateString(undefined, {

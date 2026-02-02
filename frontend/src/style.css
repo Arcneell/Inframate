@@ -504,6 +504,37 @@ a:hover {
     color: white !important;
 }
 
+/* === Dropdown Filter/Search === */
+.p-dropdown-header {
+    padding: 0.5rem !important;
+    background: var(--bg-card-solid) !important;
+    border-bottom: 1px solid var(--border-default) !important;
+}
+
+.p-dropdown-filter {
+    background-color: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-default) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    width: 100% !important;
+}
+
+.p-dropdown-filter:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px var(--ring-color) !important;
+    outline: none !important;
+}
+
+.p-dropdown-filter::placeholder {
+    color: var(--text-muted) !important;
+}
+
+.p-dropdown-filter-icon {
+    color: var(--text-muted) !important;
+}
+
 /* === Button === */
 .p-button {
     font-family: inherit !important;

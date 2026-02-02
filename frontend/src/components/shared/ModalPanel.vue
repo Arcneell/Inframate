@@ -14,10 +14,10 @@
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        @click.self="closeOnBackdrop && $emit('update:modelValue', false)"
       >
         <div
           :class="['modal-panel flex flex-col shadow-2xl', sizeClass]"
-          @click.stop
         >
           <!-- Header -->
           <div class="modal-header flex items-center justify-between px-6 py-4">

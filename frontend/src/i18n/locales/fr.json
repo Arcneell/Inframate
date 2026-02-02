@@ -431,6 +431,7 @@
     "connectionType": "Type de connexion"
   },
   "common": {
+    "all": "Tous",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "delete": "Supprimer",
@@ -438,6 +439,7 @@
     "create": "Créer",
     "update": "Mettre à jour",
     "close": "Fermer",
+    "select": "Sélectionner...",
     "confirm": "Confirmer",
     "success": "Succès",
     "error": "Erreur",
@@ -651,6 +653,9 @@
     "title": "Tickets",
     "ticketsList": "Liste des Tickets",
     "allTickets": "Tous les Tickets",
+    "totalTickets": "tickets au total",
+    "noTickets": "Aucun ticket trouvé",
+    "noTicketsDesc": "Créez votre premier ticket pour commencer",
     "myTickets": "Mes Tickets",
     "newTicket": "Nouveau Ticket",
     "editTicket": "Modifier le Ticket",

@@ -1,422 +1,422 @@
 <template>
-  <div class="flex flex-col h-full">
-    <!-- Breadcrumbs -->
-    <Breadcrumbs :items="breadcrumbItems" />
-
-    <div class="flex gap-6 flex-1 overflow-hidden">
-    <!-- Sidebar with stats -->
-    <div class="w-72 flex-shrink-0">
-      <div class="card p-4 mb-4">
-        <h3 class="font-bold text-lg mb-4">{{ t('tickets.title') }}</h3>
-
-        <!-- Quick Stats -->
-        <div class="space-y-3 mb-4">
-          <div class="p-3 rounded-lg cursor-pointer transition-all hover:translate-x-1"
-               :class="filters.status === null ? 'ring-2 ring-sky-500' : ''"
-               style="background-color: var(--bg-app);"
-               @click="setFilter('status', null)">
-            <div class="flex justify-between items-center">
-              <span>{{ t('tickets.allTickets') }}</span>
-              <span class="font-bold">{{ stats.total }}</span>
-            </div>
-          </div>
-
-          <div class="p-3 rounded-lg cursor-pointer transition-all hover:translate-x-1"
-               :class="filters.status === 'new' ? 'ring-2 ring-sky-500' : ''"
-               style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);"
-               @click="setFilter('status', 'new')">
-            <div class="flex justify-between items-center">
-              <span class="text-blue-400">{{ t('tickets.statusNew') }}</span>
-              <span class="font-bold text-blue-400">{{ stats.new }}</span>
-            </div>
-          </div>
-
-          <div class="p-3 rounded-lg cursor-pointer transition-all hover:translate-x-1"
-               :class="filters.status === 'open' ? 'ring-2 ring-sky-500' : ''"
-               style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);"
-               @click="setFilter('status', 'open')">
-            <div class="flex justify-between items-center">
-              <span class="text-yellow-400">{{ t('tickets.statusOpen') }}</span>
-              <span class="font-bold text-yellow-400">{{ stats.open }}</span>
-            </div>
-          </div>
-
-          <div class="p-3 rounded-lg cursor-pointer transition-all hover:translate-x-1"
-               :class="filters.status === 'pending' ? 'ring-2 ring-sky-500' : ''"
-               style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.1) 100%);"
-               @click="setFilter('status', 'pending')">
-            <div class="flex justify-between items-center">
-              <span class="text-purple-400">{{ t('tickets.statusPending') }}</span>
-              <span class="font-bold text-purple-400">{{ stats.pending }}</span>
-            </div>
-          </div>
-
-          <div class="p-3 rounded-lg cursor-pointer transition-all hover:translate-x-1"
-               :class="filters.status === 'resolved' ? 'ring-2 ring-sky-500' : ''"
-               style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);"
-               @click="setFilter('status', 'resolved')">
-            <div class="flex justify-between items-center">
-              <span class="text-green-400">{{ t('tickets.statusResolved') }}</span>
-              <span class="font-bold text-green-400">{{ stats.resolved }}</span>
-            </div>
-          </div>
+  <div class="tickets-page">
+    <!-- Header Section -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-title-section">
+          <h1 class="page-title">
+            <i class="pi pi-ticket"></i>
+            {{ t('tickets.title') }}
+          </h1>
+          <p class="page-subtitle">{{ stats.total }} {{ t('tickets.totalTickets') }}</p>
         </div>
+        <Button :label="t('tickets.newTicket')" icon="pi pi-plus" @click="openTicketDialog()" class="create-btn" />
+      </div>
 
-        <!-- SLA Breached Alert -->
-        <div v-if="stats.sla_breached > 0" class="p-3 rounded-lg bg-red-900/30 border border-red-500/50 mb-4">
-          <div class="flex items-center gap-2 text-red-400">
-            <i class="pi pi-exclamation-triangle"></i>
-            <span class="font-semibold">{{ stats.sla_breached }} {{ t('tickets.slaBreached') }}</span>
-          </div>
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-chip" :class="{ active: filters.status === null }" @click="setFilter('status', null)">
+          <span class="stat-chip-label">{{ t('tickets.allTickets') }}</span>
+          <span class="stat-chip-count">{{ stats.total }}</span>
         </div>
-
-        <!-- Filters -->
-        <div class="space-y-3">
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ t('tickets.filterPriority') }}</label>
-            <Dropdown v-model="filters.priority" :options="priorityOptions" optionLabel="label" optionValue="value"
-                      :placeholder="t('tickets.allPriorities')" showClear class="w-full" @change="loadTickets" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">{{ t('tickets.filterType') }}</label>
-            <Dropdown v-model="filters.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value"
-                      :placeholder="t('tickets.allTypes')" showClear class="w-full" @change="loadTickets" />
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="filters.my_tickets" :binary="true" inputId="myTickets" @change="loadTickets" />
-            <label for="myTickets" class="text-sm cursor-pointer">{{ t('tickets.myTickets') }}</label>
-          </div>
+        <div class="stat-chip stat-chip--new" :class="{ active: filters.status === 'new' }" @click="setFilter('status', 'new')">
+          <span class="stat-chip-label">{{ t('tickets.statusNew') }}</span>
+          <span class="stat-chip-count">{{ stats.new }}</span>
+        </div>
+        <div class="stat-chip stat-chip--open" :class="{ active: filters.status === 'open' }" @click="setFilter('status', 'open')">
+          <span class="stat-chip-label">{{ t('tickets.statusOpen') }}</span>
+          <span class="stat-chip-count">{{ stats.open }}</span>
+        </div>
+        <div class="stat-chip stat-chip--pending" :class="{ active: filters.status === 'pending' }" @click="setFilter('status', 'pending')">
+          <span class="stat-chip-label">{{ t('tickets.statusPending') }}</span>
+          <span class="stat-chip-count">{{ stats.pending }}</span>
+        </div>
+        <div class="stat-chip stat-chip--resolved" :class="{ active: filters.status === 'resolved' }" @click="setFilter('status', 'resolved')">
+          <span class="stat-chip-label">{{ t('tickets.statusResolved') }}</span>
+          <span class="stat-chip-count">{{ stats.resolved }}</span>
+        </div>
+        <div v-if="stats.sla_breached > 0" class="stat-chip stat-chip--danger">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span class="stat-chip-count">{{ stats.sla_breached }} SLA</span>
         </div>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-hidden">
-      <div class="card h-full flex flex-col">
-        <div class="flex justify-between items-center mb-4">
-          <div class="flex items-center gap-4">
-            <h3 class="text-lg font-bold">{{ t('tickets.ticketsList') }}</h3>
-            <span class="p-input-icon-left">
-              <i class="pi pi-search" />
-              <InputText v-model="filters.search" :placeholder="t('tickets.search')" class="w-64"
-                         @input="debouncedSearch" />
+    <!-- Filters & Search -->
+    <div class="toolbar">
+      <div class="toolbar-search">
+        <i class="pi pi-search"></i>
+        <InputText v-model="filters.search" :placeholder="t('tickets.search')" @input="debouncedSearch" />
+      </div>
+
+      <span class="toolbar-separator"></span>
+
+      <div class="toolbar-filter">
+        <span class="filter-label">{{ t('tickets.priority') }}</span>
+        <Dropdown v-model="filters.priority" :options="priorityOptions" optionLabel="label" optionValue="value"
+                  :placeholder="t('common.all')" showClear @change="loadTickets" />
+      </div>
+
+      <div class="toolbar-filter">
+        <span class="filter-label">{{ t('tickets.type') }}</span>
+        <Dropdown v-model="filters.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value"
+                  :placeholder="t('common.all')" showClear @change="loadTickets" />
+      </div>
+
+      <span class="toolbar-separator"></span>
+
+      <label class="my-tickets-toggle">
+        <Checkbox v-model="filters.my_tickets" :binary="true" @change="loadTickets" />
+        <span>{{ t('tickets.myTickets') }}</span>
+      </label>
+
+      <div class="toolbar-spacer"></div>
+
+      <div v-if="selectedTickets.length > 0 && canManageTickets" class="toolbar-selection">
+        <span class="selection-count">{{ selectedTickets.length }} {{ t('common.selected') }}</span>
+        <Button icon="pi pi-list-check" :label="t('bulk.openBulkActions')" size="small" @click="showBulkSlideOver = true" />
+        <Button icon="pi pi-times" text rounded size="small" @click="selectedTickets = []" />
+      </div>
+    </div>
+
+    <!-- Tickets List -->
+    <div class="tickets-container">
+      <div v-if="loading" class="loading-state">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>{{ t('common.loading') }}</span>
+      </div>
+
+      <div v-else-if="tickets.length === 0" class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <h3>{{ t('tickets.noTickets') }}</h3>
+        <p>{{ t('tickets.noTicketsDesc') }}</p>
+        <Button :label="t('tickets.newTicket')" icon="pi pi-plus" @click="openTicketDialog()" />
+      </div>
+
+      <div v-else class="tickets-list">
+        <!-- Table Header -->
+        <div class="tickets-header">
+          <div v-if="canManageTickets" class="header-checkbox"></div>
+          <span class="header-col header-col--sortable" @click="toggleSort('ticket_number')">
+            {{ t('tickets.ticketNumber') }}
+            <i v-if="sortField === 'ticket_number'" :class="['pi', sortOrder === -1 ? 'pi-sort-amount-down' : 'pi-sort-amount-up']"></i>
+          </span>
+          <span class="header-col header-col--title">{{ t('tickets.ticketTitle') }}</span>
+          <span class="header-col">{{ t('tickets.status') }}</span>
+          <span class="header-col header-col--sortable" @click="toggleSort('assigned_to_id')">
+            {{ t('tickets.assignedTo') }}
+            <i v-if="sortField === 'assigned_to_id'" :class="['pi', sortOrder === -1 ? 'pi-sort-amount-down' : 'pi-sort-amount-up']"></i>
+          </span>
+          <span class="header-col header-col--sortable" @click="toggleSort('created_at')">
+            {{ t('tickets.createdAt') }}
+            <i v-if="sortField === 'created_at'" :class="['pi', sortOrder === -1 ? 'pi-sort-amount-down' : 'pi-sort-amount-up']"></i>
+          </span>
+          <span class="header-col--arrow"></span>
+        </div>
+
+        <!-- Tickets Rows -->
+        <div v-for="ticket in tickets" :key="ticket.id"
+             class="ticket-row"
+             :class="{ 'ticket-row--selected': isTicketSelected(ticket.id) }"
+             @click="openTicketDetail({ data: ticket })">
+
+          <div v-if="canManageTickets" class="ticket-checkbox" @click.stop>
+            <Checkbox :modelValue="isTicketSelected(ticket.id)" :binary="true" @update:modelValue="toggleTicketSelection(ticket)" />
+          </div>
+
+          <span class="ticket-number">{{ ticket.ticket_number }}</span>
+
+          <div class="ticket-info">
+            <span class="ticket-title">{{ ticket.title }}</span>
+            <span class="ticket-type-label">{{ t(`tickets.type${capitalize(ticket.ticket_type)}`) }}</span>
+          </div>
+
+          <div class="ticket-tags">
+            <Tag :value="t(`tickets.status${capitalize(ticket.status)}`)" :severity="getStatusSeverity(ticket.status)" />
+            <Tag :value="t(`tickets.priority${capitalize(ticket.priority)}`)" :severity="getPrioritySeverity(ticket.priority)" />
+          </div>
+
+          <div class="ticket-users">
+            <span class="ticket-user">
+              <i class="pi pi-user"></i>
+              {{ ticket.requester_name || '-' }}
+            </span>
+            <span class="ticket-assignee" :class="{ 'unassigned': !ticket.assigned_to_name }">
+              <i class="pi pi-arrow-right"></i>
+              {{ ticket.assigned_to_name || t('tickets.unassigned') }}
             </span>
           </div>
-          <Button :label="t('tickets.newTicket')" icon="pi pi-plus" @click="openTicketDialog()" />
-        </div>
 
-        <!-- Bulk Selection Bar -->
-        <div v-if="selectedTickets.length > 0 && canManageTickets" class="flex items-center gap-3 mb-4 p-3 rounded-lg" style="background-color: var(--bg-app);">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-check-square text-sky-500"></i>
-            <span class="font-medium">{{ selectedTickets.length }} {{ t('common.selected') }}</span>
-          </div>
-          <div class="flex-1"></div>
-          <Button :label="t('bulk.openBulkActions')" icon="pi pi-list-check" @click="showBulkSlideOver = true" />
-          <Button icon="pi pi-times" text rounded size="small" @click="selectedTickets = []" v-tooltip.top="t('common.clearSelection')" />
-        </div>
+          <span class="ticket-date">{{ formatDateTime(ticket.created_at) }}</span>
 
-        <div class="flex-1 overflow-auto">
-          <DataTable :value="tickets" stripedRows lazy paginator :rows="ticketsRows" :totalRecords="ticketsTotal" :first="ticketsFirst" @page="onTicketsPage" dataKey="id" :loading="loading"
-                     v-model:selection="selectedTickets"
-                     class="text-sm" @row-click="openTicketDetail">
-            <Column v-if="canManageTickets" selectionMode="multiple" headerStyle="width: 3rem" />
-            <Column field="ticket_number" :header="t('tickets.ticketNumber')" sortable style="width: 140px">
-              <template #body="slotProps">
-                <span class="font-mono text-sky-400 cursor-pointer hover:underline">
-                  {{ slotProps.data.ticket_number }}
-                </span>
-              </template>
-            </Column>
-            <Column field="title" :header="t('tickets.ticketTitle')" sortable>
-              <template #body="slotProps">
-                <div class="max-w-md truncate">{{ slotProps.data.title }}</div>
-              </template>
-            </Column>
-            <Column field="status" :header="t('tickets.ticketStatus')" sortable style="width: 120px">
-              <template #body="slotProps">
-                <Tag :value="t(`tickets.status${capitalize(slotProps.data.status)}`)"
-                     :severity="getStatusSeverity(slotProps.data.status)" />
-              </template>
-            </Column>
-            <Column field="priority" :header="t('tickets.ticketPriority')" sortable style="width: 100px">
-              <template #body="slotProps">
-                <Tag :value="t(`tickets.priority${capitalize(slotProps.data.priority)}`)"
-                     :severity="getPrioritySeverity(slotProps.data.priority)" />
-              </template>
-            </Column>
-            <Column field="ticket_type" :header="t('tickets.ticketType')" sortable style="width: 100px">
-              <template #body="slotProps">
-                <span class="text-sm opacity-70">{{ t(`tickets.type${capitalize(slotProps.data.ticket_type)}`) }}</span>
-              </template>
-            </Column>
-            <Column field="requester_name" :header="t('tickets.requester')" style="width: 120px">
-              <template #body="slotProps">
-                <span>{{ slotProps.data.requester_name || '-' }}</span>
-              </template>
-            </Column>
-            <Column v-if="canManageTickets" field="assigned_to_name" :header="t('tickets.assignedTo')" style="width: 120px">
-              <template #body="slotProps">
-                <span v-if="slotProps.data.assigned_to_name">{{ slotProps.data.assigned_to_name }}</span>
-                <span v-else class="opacity-50 italic">{{ t('tickets.unassigned') }}</span>
-              </template>
-            </Column>
-            <Column field="created_at" :header="t('tickets.createdAt')" sortable style="width: 140px">
-              <template #body="slotProps">
-                {{ formatDateTime(slotProps.data.created_at) }}
-              </template>
-            </Column>
-          </DataTable>
+          <i class="pi pi-chevron-right ticket-arrow"></i>
         </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="tickets.length > 0" class="pagination">
+        <Paginator :rows="ticketsRows" :totalRecords="ticketsTotal" :first="ticketsFirst" @page="onTicketsPage" />
       </div>
     </div>
 
-    <!-- Create/Edit Ticket Dialog -->
-    <Dialog v-model:visible="showTicketDialog" modal :header="editingTicket ? t('tickets.editTicket') : t('tickets.newTicket')"
-            :style="{ width: '700px' }" @keydown.enter="onTicketDialogEnter">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="col-span-2">
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.ticketTitle') }} <span class="text-red-500">*</span></label>
-          <InputText v-model="ticketForm.title" class="w-full" />
+    <!-- Create/Edit Ticket Modal -->
+    <ModalPanel v-model="showTicketDialog"
+                :title="editingTicket ? t('tickets.editTicket') : t('tickets.newTicket')"
+                icon="pi-ticket"
+                size="lg">
+      <div class="create-form">
+        <!-- Title -->
+        <label class="field-label">{{ t('tickets.ticketTitle') }} <span class="required">*</span></label>
+        <InputText v-model="ticketForm.title" class="w-full" />
+
+        <!-- Description -->
+        <label class="field-label">{{ t('tickets.description') }} <span class="required">*</span></label>
+        <Textarea v-model="ticketForm.description" rows="4" class="w-full" />
+
+        <!-- Two columns -->
+        <div class="form-row">
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.ticketType') }}</label>
+            <Dropdown v-model="ticketForm.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value" class="w-full" />
+          </div>
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.category') }}</label>
+            <Dropdown v-model="ticketForm.category" :options="categoryOptions" optionLabel="label" optionValue="value"
+                      class="w-full" showClear :placeholder="t('common.select')" />
+          </div>
         </div>
-        <div class="col-span-2">
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.description') }} <span class="text-red-500">*</span></label>
-          <Textarea v-model="ticketForm.description" rows="4" class="w-full" />
+
+        <!-- Priority & Assignee (Tech/Admin only) -->
+        <div v-if="canManageTickets" class="form-row">
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.ticketPriority') }}</label>
+            <Dropdown v-model="ticketForm.priority" :options="priorityOptions" optionLabel="label" optionValue="value" class="w-full" />
+          </div>
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.assignTo') }}</label>
+            <Dropdown v-model="ticketForm.assigned_to_id" :options="users" optionLabel="username" optionValue="id"
+                      class="w-full" showClear :placeholder="t('tickets.selectUser')" />
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.ticketType') }}</label>
-          <Dropdown v-model="ticketForm.ticket_type" :options="typeOptions" optionLabel="label" optionValue="value" class="w-full" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.category') }}</label>
-          <Dropdown v-model="ticketForm.category" :options="categoryOptions" optionLabel="label" optionValue="value"
-                    class="w-full" showClear />
-        </div>
-        <div v-if="canManageTickets">
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.ticketPriority') }}</label>
-          <Dropdown v-model="ticketForm.priority" :options="priorityOptions" optionLabel="label" optionValue="value" class="w-full" />
-        </div>
-        <div v-if="canManageTickets">
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.assignTo') }}</label>
-          <Dropdown v-model="ticketForm.assigned_to_id" :options="users" optionLabel="username" optionValue="id"
-                    class="w-full" showClear :placeholder="t('tickets.selectUser')" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.relatedEquipment') }}</label>
-          <Dropdown v-model="ticketForm.equipment_id" :options="equipment" optionLabel="name" optionValue="id"
-                    class="w-full" showClear :placeholder="t('tickets.selectEquipment')" filter />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.impact') }}</label>
-          <Dropdown v-model="ticketForm.impact" :options="impactOptions" optionLabel="label" optionValue="value" class="w-full" />
+
+        <!-- Equipment & Impact -->
+        <div class="form-row">
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.relatedEquipment') }}</label>
+            <Dropdown v-model="ticketForm.equipment_id" :options="equipment" optionLabel="name" optionValue="id"
+                      class="w-full" showClear :placeholder="t('tickets.selectEquipment')" filter />
+          </div>
+          <div class="form-col">
+            <label class="field-label">{{ t('tickets.impact') }}</label>
+            <Dropdown v-model="ticketForm.impact" :options="impactOptions" optionLabel="label" optionValue="value" class="w-full" />
+          </div>
         </div>
       </div>
+
       <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button :label="t('common.cancel')" severity="secondary" outlined @click="showTicketDialog = false" />
+        <div class="modal-footer-actions">
+          <Button :label="t('common.cancel')" severity="secondary" text @click="showTicketDialog = false" />
           <Button :label="t('common.save')" icon="pi pi-check" @click="saveTicket" :loading="saving" />
         </div>
       </template>
-    </Dialog>
+    </ModalPanel>
 
-    <!-- Ticket Detail Dialog -->
-    <Dialog v-model:visible="showDetailDialog" modal :header="currentTicket?.ticket_number"
-            :style="{ width: '900px', maxHeight: '90vh' }" class="ticket-detail-dialog">
-      <div v-if="currentTicket" class="flex gap-6">
-        <!-- Main Content -->
-        <div class="flex-1">
-          <div class="mb-4">
-            <h2 class="text-xl font-bold mb-2">{{ currentTicket.title }}</h2>
-            <div class="flex gap-2 mb-4">
-              <Tag :value="t(`tickets.status${capitalize(currentTicket.status)}`)"
-                   :severity="getStatusSeverity(currentTicket.status)" />
-              <Tag :value="t(`tickets.priority${capitalize(currentTicket.priority)}`)"
-                   :severity="getPrioritySeverity(currentTicket.priority)" />
-              <Tag :value="t(`tickets.type${capitalize(currentTicket.ticket_type)}`)" severity="secondary" />
+    <!-- Ticket Detail Modal -->
+    <ModalPanel v-model="showDetailDialog"
+                :title="currentTicket?.title"
+                :subtitle="currentTicket?.ticket_number"
+                icon="pi-ticket"
+                size="xl">
+      <div v-if="currentTicket" class="detail-content">
+        <!-- Status Tags -->
+        <div class="detail-tags">
+          <Tag :value="t(`tickets.status${capitalize(currentTicket.status)}`)"
+               :severity="getStatusSeverity(currentTicket.status)" />
+          <Tag :value="t(`tickets.priority${capitalize(currentTicket.priority)}`)"
+               :severity="getPrioritySeverity(currentTicket.priority)" />
+          <Tag :value="t(`tickets.type${capitalize(currentTicket.ticket_type)}`)" severity="secondary" />
+        </div>
+
+        <!-- Info Grid -->
+        <div class="detail-info-grid">
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.requester') }}</span>
+            <span class="info-value">{{ currentTicket.requester_name || '-' }}</span>
+          </div>
+          <div v-if="canManageTickets" class="info-item">
+            <span class="info-label">{{ t('tickets.assignedTo') }}</span>
+            <div class="info-value-with-action">
+              <span>{{ currentTicket.assigned_to_name || t('tickets.unassigned') }}</span>
+              <Button icon="pi pi-pencil" text rounded size="small" @click="showAssignDialog = true" />
             </div>
           </div>
-
-          <!-- Description -->
-          <div class="mb-6">
-            <h4 class="font-semibold mb-2 opacity-70">{{ t('tickets.description') }}</h4>
-            <div class="p-4 rounded-lg whitespace-pre-wrap" style="background-color: var(--bg-app);">
-              {{ currentTicket.description }}
-            </div>
+          <div class="info-item">
+            <span class="info-label">{{ t('tickets.createdAt') }}</span>
+            <span class="info-value">{{ formatDateTime(currentTicket.created_at) }}</span>
           </div>
-
-          <!-- Resolution -->
-          <div v-if="currentTicket.resolution" class="mb-6">
-            <h4 class="font-semibold mb-2 text-green-400">{{ t('tickets.resolution') }}</h4>
-            <div class="p-4 rounded-lg border border-green-500/30 whitespace-pre-wrap" style="background: rgba(34, 197, 94, 0.1);">
-              {{ currentTicket.resolution }}
-            </div>
+          <div v-if="currentTicket.sla_due_date" class="info-item">
+            <span class="info-label">{{ t('tickets.slaDue') }}</span>
+            <span class="info-value" :class="{ 'text-red-400': new Date(currentTicket.sla_due_date) < new Date() }">
+              {{ formatDateTime(currentTicket.sla_due_date) }}
+            </span>
           </div>
+          <div v-if="currentTicket.equipment_name" class="info-item">
+            <span class="info-label">{{ t('tickets.relatedEquipment') }}</span>
+            <span class="info-value">{{ currentTicket.equipment_name }}</span>
+          </div>
+          <div v-if="currentTicket.category" class="info-item">
+            <span class="info-label">{{ t('tickets.category') }}</span>
+            <span class="info-value">{{ currentTicket.category }}</span>
+          </div>
+        </div>
 
-          <!-- Comments -->
-          <div class="mb-6">
-            <h4 class="font-semibold mb-3">{{ t('tickets.comments') }} ({{ currentTicket.comments?.length || 0 }})</h4>
-            <div class="space-y-3 max-h-64 overflow-auto mb-4">
-              <template v-for="comment in currentTicket.comments" :key="comment.id">
-                <div v-if="canManageTickets || !comment.is_internal"
-                     class="p-3 rounded-lg" style="background-color: var(--bg-app);"
-                     :class="{ 'border-l-4 border-yellow-500': comment.is_internal }">
-                  <div class="flex gap-3">
-                    <!-- User Avatar -->
-                    <div class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                      <img v-if="comment.user_avatar" :src="`/api/v1/avatars/${comment.user_avatar}`"
-                           class="w-full h-full object-cover" alt="">
-                      <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-sky-500 to-blue-600">
-                        <span class="text-xs font-bold text-white">{{ getInitials(comment.username) }}</span>
-                      </div>
-                    </div>
-                    <!-- Comment Content -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex justify-between items-start mb-1">
-                        <span class="font-medium">{{ comment.username || 'System' }}</span>
-                        <span class="text-xs opacity-50">{{ formatDateTime(comment.created_at) }}</span>
-                      </div>
-                      <p class="text-sm whitespace-pre-wrap">{{ comment.content }}</p>
-                      <div v-if="comment.is_internal" class="mt-2">
-                        <Tag value="Internal" severity="warning" class="text-xs" />
-                      </div>
-                    </div>
+        <!-- Description -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-align-left"></i>
+            {{ t('tickets.description') }}
+          </h4>
+          <div class="description-box">{{ currentTicket.description }}</div>
+        </div>
+
+        <!-- Resolution -->
+        <div v-if="currentTicket.resolution" class="detail-section">
+          <h4 class="section-title section-title--success">
+            <i class="pi pi-check-circle"></i>
+            {{ t('tickets.resolution') }}
+          </h4>
+          <div class="resolution-box">{{ currentTicket.resolution }}</div>
+        </div>
+
+        <!-- Comments -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-comments"></i>
+            {{ t('tickets.comments') }} ({{ currentTicket.comments?.length || 0 }})
+          </h4>
+          <div class="comments-list">
+            <template v-for="comment in currentTicket.comments" :key="comment.id">
+              <div v-if="canManageTickets || !comment.is_internal"
+                   class="comment-item" :class="{ 'comment-item--internal': comment.is_internal }">
+                <div class="comment-avatar">
+                  <img v-if="comment.user_avatar" :src="`/api/v1/avatars/${comment.user_avatar}`" alt="">
+                  <span v-else>{{ getInitials(comment.username) }}</span>
+                </div>
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <span class="comment-author">{{ comment.username || 'System' }}</span>
+                    <span class="comment-time">{{ formatDateTime(comment.created_at) }}</span>
                   </div>
+                  <p class="comment-text">{{ comment.content }}</p>
+                  <Tag v-if="comment.is_internal" value="Internal" severity="warning" class="mt-2" />
                 </div>
-              </template>
-              <div v-if="!currentTicket.comments?.length || (!canManageTickets && currentTicket.comments?.every(c => c.is_internal))" class="text-center py-4 opacity-50">
-                {{ t('tickets.noComments') }}
               </div>
-            </div>
-
-            <!-- Add Comment -->
-            <div class="border-t pt-4" style="border-color: var(--border-color);">
-              <Textarea v-model="newComment" :placeholder="t('tickets.addComment')" rows="2" class="w-full mb-2" />
-              <div class="flex justify-between items-center">
-                <div v-if="canManageTickets" class="flex items-center gap-2">
-                  <Checkbox v-model="commentInternal" :binary="true" inputId="internal" />
-                  <label for="internal" class="text-sm cursor-pointer">{{ t('tickets.internalNote') }}</label>
-                </div>
-                <div v-else></div>
-                <Button :label="t('tickets.postComment')" icon="pi pi-send" size="small"
-                        @click="postComment" :disabled="!newComment.trim()" />
-              </div>
+            </template>
+            <div v-if="!currentTicket.comments?.length" class="comments-empty">
+              <i class="pi pi-comments"></i>
+              <span>{{ t('tickets.noComments') }}</span>
             </div>
           </div>
 
-          <!-- History -->
-          <div>
-            <h4 class="font-semibold mb-3 opacity-70">{{ t('tickets.history') }}</h4>
-            <div class="space-y-2 max-h-48 overflow-auto">
-              <div v-for="item in currentTicket.history" :key="item.id"
-                   class="flex items-center gap-3 text-sm py-2 border-b" style="border-color: var(--border-color);">
-                <i class="pi pi-circle-fill text-xs text-sky-500"></i>
-                <span class="opacity-50">{{ formatDateTime(item.created_at) }}</span>
-                <span>{{ item.username || 'System' }}</span>
-                <span class="opacity-70">{{ formatHistoryAction(item) }}</span>
+          <!-- Add Comment -->
+          <div class="add-comment">
+            <Textarea v-model="newComment" :placeholder="t('tickets.addComment')" rows="2" class="w-full" />
+            <div class="add-comment-actions">
+              <div v-if="canManageTickets" class="internal-checkbox">
+                <Checkbox v-model="commentInternal" :binary="true" inputId="internal" />
+                <label for="internal">{{ t('tickets.internalNote') }}</label>
               </div>
+              <div v-else></div>
+              <Button :label="t('tickets.postComment')" icon="pi pi-send" size="small"
+                      @click="postComment" :disabled="!newComment.trim()" />
             </div>
           </div>
         </div>
 
-        <!-- Sidebar Info -->
-        <div class="w-64 flex-shrink-0">
-          <div class="space-y-4">
-            <!-- Status Actions (Tech with tickets_admin, Admin, Superadmin) -->
-            <div v-if="canManageTickets" class="p-4 rounded-lg" style="background-color: var(--bg-app);">
-              <h4 class="font-semibold mb-3">{{ t('tickets.actions') }}</h4>
-              <div class="space-y-2">
-                <Button v-if="currentTicket.status === 'new' || currentTicket.status === 'pending'"
-                        :label="t('tickets.markOpen')" icon="pi pi-play" class="w-full" size="small"
-                        @click="updateStatus('open')" />
-                <Button v-if="currentTicket.status !== 'resolved' && currentTicket.status !== 'closed'"
-                        :label="t('tickets.markPending')" icon="pi pi-pause" class="w-full" size="small" severity="warning"
-                        @click="updateStatus('pending')" />
-                <Button v-if="currentTicket.status !== 'resolved' && currentTicket.status !== 'closed'"
-                        :label="t('tickets.resolve')" icon="pi pi-check" class="w-full" size="small" severity="success"
-                        @click="showResolveDialog = true" />
-                <Button v-if="currentTicket.status === 'resolved'"
-                        :label="t('tickets.close')" icon="pi pi-lock" class="w-full" size="small"
-                        @click="closeCurrentTicket" />
-                <Button v-if="currentTicket.status === 'resolved' || currentTicket.status === 'closed'"
-                        :label="t('tickets.reopen')" icon="pi pi-refresh" class="w-full" size="small" severity="danger"
-                        @click="reopenCurrentTicket" />
-              </div>
-            </div>
-
-            <!-- Ticket Info -->
-            <div class="p-4 rounded-lg space-y-3" style="background-color: var(--bg-app);">
-              <div>
-                <span class="text-xs opacity-50 block">{{ t('tickets.requester') }}</span>
-                <span>{{ currentTicket.requester_name || '-' }}</span>
-              </div>
-              <div v-if="canManageTickets">
-                <span class="text-xs opacity-50 block">{{ t('tickets.assignedTo') }}</span>
-                <div class="flex items-center gap-2">
-                  <span>{{ currentTicket.assigned_to_name || t('tickets.unassigned') }}</span>
-                  <Button icon="pi pi-pencil" text rounded size="small" @click="showAssignDialog = true" />
-                </div>
-              </div>
-              <div v-if="currentTicket.equipment_name">
-                <span class="text-xs opacity-50 block">{{ t('tickets.relatedEquipment') }}</span>
-                <span>{{ currentTicket.equipment_name }}</span>
-              </div>
-              <div v-if="currentTicket.category">
-                <span class="text-xs opacity-50 block">{{ t('tickets.category') }}</span>
-                <span>{{ currentTicket.category }}</span>
-              </div>
-              <div>
-                <span class="text-xs opacity-50 block">{{ t('tickets.createdAt') }}</span>
-                <span>{{ formatDateTime(currentTicket.created_at) }}</span>
-              </div>
-              <div v-if="currentTicket.sla_due_date">
-                <span class="text-xs opacity-50 block">{{ t('tickets.slaDue') }}</span>
-                <span :class="{ 'text-red-400': new Date(currentTicket.sla_due_date) < new Date() }">
-                  {{ formatDateTime(currentTicket.sla_due_date) }}
-                </span>
-              </div>
+        <!-- History -->
+        <div class="detail-section">
+          <h4 class="section-title">
+            <i class="pi pi-history"></i>
+            {{ t('tickets.history') }}
+          </h4>
+          <div class="history-list">
+            <div v-for="item in currentTicket.history" :key="item.id" class="history-item">
+              <i class="pi pi-circle-fill"></i>
+              <span class="history-time">{{ formatDateTime(item.created_at) }}</span>
+              <span class="history-user">{{ item.username || 'System' }}</span>
+              <span class="history-action">{{ formatHistoryAction(item) }}</span>
             </div>
           </div>
         </div>
       </div>
-    </Dialog>
 
-    <!-- Resolve Dialog -->
-    <Dialog v-model:visible="showResolveDialog" modal :header="t('tickets.resolveTicket')" :style="{ width: '500px' }"
-            @keydown.enter="resolveCurrentTicket">
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.resolution') }} <span class="text-red-500">*</span></label>
+      <template #footer>
+        <div class="detail-actions">
+          <!-- Status Actions (Tech/Admin only) -->
+          <div v-if="canManageTickets && currentTicket" class="action-buttons">
+            <Button v-if="currentTicket.status === 'new' || currentTicket.status === 'pending'"
+                    :label="t('tickets.markOpen')" icon="pi pi-play" size="small"
+                    @click="updateStatus('open')" />
+            <Button v-if="currentTicket.status !== 'resolved' && currentTicket.status !== 'closed'"
+                    :label="t('tickets.markPending')" icon="pi pi-pause" size="small" severity="warning"
+                    @click="updateStatus('pending')" />
+            <Button v-if="currentTicket.status !== 'resolved' && currentTicket.status !== 'closed'"
+                    :label="t('tickets.resolve')" icon="pi pi-check" size="small" severity="success"
+                    @click="showResolveDialog = true" />
+            <Button v-if="currentTicket.status === 'resolved'"
+                    :label="t('tickets.close')" icon="pi pi-lock" size="small"
+                    @click="closeCurrentTicket" />
+            <Button v-if="currentTicket.status === 'resolved' || currentTicket.status === 'closed'"
+                    :label="t('tickets.reopen')" icon="pi pi-refresh" size="small" severity="danger"
+                    @click="reopenCurrentTicket" />
+          </div>
+          <div v-else></div>
+          <Button :label="t('common.close')" severity="secondary" outlined @click="showDetailDialog = false" />
+        </div>
+      </template>
+    </ModalPanel>
+
+    <!-- Resolve Modal -->
+    <ModalPanel v-model="showResolveDialog"
+                :title="t('tickets.resolveTicket')"
+                icon="pi-check-circle"
+                size="md">
+      <div class="form-grid">
+        <div class="form-group form-group--full">
+          <label class="form-label">{{ t('tickets.resolution') }} <span class="required">*</span></label>
           <Textarea v-model="resolutionText" rows="4" class="w-full" :placeholder="t('tickets.resolutionPlaceholder')" />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">{{ t('tickets.resolutionCode') }}</label>
+        <div class="form-group form-group--full">
+          <label class="form-label">{{ t('tickets.resolutionCode') }}</label>
           <Dropdown v-model="resolutionCode" :options="resolutionCodes" optionLabel="label" optionValue="value" class="w-full" />
         </div>
       </div>
       <template #footer>
-        <div class="flex justify-end gap-3">
+        <div class="modal-actions">
           <Button :label="t('common.cancel')" severity="secondary" outlined @click="showResolveDialog = false" />
           <Button :label="t('tickets.resolve')" icon="pi pi-check" severity="success" @click="resolveCurrentTicket"
                   :disabled="!resolutionText.trim()" />
         </div>
       </template>
-    </Dialog>
+    </ModalPanel>
 
-    <!-- Assign Dialog -->
-    <Dialog v-model:visible="showAssignDialog" modal :header="t('tickets.assignTicket')" :style="{ width: '400px' }"
-            @keydown.enter="assignCurrentTicket">
-      <div>
-        <label class="block text-sm font-medium mb-1">{{ t('tickets.assignTo') }}</label>
+    <!-- Assign Modal -->
+    <ModalPanel v-model="showAssignDialog"
+                :title="t('tickets.assignTicket')"
+                icon="pi-user"
+                size="sm">
+      <div class="form-group">
+        <label class="form-label">{{ t('tickets.assignTo') }}</label>
         <Dropdown v-model="assignToUserId" :options="users" optionLabel="username" optionValue="id"
                   class="w-full" :placeholder="t('tickets.selectUser')" />
       </div>
       <template #footer>
-        <div class="flex justify-end gap-3">
+        <div class="modal-actions">
           <Button :label="t('common.cancel')" severity="secondary" outlined @click="showAssignDialog = false" />
           <Button :label="t('tickets.assign')" icon="pi pi-user" @click="assignCurrentTicket" :disabled="!assignToUserId" />
         </div>
       </template>
-    </Dialog>
+    </ModalPanel>
 
     <!-- Bulk Actions Slide-Over -->
     <BulkActionsSlideOver
@@ -519,7 +519,6 @@
         </div>
       </div>
     </BulkActionsSlideOver>
-    </div>
   </div>
 </template>
 
@@ -532,6 +531,7 @@ import { useTicketsStore } from '../stores/tickets';
 import { useAuthStore } from '../stores/auth';
 import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 import BulkActionsSlideOver from '../components/shared/BulkActionsSlideOver.vue';
+import ModalPanel from '../components/shared/ModalPanel.vue';
 import api from '../api';
 
 const route = useRoute();
@@ -796,6 +796,16 @@ const loadReferenceData = async () => {
 const setFilter = (key, value) => {
   filters.value[key] = value;
   ticketsFirst.value = 0; // Reset to first page on filter change
+  loadTickets();
+};
+
+const toggleSort = (field) => {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === -1 ? 1 : -1;
+  } else {
+    sortField.value = field;
+    sortOrder.value = -1;
+  }
   loadTickets();
 };
 
@@ -1088,6 +1098,20 @@ const applyBulkType = async () => {
   }
 };
 
+// Selection helpers
+const isTicketSelected = (ticketId) => {
+  return selectedTickets.value.some(t => t.id === ticketId);
+};
+
+const toggleTicketSelection = (ticket) => {
+  const index = selectedTickets.value.findIndex(t => t.id === ticket.id);
+  if (index === -1) {
+    selectedTickets.value.push(ticket);
+  } else {
+    selectedTickets.value.splice(index, 1);
+  }
+};
+
 onMounted(async () => {
   // Apply URL query params for filters and sorting
   if (route.query.status) filters.value.status = route.query.status;
@@ -1129,10 +1153,895 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.ticket-detail-dialog :deep(.p-dialog-content) {
+/* ==================== Page Layout ==================== */
+.tickets-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1rem;
+}
+
+/* ==================== Header Section ==================== */
+.page-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.5rem;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.page-title i {
+  color: var(--primary);
+  font-size: 1.125rem;
+}
+
+.page-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 1px solid var(--border-default);
+}
+
+.create-btn {
+  flex-shrink: 0;
+}
+
+/* Stats Bar */
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.8125rem;
+}
+
+.stat-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.stat-chip.active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+
+.stat-chip.active .stat-chip-label,
+.stat-chip.active .stat-chip-count {
+  color: white !important;
+}
+
+.stat-chip-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-chip-count {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* Colored chips when NOT active */
+.stat-chip--new:not(.active) { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.3); }
+.stat-chip--new:not(.active) .stat-chip-label,
+.stat-chip--new:not(.active) .stat-chip-count { color: #3b82f6; }
+
+.stat-chip--open:not(.active) { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); }
+.stat-chip--open:not(.active) .stat-chip-label,
+.stat-chip--open:not(.active) .stat-chip-count { color: #f59e0b; }
+
+.stat-chip--pending:not(.active) { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3); }
+.stat-chip--pending:not(.active) .stat-chip-label,
+.stat-chip--pending:not(.active) .stat-chip-count { color: #a855f7; }
+
+.stat-chip--resolved:not(.active) { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.3); }
+.stat-chip--resolved:not(.active) .stat-chip-label,
+.stat-chip--resolved:not(.active) .stat-chip-count { color: #22c55e; }
+
+.stat-chip--danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* ==================== Toolbar ==================== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(1rem, 3vw, 3rem);
+  padding: 1rem clamp(1rem, 2vw, 2rem);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+.toolbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: clamp(200px, 25vw, 320px);
+  flex-shrink: 0;
+}
+
+.toolbar-search i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.toolbar-search :deep(.p-inputtext) {
+  padding-left: 40px !important;
+  width: 100%;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 28px;
+  background: var(--border-default);
+  flex-shrink: 0;
+}
+
+.toolbar-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Force dropdowns to have NO border/background - high specificity to override global styles */
+.toolbar .toolbar-filter :deep(.p-dropdown),
+.toolbar .toolbar-filter :deep(.p-dropdown.p-component) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  min-width: 80px;
+  position: relative;
+  padding: 0 !important;
+}
+
+.toolbar .toolbar-filter :deep(.p-dropdown.p-focus),
+.toolbar .toolbar-filter :deep(.p-dropdown:focus),
+.toolbar .toolbar-filter :deep(.p-dropdown:hover),
+.toolbar .toolbar-filter :deep(.p-dropdown.p-component:hover),
+.toolbar .toolbar-filter :deep(.p-dropdown.p-component.p-focus) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Label - add padding for text spacing */
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label) {
+  padding: 0.375rem 3.5rem 0.375rem 0.75rem !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent !important;
+}
+
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label.p-placeholder) {
+  color: var(--text-secondary);
+  padding: 0.375rem 3.5rem 0.375rem 0.75rem !important;
+}
+
+/* Arrow - positioned absolutely */
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-trigger) {
+  position: absolute;
+  right: 1.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  color: var(--text-muted);
+  background: transparent !important;
+}
+
+/* Clear icon - positioned absolutely after arrow */
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon) {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon:hover) {
+  color: var(--primary);
+}
+
+.my-tickets-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toolbar-spacer {
+  flex: 1;
+  min-width: 2rem;
+}
+
+.toolbar-selection {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+
+.selection-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+  white-space: nowrap;
+}
+
+/* ==================== Tickets Container ==================== */
+.tickets-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  flex: 1;
+}
+
+.loading-state i,
+.empty-state i {
+  font-size: 2.5rem;
+  color: var(--text-muted);
+}
+
+.empty-state h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* ==================== Tickets List - Compact Row Design ==================== */
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   overflow-y: auto;
 }
 
+/* Table Header */
+.tickets-header {
+  display: grid;
+  grid-template-columns: 32px 120px 1fr 160px 180px 130px 24px;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.header-checkbox {
+  width: 32px;
+}
+
+.header-col {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.header-col--sortable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.header-col--sortable:hover {
+  color: var(--primary);
+}
+
+.header-col--sortable i {
+  font-size: 0.625rem;
+}
+
+.header-col--title {
+  min-width: 0;
+}
+
+.header-col--arrow {
+  width: 24px;
+}
+
+/* Ticket Rows */
+.ticket-row {
+  display: grid;
+  grid-template-columns: 32px 120px 1fr 160px 180px 130px 24px;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ticket-row:last-child {
+  border-bottom: none;
+}
+
+.ticket-row:hover {
+  background: var(--bg-hover);
+}
+
+.ticket-row--selected {
+  background: var(--primary-light);
+}
+
+.ticket-checkbox {
+  width: 32px;
+}
+
+.ticket-number {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.ticket-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.ticket-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-type-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ticket-tags {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.ticket-users {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 140px;
+}
+
+.ticket-user,
+.ticket-assignee {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.ticket-user i,
+.ticket-assignee i {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
+
+.ticket-assignee.unassigned {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ticket-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ticket-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.ticket-row:hover .ticket-arrow {
+  transform: translateX(3px);
+  color: var(--primary);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border-default);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .tickets-header,
+  .ticket-row {
+    grid-template-columns: 32px 100px 1fr 140px 160px 110px 24px;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .tickets-header {
+    display: none;
+  }
+
+  .ticket-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem 1rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .ticket-checkbox {
+    grid-row: 1 / 4;
+  }
+
+  .ticket-number {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .ticket-info {
+    grid-row: 2;
+    grid-column: 2;
+  }
+
+  .ticket-tags {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .ticket-users {
+    grid-row: 3;
+    grid-column: 2;
+    flex-direction: row;
+    gap: 1.5rem;
+    min-width: auto;
+  }
+
+  .ticket-date {
+    grid-row: 3;
+    grid-column: 3;
+  }
+
+  .ticket-arrow {
+    grid-row: 2;
+    grid-column: 3;
+    align-self: center;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    gap: 1rem;
+  }
+
+  .toolbar .search-input {
+    width: 100%;
+    order: -1;
+  }
+
+  .toolbar-spacer {
+    display: none;
+  }
+}
+
+/* ==================== Create Form Styles ==================== */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.375rem;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.form-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Legacy form-grid for resolve/assign modals */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-group--full {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* ==================== Detail Modal ==================== */
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+@media (min-width: 768px) {
+  .detail-info-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.info-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.info-value-with-action {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Detail Sections */
+.detail-section {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}
+
+.section-title--success {
+  color: var(--success);
+}
+
+.description-box {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.resolution-box {
+  padding: 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius-lg);
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Comments */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.comment-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.comment-item--internal {
+  border-left: 3px solid var(--warning);
+}
+
+.comment-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary) 0%, #06b6d4 100%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.comment-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.comment-text {
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.comments-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.comments-empty i {
+  font-size: 1.5rem;
+}
+
+.add-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.add-comment-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.internal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* History */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.8125rem;
+}
+
+.history-item i {
+  font-size: 0.5rem;
+  color: var(--primary);
+}
+
+.history-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.history-user {
+  font-weight: 500;
+}
+
+.history-action {
+  color: var(--text-secondary);
+}
+
+/* Detail Actions */
+.detail-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ==================== Bulk Actions (keep existing) ==================== */
 .action-card {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-default);
@@ -1197,5 +2106,262 @@ onUnmounted(() => {
 .action-card i.pi-chevron-down,
 .action-card i.pi-chevron-right {
   color: var(--text-secondary);
+}
+
+/* ==================== Dark Mode Fixes ==================== */
+:root.dark .page-header,
+:root.dark .toolbar,
+:root.dark .tickets-container {
+  background: var(--bg-card-solid);
+  border-color: var(--border-default);
+}
+
+:root.dark .page-title {
+  color: #f1f5f9;
+}
+
+:root.dark .page-subtitle {
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Toolbar dark mode */
+:root.dark .toolbar-separator {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark .filter-label {
+  color: #64748b;
+}
+
+:root.dark .toolbar-filter :deep(.p-dropdown .p-dropdown-label) {
+  color: #e2e8f0;
+}
+
+:root.dark .toolbar-filter :deep(.p-dropdown .p-dropdown-label.p-placeholder) {
+  color: #94a3b8;
+}
+
+:root.dark .toolbar-filter :deep(.p-dropdown .p-dropdown-trigger),
+:root.dark .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon) {
+  color: #64748b;
+}
+
+:root.dark .my-tickets-toggle {
+  color: #e2e8f0;
+}
+
+:root.dark .toolbar-search i {
+  color: #64748b;
+}
+
+/* Tickets header dark mode */
+:root.dark .tickets-header {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #64748b;
+}
+
+:root.dark .header-col--sortable:hover {
+  color: #38bdf8;
+}
+
+/* Ticket row dark mode */
+:root.dark .ticket-row {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+:root.dark .ticket-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+:root.dark .ticket-title {
+  color: #f1f5f9;
+}
+
+:root.dark .ticket-type-label {
+  color: #64748b;
+}
+
+:root.dark .ticket-number {
+  color: #38bdf8;
+}
+
+:root.dark .ticket-user,
+:root.dark .ticket-assignee {
+  color: #cbd5e1;
+}
+
+:root.dark .ticket-user i,
+:root.dark .ticket-assignee i {
+  color: #64748b;
+}
+
+:root.dark .ticket-assignee.unassigned {
+  color: #64748b;
+}
+
+:root.dark .ticket-date {
+  color: #64748b;
+}
+
+:root.dark .ticket-arrow {
+  color: #64748b;
+}
+
+/* Stat chips dark mode */
+:root.dark .stat-chip:not(.active) {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root.dark .stat-chip.active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+:root.dark .stat-chip.active .stat-chip-label,
+:root.dark .stat-chip.active .stat-chip-count {
+  color: white !important;
+}
+
+:root.dark .stat-chip-label {
+  color: #94a3b8;
+}
+
+:root.dark .stat-chip-count {
+  color: #e2e8f0;
+}
+
+/* Colored chips in dark mode */
+:root.dark .stat-chip--new:not(.active) { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.35); }
+:root.dark .stat-chip--new:not(.active) .stat-chip-label,
+:root.dark .stat-chip--new:not(.active) .stat-chip-count { color: #60a5fa; }
+
+:root.dark .stat-chip--open:not(.active) { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); }
+:root.dark .stat-chip--open:not(.active) .stat-chip-label,
+:root.dark .stat-chip--open:not(.active) .stat-chip-count { color: #fbbf24; }
+
+:root.dark .stat-chip--pending:not(.active) { background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.35); }
+:root.dark .stat-chip--pending:not(.active) .stat-chip-label,
+:root.dark .stat-chip--pending:not(.active) .stat-chip-count { color: #c084fc; }
+
+:root.dark .stat-chip--resolved:not(.active) { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.35); }
+:root.dark .stat-chip--resolved:not(.active) .stat-chip-label,
+:root.dark .stat-chip--resolved:not(.active) .stat-chip-count { color: #4ade80; }
+
+/* My tickets toggle */
+:root.dark .my-tickets-toggle {
+  color: #e2e8f0;
+}
+
+/* Selection count */
+:root.dark .selection-count {
+  color: #38bdf8;
+}
+
+/* Empty state */
+:root.dark .empty-state h3 {
+  color: #f1f5f9;
+}
+
+:root.dark .empty-state p {
+  color: #94a3b8;
+}
+
+/* Detail modal dark mode */
+:root.dark .field-label,
+:root.dark .form-label,
+:root.dark .section-title,
+:root.dark .comment-author,
+:root.dark .history-user,
+:root.dark .info-value {
+  color: #f1f5f9;
+}
+
+:root.dark .detail-info-grid,
+:root.dark .description-box,
+:root.dark .comment-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+:root.dark .info-label,
+:root.dark .comment-time,
+:root.dark .history-time {
+  color: #64748b;
+}
+
+:root.dark .comment-text,
+:root.dark .description-box,
+:root.dark .history-action {
+  color: #cbd5e1;
+}
+
+/* Form inputs in dark mode */
+:root.dark :deep(.p-inputtext),
+:root.dark :deep(.p-dropdown),
+:root.dark :deep(.p-textarea) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+:root.dark :deep(.p-inputtext:focus),
+:root.dark :deep(.p-dropdown:focus),
+:root.dark :deep(.p-textarea:focus) {
+  border-color: var(--primary);
+}
+
+:root.dark :deep(.p-dropdown-panel) {
+  background: var(--bg-card-solid);
+  border-color: var(--border-default);
+}
+
+:root.dark :deep(.p-dropdown-item) {
+  color: #f1f5f9;
+}
+
+:root.dark :deep(.p-dropdown-item:hover) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:root.dark :deep(.p-dropdown-label) {
+  color: #f1f5f9;
+}
+
+/* Resolution box in dark mode */
+:root.dark .resolution-box {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-title-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .page-subtitle {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .toolbar-left {
+    width: 100%;
+  }
+
+  .search-input {
+    max-width: none;
+    width: 100%;
+  }
 }
 </style>

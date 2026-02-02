@@ -431,6 +431,7 @@
     "connectionType": "Connection Type"
   },
   "common": {
+    "all": "All",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -438,6 +439,7 @@
     "create": "Create",
     "update": "Update",
     "close": "Close",
+    "select": "Select...",
     "confirm": "Confirm",
     "success": "Success",
     "error": "Error",
@@ -651,6 +653,9 @@
     "title": "Tickets",
     "ticketsList": "Tickets List",
     "allTickets": "All Tickets",
+    "totalTickets": "total tickets",
+    "noTickets": "No tickets found",
+    "noTicketsDesc": "Create your first ticket to get started",
     "myTickets": "My Tickets",
     "newTicket": "New Ticket",
     "editTicket": "Edit Ticket",

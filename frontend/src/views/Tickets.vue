@@ -2224,6 +2224,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 /* Detail Sections */
@@ -2476,6 +2478,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.375rem;
   cursor: pointer;
+  color: var(--text-primary);
 }
 
 .internal-toggle i {
@@ -2784,7 +2787,9 @@ onUnmounted(() => {
 :root.dark .section-title,
 :root.dark .comment-author,
 :root.dark .history-user,
-:root.dark .info-value {
+:root.dark .info-value,
+:root.dark .info-value-with-action,
+:root.dark .internal-toggle label {
   color: #f1f5f9;
 }
 

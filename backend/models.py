@@ -56,12 +56,10 @@ class EncryptedString(TypeDecorator):
                     "This may indicate the ENCRYPTION_KEY has changed. "
                     "Use rotate_encryption_key_task to migrate encrypted data to a new key."
                 )
-                # Raise exception instead of returning None to prevent data corruption/hiding
-                raise ValueError(
-                    "Failed to decrypt sensitive data. "
-                    "The encryption key may have changed since this data was stored. "
-                    "Run the rotate_encryption_key_task with the old and new keys to migrate data."
-                ) from e
+                # Return a fallback value instead of raising an exception
+                # This prevents blocking entire list displays when one record has encryption issues
+                # The error is logged above for security audit purposes
+                return "[ERREUR DECHIFFREMENT]"
         return value
 
 
@@ -627,6 +625,11 @@ class Ticket(Base):
     deleted_at = Column(DateTime, nullable=True)
     deleted_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
+    # Customer Satisfaction (CSAT) - collected after ticket closure
+    rating = Column(Integer, nullable=True)  # 1-5 star rating
+    rating_comment = Column(Text, nullable=True)  # Optional feedback text
+    rating_submitted_at = Column(DateTime, nullable=True)  # When the rating was submitted
+
     # Relationships
     requester = relationship("User", foreign_keys=[requester_id], backref="requested_tickets")
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], backref="assigned_tickets")
@@ -635,6 +638,11 @@ class Ticket(Base):
     comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
     history = relationship("TicketHistory", back_populates="ticket", cascade="all, delete-orphan")
     attachments = relationship("TicketAttachment", back_populates="ticket", cascade="all, delete-orphan")
+    time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
+    # Relations where this ticket is the source
+    related_from = relationship("TicketRelation", foreign_keys="TicketRelation.source_ticket_id", back_populates="source_ticket", cascade="all, delete-orphan")
+    # Relations where this ticket is the target
+    related_to = relationship("TicketRelation", foreign_keys="TicketRelation.target_ticket_id", back_populates="target_ticket", cascade="all, delete-orphan")
 
 
 class TicketComment(Base):
@@ -691,6 +699,80 @@ class TicketAttachment(Base):
 
     ticket = relationship("Ticket", back_populates="attachments")
     uploaded_by = relationship("User", backref="ticket_attachments")
+
+
+class TicketRelation(Base):
+    """
+    Relations between tickets for linking related issues.
+
+    Relation Types:
+        - duplicate_of: This ticket is a duplicate of the target ticket
+        - child_of: This ticket is a sub-task of the target ticket (parent-child)
+        - blocked_by: This ticket is blocked by the target ticket
+        - related_to: General relation between tickets
+
+    The source_ticket is the ticket that has the relation TO the target_ticket.
+    Example: Ticket A is a "duplicate_of" Ticket B
+        - source_ticket_id = A.id
+        - target_ticket_id = B.id
+        - relation_type = "duplicate_of"
+    """
+    __tablename__ = "ticket_relations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    relation_type = Column(String, nullable=False, index=True)  # duplicate_of, child_of, blocked_by, related_to
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    notes = Column(Text, nullable=True)  # Optional notes about the relation
+
+    # Relationships
+    source_ticket = relationship("Ticket", foreign_keys=[source_ticket_id], back_populates="related_from")
+    target_ticket = relationship("Ticket", foreign_keys=[target_ticket_id], back_populates="related_to")
+    created_by = relationship("User", backref="ticket_relations_created")
+
+    __table_args__ = (
+        # Prevent duplicate relations (same source, target, and type)
+        UniqueConstraint('source_ticket_id', 'target_ticket_id', 'relation_type', name='uq_ticket_relation'),
+        # Index for efficient lookup of all relations for a ticket
+        Index('ix_ticket_relations_source_target', source_ticket_id, target_ticket_id),
+    )
+
+
+class TicketTimeEntry(Base):
+    """
+    Time tracking entries for tickets.
+
+    Allows technicians to log time spent working on tickets.
+    Used for reporting, billing, and workload analysis.
+    """
+    __tablename__ = "ticket_time_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    minutes = Column(Integer, nullable=False)  # Time spent in minutes
+    description = Column(Text, nullable=True)  # What was done during this time
+    work_date = Column(DateTime, default=utc_now)  # When the work was performed
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # Time entry type for categorization
+    entry_type = Column(String, default="work")  # work, research, communication, testing, travel
+
+    # Billable tracking
+    is_billable = Column(Boolean, default=True)
+    hourly_rate = Column(Numeric(10, 2), nullable=True)  # Optional rate for billing calculations
+
+    # Relationships
+    ticket = relationship("Ticket", back_populates="time_entries")
+    user = relationship("User", backref="ticket_time_entries")
+
+    __table_args__ = (
+        # Index for efficient time reports by user
+        Index('ix_ticket_time_entries_user_date', user_id, work_date),
+    )
 
 
 # ==================== TICKET NUMBER GENERATION HOOK ====================

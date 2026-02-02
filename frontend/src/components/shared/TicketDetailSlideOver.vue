@@ -31,18 +31,42 @@
         </div>
       </div>
 
-      <!-- SLA Warning -->
-      <div v-if="ticket.sla_breached || isSlaNearBreach"
-           class="p-3 rounded-lg flex items-center gap-3"
-           :class="ticket.sla_breached ? 'bg-danger-light border border-danger' : 'bg-warning-light border border-warning'">
-        <i class="pi pi-exclamation-triangle" :class="ticket.sla_breached ? 'text-danger' : 'text-warning'"></i>
-        <div>
-          <div class="font-medium" :style="{ color: ticket.sla_breached ? 'var(--danger)' : 'var(--warning)' }">
-            {{ ticket.sla_breached ? t('tickets.slaBreached') : t('tickets.slaNearBreach') }}
+      <!-- SLA Status Card with Dynamic Countdown -->
+      <div v-if="ticket.sla_due_date && ticket.status !== 'closed'" class="sla-card" :class="slaStatusClass">
+        <div class="sla-header">
+          <div class="sla-icon">
+            <i :class="slaIcon"></i>
           </div>
-          <div class="text-sm" style="color: var(--text-secondary)">
-            {{ t('tickets.slaDue') }}: {{ formatDateTime(ticket.sla_due_date) }}
+          <div class="sla-info">
+            <div class="sla-title">{{ slaTitle }}</div>
+            <div class="sla-subtitle">{{ t('tickets.slaDue') }}: {{ formatDateTime(ticket.sla_due_date) }}</div>
           </div>
+          <div class="sla-countdown">
+            <template v-if="!ticket.sla_breached && slaTimeRemaining.total > 0">
+              <span class="countdown-value">{{ slaTimeRemaining.hours }}</span>
+              <span class="countdown-label">h</span>
+              <span class="countdown-value">{{ slaTimeRemaining.minutes }}</span>
+              <span class="countdown-label">m</span>
+              <span class="countdown-value">{{ slaTimeRemaining.seconds }}</span>
+              <span class="countdown-label">s</span>
+            </template>
+            <template v-else-if="ticket.sla_breached">
+              <span class="countdown-breached">{{ t('tickets.breached') }}</span>
+            </template>
+          </div>
+        </div>
+        <div class="sla-progress">
+          <div class="sla-progress-bar" :style="{ width: `${slaProgressPercent}%` }"></div>
+        </div>
+        <div class="sla-details">
+          <span v-if="ticket.first_response_at" class="sla-detail-item sla-detail-success">
+            <i class="pi pi-check-circle"></i>
+            {{ t('tickets.firstResponseAt') }}: {{ formatDateTime(ticket.first_response_at) }}
+          </span>
+          <span v-else-if="ticket.first_response_due" class="sla-detail-item">
+            <i class="pi pi-clock"></i>
+            {{ t('tickets.firstResponseDue') }}: {{ formatDateTime(ticket.first_response_due) }}
+          </span>
         </div>
       </div>
 
@@ -281,6 +305,86 @@ const isSlaNearBreach = computed(() => {
   return hoursRemaining > 0 && hoursRemaining < 4
 })
 
+// SLA countdown timer
+const currentTime = ref(new Date())
+let slaTimer = null
+
+const startSlaTimer = () => {
+  if (slaTimer) clearInterval(slaTimer)
+  slaTimer = setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+}
+
+const stopSlaTimer = () => {
+  if (slaTimer) {
+    clearInterval(slaTimer)
+    slaTimer = null
+  }
+}
+
+// SLA time remaining calculation
+const slaTimeRemaining = computed(() => {
+  if (!ticket.value?.sla_due_date) return { total: 0, hours: 0, minutes: 0, seconds: 0 }
+
+  const dueDate = new Date(ticket.value.sla_due_date)
+  const now = currentTime.value
+  const diff = dueDate - now
+
+  if (diff <= 0) return { total: 0, hours: 0, minutes: 0, seconds: 0 }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+  return {
+    total: diff,
+    hours: String(hours).padStart(2, '0'),
+    minutes: String(minutes).padStart(2, '0'),
+    seconds: String(seconds).padStart(2, '0')
+  }
+})
+
+// SLA progress percentage (from creation to due date)
+const slaProgressPercent = computed(() => {
+  if (!ticket.value?.sla_due_date || !ticket.value?.created_at) return 0
+
+  const created = new Date(ticket.value.created_at)
+  const due = new Date(ticket.value.sla_due_date)
+  const now = currentTime.value
+
+  const total = due - created
+  const elapsed = now - created
+
+  if (total <= 0) return 100
+  const percent = Math.min(100, Math.max(0, (elapsed / total) * 100))
+  return percent
+})
+
+// SLA status class
+const slaStatusClass = computed(() => {
+  if (ticket.value?.sla_breached) return 'sla-breached'
+  if (slaProgressPercent.value >= 90) return 'sla-critical'
+  if (slaProgressPercent.value >= 75) return 'sla-warning'
+  return 'sla-ok'
+})
+
+// SLA icon
+const slaIcon = computed(() => {
+  if (ticket.value?.sla_breached) return 'pi pi-exclamation-circle'
+  if (slaProgressPercent.value >= 90) return 'pi pi-exclamation-triangle'
+  if (slaProgressPercent.value >= 75) return 'pi pi-clock'
+  return 'pi pi-check-circle'
+})
+
+// SLA title
+const slaTitle = computed(() => {
+  if (ticket.value?.sla_breached) return t('tickets.slaBreached')
+  if (slaProgressPercent.value >= 90) return t('tickets.slaCritical')
+  if (slaProgressPercent.value >= 75) return t('tickets.slaNearBreach')
+  return t('tickets.slaOnTrack')
+})
+
 // Methods
 const loadTicketDetails = async () => {
   if (!props.ticketId) return
@@ -371,8 +475,17 @@ const getPrioritySeverity = (priority) => {
 watch(() => [props.modelValue, props.ticketId], ([isVisible, id]) => {
   if (isVisible && id) {
     loadTicketDetails()
+    startSlaTimer()
+  } else {
+    stopSlaTimer()
   }
 }, { immediate: true })
+
+// Cleanup on unmount
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  stopSlaTimer()
+})
 </script>
 
 <style scoped>
@@ -479,5 +592,180 @@ watch(() => [props.modelValue, props.ticketId], ([isVisible, id]) => {
 
 .history-item:last-child {
   border-bottom: none;
+}
+
+/* SLA Card Styles */
+.sla-card {
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.sla-card.sla-ok {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.sla-card.sla-warning {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0.05) 100%);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.sla-card.sla-critical {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.sla-card.sla-breached {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.sla-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sla-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sla-ok .sla-icon {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.sla-warning .sla-icon {
+  background: rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.sla-critical .sla-icon {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.sla-breached .sla-icon {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.sla-icon i {
+  font-size: 18px;
+}
+
+.sla-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sla-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.sla-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sla-countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.countdown-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.countdown-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.countdown-breached {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ef4444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sla-progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.sla-progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+
+.sla-ok .sla-progress-bar {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.sla-warning .sla-progress-bar {
+  background: linear-gradient(90deg, #eab308, #facc15);
+}
+
+.sla-critical .sla-progress-bar {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+}
+
+.sla-breached .sla-progress-bar {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  width: 100% !important;
+}
+
+.sla-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sla-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.sla-detail-item i {
+  font-size: 12px;
+}
+
+.sla-detail-success {
+  color: #22c55e;
+}
+
+.sla-detail-success i {
+  color: #22c55e;
 }
 </style>

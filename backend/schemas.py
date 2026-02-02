@@ -818,6 +818,10 @@ class Ticket(TicketBase):
     updated_at: datetime
     resolved_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
+    # Customer Satisfaction (CSAT)
+    rating: Optional[int] = None
+    rating_comment: Optional[str] = None
+    rating_submitted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -855,6 +859,9 @@ class TicketFull(Ticket):
     comments: List[TicketCommentFull] = Field(default_factory=list)
     history: List[TicketHistoryItem] = Field(default_factory=list)
     attachments: List[TicketAttachment] = Field(default_factory=list)
+    time_entries: List["TicketTimeEntry"] = Field(default_factory=list)
+    relations: List["TicketRelationFull"] = Field(default_factory=list)
+    total_time_minutes: int = 0  # Computed total time spent
 
 
 class TicketStats(BaseModel):
@@ -868,6 +875,114 @@ class TicketStats(BaseModel):
     sla_breached: int = 0
     by_priority: Dict[str, int] = {}
     by_type: Dict[str, int] = {}
+
+
+# ==================== TICKET RELATION SCHEMAS ====================
+
+class TicketRelationBase(BaseModel):
+    """Base schema for ticket relations"""
+    target_ticket_id: int = Field(..., description="ID of the related ticket")
+    relation_type: str = Field(..., description="Type of relation: duplicate_of, child_of, blocked_by, related_to")
+    notes: Optional[str] = Field(None, description="Optional notes about the relation")
+
+
+class TicketRelationCreate(TicketRelationBase):
+    """Schema for creating a ticket relation"""
+    pass
+
+
+class TicketRelation(TicketRelationBase):
+    """Schema for ticket relation response"""
+    id: int
+    source_ticket_id: int
+    created_by_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TicketRelationFull(TicketRelation):
+    """Ticket relation with additional ticket info"""
+    source_ticket_number: Optional[str] = None
+    source_ticket_title: Optional[str] = None
+    target_ticket_number: Optional[str] = None
+    target_ticket_title: Optional[str] = None
+    target_ticket_status: Optional[str] = None
+    created_by_name: Optional[str] = None
+
+
+# ==================== TICKET TIME ENTRY SCHEMAS ====================
+
+class TicketTimeEntryBase(BaseModel):
+    """Base schema for time entries"""
+    minutes: int = Field(..., gt=0, description="Time spent in minutes")
+    description: Optional[str] = Field(None, max_length=1000, description="What was done during this time")
+    work_date: Optional[datetime] = Field(None, description="When the work was performed")
+    entry_type: str = Field("work", description="Type: work, research, communication, testing, travel")
+    is_billable: bool = Field(True, description="Whether this time is billable")
+    hourly_rate: Optional[float] = Field(None, ge=0, description="Hourly rate for billing")
+
+
+class TicketTimeEntryCreate(TicketTimeEntryBase):
+    """Schema for creating a time entry"""
+    pass
+
+
+class TicketTimeEntryUpdate(BaseModel):
+    """Schema for updating a time entry"""
+    minutes: Optional[int] = Field(None, gt=0)
+    description: Optional[str] = Field(None, max_length=1000)
+    work_date: Optional[datetime] = None
+    entry_type: Optional[str] = None
+    is_billable: Optional[bool] = None
+    hourly_rate: Optional[float] = Field(None, ge=0)
+
+
+class TicketTimeEntry(TicketTimeEntryBase):
+    """Schema for time entry response"""
+    id: int
+    ticket_id: int
+    user_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TicketTimeEntryFull(TicketTimeEntry):
+    """Time entry with user info"""
+    username: Optional[str] = None
+    user_avatar: Optional[str] = None
+
+
+class TicketTimeStats(BaseModel):
+    """Time statistics for a ticket"""
+    total_minutes: int = 0
+    total_hours: float = 0.0
+    billable_minutes: int = 0
+    non_billable_minutes: int = 0
+    entries_count: int = 0
+    by_user: Dict[str, int] = {}  # username -> minutes
+    by_type: Dict[str, int] = {}  # entry_type -> minutes
+
+
+# ==================== TICKET RATING (CSAT) SCHEMAS ====================
+
+class TicketRatingCreate(BaseModel):
+    """Schema for submitting customer satisfaction rating"""
+    rating: int = Field(..., ge=1, le=5, description="Rating from 1 (poor) to 5 (excellent)")
+    rating_comment: Optional[str] = Field(None, max_length=2000, description="Optional feedback comment")
+
+
+class TicketRatingResponse(BaseModel):
+    """Schema for rating response"""
+    ticket_id: int
+    ticket_number: str
+    rating: int
+    rating_comment: Optional[str] = None
+    rating_submitted_at: datetime
 
 
 # ==================== NOTIFICATION SCHEMAS ====================
@@ -1113,3 +1228,9 @@ class TicketFromTemplate(BaseModel):
     title: Optional[str] = Field(None, description="Override title (optional)")
     description: Optional[str] = Field(None, description="Additional description")
     equipment_id: Optional[int] = Field(None, description="Related equipment")
+
+
+# ==================== RESOLVE FORWARD REFERENCES ====================
+# Rebuild models that have forward references to resolve them
+TicketFull.model_rebuild()
+NetworkPortFull.model_rebuild()

@@ -101,7 +101,7 @@
           {{ t('tickets.title') }}
         </h3>
         <div class="space-y-3">
-          <div class="flex items-center justify-between">
+          <router-link to="/tickets?status=new" class="clickable-row flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full bg-blue-500"></div>
               <span class="text-sm">{{ t('tickets.statusNew') }}</span>
@@ -112,8 +112,8 @@
                 <div class="h-full bg-blue-500 rounded-full" :style="{ width: ticketPercent('new') + '%' }"></div>
               </div>
             </div>
-          </div>
-          <div class="flex items-center justify-between">
+          </router-link>
+          <router-link to="/tickets?status=open" class="clickable-row flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
               <span class="text-sm">{{ t('tickets.statusOpen') }}</span>
@@ -124,8 +124,8 @@
                 <div class="h-full bg-yellow-500 rounded-full" :style="{ width: ticketPercent('open') + '%' }"></div>
               </div>
             </div>
-          </div>
-          <div class="flex items-center justify-between">
+          </router-link>
+          <router-link to="/tickets?status=pending" class="clickable-row flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full bg-orange-500"></div>
               <span class="text-sm">{{ t('tickets.statusPending') }}</span>
@@ -136,8 +136,8 @@
                 <div class="h-full bg-orange-500 rounded-full" :style="{ width: ticketPercent('pending') + '%' }"></div>
               </div>
             </div>
-          </div>
-          <div class="flex items-center justify-between">
+          </router-link>
+          <router-link to="/tickets?status=resolved" class="clickable-row flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full bg-green-500"></div>
               <span class="text-sm">{{ t('tickets.statusResolved') }}</span>
@@ -148,7 +148,7 @@
                 <div class="h-full bg-green-500 rounded-full" :style="{ width: ticketPercent('resolved') + '%' }"></div>
               </div>
             </div>
-          </div>
+          </router-link>
         </div>
         <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <router-link to="/tickets" class="text-sm text-sky-500 hover:text-sky-400 flex items-center gap-1">
@@ -160,10 +160,11 @@
 
       <!-- Recent Tickets -->
       <div class="card">
-        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+        <router-link to="/tickets?sort=created_at&order=desc" class="clickable-header text-lg font-bold mb-4 flex items-center gap-2">
           <i class="pi pi-clock text-yellow-400"></i>
           {{ t('dashboard.recentTickets') }}
-        </h3>
+          <i class="pi pi-external-link text-xs opacity-50 ml-auto"></i>
+        </router-link>
         <div v-if="recentTickets.length > 0" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
           <router-link
             v-for="ticket in recentTickets"
@@ -197,12 +198,13 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Equipment Status Distribution - Permission-based -->
         <div v-if="canViewInventory" class="card">
-          <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <router-link to="/inventory" class="clickable-header text-lg font-bold mb-4 flex items-center gap-2">
             <i class="pi pi-chart-pie text-cyan-400"></i>
             {{ t('dashboard.equipmentStatus') }}
-          </h3>
+            <i class="pi pi-external-link text-xs opacity-50 ml-auto"></i>
+          </router-link>
           <div class="space-y-3">
-            <div class="flex items-center justify-between">
+            <router-link to="/inventory?status=in_service" class="clickable-row flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full bg-green-500"></div>
                 <span class="text-sm">{{ t('status.inService') }}</span>
@@ -213,8 +215,8 @@
                   <div class="h-full bg-green-500 rounded-full" :style="{ width: equipmentPercent('in_service') + '%' }"></div>
                 </div>
               </div>
-            </div>
-            <div class="flex items-center justify-between">
+            </router-link>
+            <router-link to="/inventory?status=stock" class="clickable-row flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span class="text-sm">{{ t('status.inStock') }}</span>
@@ -225,8 +227,8 @@
                   <div class="h-full bg-blue-500 rounded-full" :style="{ width: equipmentPercent('in_stock') + '%' }"></div>
                 </div>
               </div>
-            </div>
-            <div class="flex items-center justify-between">
+            </router-link>
+            <router-link to="/inventory?status=maintenance" class="clickable-row flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <span class="text-sm">{{ t('status.maintenance') }}</span>
@@ -237,8 +239,8 @@
                   <div class="h-full bg-yellow-500 rounded-full" :style="{ width: equipmentPercent('maintenance') + '%' }"></div>
                 </div>
               </div>
-            </div>
-            <div class="flex items-center justify-between">
+            </router-link>
+            <router-link to="/inventory?status=retired" class="clickable-row flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full bg-gray-500"></div>
                 <span class="text-sm">{{ t('status.retired') }}</span>
@@ -249,33 +251,34 @@
                   <div class="h-full bg-gray-500 rounded-full" :style="{ width: equipmentPercent('retired') + '%' }"></div>
                 </div>
               </div>
-            </div>
+            </router-link>
           </div>
         </div>
 
         <!-- Ticket Priority Distribution -->
         <div class="card">
-          <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <router-link to="/tickets?sort=priority&order=desc" class="clickable-header text-lg font-bold mb-4 flex items-center gap-2">
             <i class="pi pi-exclamation-triangle text-orange-400"></i>
             {{ t('dashboard.ticketsByPriority') }}
-          </h3>
-          <div class="flex items-center justify-center gap-4 py-4">
-            <div class="text-center">
+            <i class="pi pi-external-link text-xs opacity-50 ml-auto"></i>
+          </router-link>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
+            <router-link to="/tickets?priority=critical" class="priority-card text-center">
               <div class="text-3xl font-bold text-red-500">{{ ticketStats.by_priority?.critical || 0 }}</div>
               <div class="text-xs mt-1" style="color: var(--text-muted);">{{ t('tickets.priorityCritical') }}</div>
-            </div>
-            <div class="text-center">
+            </router-link>
+            <router-link to="/tickets?priority=high" class="priority-card text-center">
               <div class="text-3xl font-bold text-orange-500">{{ ticketStats.by_priority?.high || 0 }}</div>
               <div class="text-xs mt-1" style="color: var(--text-muted);">{{ t('tickets.priorityHigh') }}</div>
-            </div>
-            <div class="text-center">
+            </router-link>
+            <router-link to="/tickets?priority=medium" class="priority-card text-center">
               <div class="text-3xl font-bold text-yellow-500">{{ ticketStats.by_priority?.medium || 0 }}</div>
               <div class="text-xs mt-1" style="color: var(--text-muted);">{{ t('tickets.priorityMedium') }}</div>
-            </div>
-            <div class="text-center">
+            </router-link>
+            <router-link to="/tickets?priority=low" class="priority-card text-center">
               <div class="text-3xl font-bold text-green-500">{{ ticketStats.by_priority?.low || 0 }}</div>
               <div class="text-xs mt-1" style="color: var(--text-muted);">{{ t('tickets.priorityLow') }}</div>
-            </div>
+            </router-link>
           </div>
           <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div class="flex justify-between text-sm">
@@ -287,29 +290,30 @@
 
         <!-- Software & License Compliance - Permission-based -->
         <div v-if="canViewSoftware" class="card">
-          <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <router-link to="/software" class="clickable-header text-lg font-bold mb-4 flex items-center gap-2">
             <i class="pi pi-desktop text-blue-400"></i>
             {{ t('dashboard.softwareLicenses') }}
-          </h3>
+            <i class="pi pi-external-link text-xs opacity-50 ml-auto"></i>
+          </router-link>
           <div class="grid grid-cols-2 gap-4">
-            <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
+            <router-link to="/software" class="software-stat-card p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
               <div class="text-2xl font-bold">{{ stats.software }}</div>
               <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.softwareItems') }}</div>
-            </div>
-            <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
+            </router-link>
+            <router-link to="/software" class="software-stat-card p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
               <div class="text-2xl font-bold">{{ stats.licenses }}</div>
               <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.licenses') }}</div>
-            </div>
-            <div class="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
+            </router-link>
+            <router-link to="/software" class="software-stat-card p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50">
               <div class="text-2xl font-bold">{{ stats.installations }}</div>
               <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.installations') }}</div>
-            </div>
-            <div class="p-3 rounded-lg" :class="stats.license_violations > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'">
+            </router-link>
+            <router-link to="/software" class="software-stat-card p-3 rounded-lg" :class="stats.license_violations > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'">
               <div class="text-2xl font-bold" :class="stats.license_violations > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
                 {{ stats.license_violations }}
               </div>
               <div class="text-xs" style="color: var(--text-muted);">{{ t('dashboard.violations') }}</div>
-            </div>
+            </router-link>
           </div>
         </div>
       </div>
@@ -413,30 +417,34 @@
             <i class="pi pi-bolt text-yellow-400"></i>
             {{ t('dashboard.quickActions') }}
           </h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <router-link to="/tickets" class="action-btn">
-              <i class="pi pi-ticket text-red-400"></i>
+          <div class="quick-actions-grid">
+            <router-link to="/tickets?action=create" class="action-btn">
+              <i class="pi pi-plus text-red-400"></i>
               <span>{{ t('dashboard.newTicket') }}</span>
             </router-link>
-            <router-link v-if="canViewIpam" to="/ipam" class="action-btn">
+            <router-link v-if="canViewIpam" to="/ipam?action=create" class="action-btn">
               <i class="pi pi-plus text-blue-400"></i>
               <span>{{ t('dashboard.newSubnet') }}</span>
             </router-link>
-            <router-link v-if="canViewInventory" to="/inventory" class="action-btn">
-              <i class="pi pi-box text-cyan-400"></i>
+            <router-link v-if="canViewInventory" to="/inventory?action=create" class="action-btn">
+              <i class="pi pi-plus text-cyan-400"></i>
               <span>{{ t('dashboard.addEquipment') }}</span>
+            </router-link>
+            <router-link v-if="canViewContracts" to="/contracts?action=create" class="action-btn">
+              <i class="pi pi-plus text-orange-400"></i>
+              <span>{{ t('dashboard.newContract') }}</span>
+            </router-link>
+            <router-link v-if="canViewSoftware" to="/software?action=create" class="action-btn">
+              <i class="pi pi-plus text-pink-400"></i>
+              <span>{{ t('dashboard.newSoftware') }}</span>
             </router-link>
             <router-link v-if="canViewDcim" to="/dcim" class="action-btn">
               <i class="pi pi-server text-indigo-400"></i>
               <span>{{ t('dashboard.manageRacks') }}</span>
             </router-link>
-            <router-link v-if="canViewContracts" to="/contracts" class="action-btn">
-              <i class="pi pi-file-edit text-orange-400"></i>
-              <span>{{ t('dashboard.newContract') }}</span>
-            </router-link>
-            <router-link v-if="canViewSoftware" to="/software" class="action-btn">
-              <i class="pi pi-desktop text-pink-400"></i>
-              <span>{{ t('dashboard.manageSoftware') }}</span>
+            <router-link to="/knowledge" class="action-btn">
+              <i class="pi pi-book text-green-400"></i>
+              <span>{{ t('dashboard.knowledgeBase') }}</span>
             </router-link>
             <router-link to="/settings" class="action-btn">
               <i class="pi pi-cog text-gray-400"></i>
@@ -871,5 +879,80 @@ onMounted(() => {
 .action-btn span {
   @apply text-xs;
   color: var(--text-main);
+}
+
+/* Clickable elements styles */
+.clickable-row {
+  @apply p-2 -mx-2 rounded-lg transition-all cursor-pointer;
+}
+
+.clickable-row:hover {
+  background-color: var(--bg-app);
+  transform: translateX(4px);
+}
+
+.clickable-header {
+  @apply cursor-pointer transition-all;
+  text-decoration: none;
+  color: inherit;
+}
+
+.clickable-header:hover {
+  color: var(--primary);
+}
+
+.clickable-header:hover .pi-external-link {
+  opacity: 1 !important;
+}
+
+.clickable-card {
+  @apply transition-all cursor-pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.clickable-card:hover {
+  border-color: var(--primary) !important;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.priority-card {
+  @apply p-3 rounded-lg transition-all cursor-pointer;
+  background-color: var(--bg-app);
+}
+
+.priority-card:hover {
+  background-color: var(--bg-secondary);
+  transform: scale(1.05);
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.software-stat-card {
+  @apply transition-all cursor-pointer block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.software-stat-card:hover {
+  transform: scale(1.03);
+  filter: brightness(1.1);
 }
 </style>

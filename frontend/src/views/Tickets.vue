@@ -580,6 +580,10 @@ const ticketsTotal = ref(0);
 const ticketsFirst = ref(0);
 const ticketsRows = ref(15);
 
+// Sorting
+const sortField = ref('created_at');
+const sortOrder = ref(-1); // -1 = desc, 1 = asc
+
 // Filters
 const filters = ref({
   status: null,
@@ -755,6 +759,8 @@ const loadTickets = async () => {
     if (filters.value.ticket_type) params.append('ticket_type', filters.value.ticket_type);
     if (filters.value.search) params.append('search', filters.value.search);
     if (filters.value.my_tickets) params.append('my_tickets', 'true');
+    if (sortField.value) params.append('sort', sortField.value);
+    params.append('order', sortOrder.value === -1 ? 'desc' : 'asc');
 
     const [ticketsRes, statsRes] = await Promise.all([
       api.get(`/tickets/?${params}`),
@@ -1083,6 +1089,12 @@ const applyBulkType = async () => {
 };
 
 onMounted(async () => {
+  // Apply URL query params for filters and sorting
+  if (route.query.status) filters.value.status = route.query.status;
+  if (route.query.priority) filters.value.priority = route.query.priority;
+  if (route.query.sort) sortField.value = route.query.sort;
+  if (route.query.order) sortOrder.value = route.query.order === 'asc' ? 1 : -1;
+
   // Load tickets and reference data in parallel, but wait for both
   await Promise.all([
     loadTickets(),

@@ -640,5 +640,11 @@ onMounted(async () => {
   await loadData();
   // Check if we need to open a software from URL
   openSoftwareFromUrl();
+
+  // Check if action=create in query params (from Dashboard quick action)
+  if (route.query.action === 'create') {
+    openSoftwareDialog();
+    router.replace({ path: '/software', query: {} });
+  }
 });
 </script>

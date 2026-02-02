@@ -154,6 +154,8 @@ def list_tickets(
     category: Optional[str] = None,
     search: Optional[str] = None,
     my_tickets: bool = False,
+    sort: Optional[str] = Query(default="created_at", regex="^(created_at|priority|status|title|ticket_number)$"),
+    order: Optional[str] = Query(default="desc", regex="^(asc|desc)$"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),  # Max 100 for performance
     db: Session = Depends(get_db),
@@ -223,8 +225,15 @@ def list_tickets(
     # Get total count
     total = count_query.scalar() or 0
 
+    # Apply sorting
+    sort_column = getattr(models.Ticket, sort, models.Ticket.created_at)
+    if order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
     # Get paginated results
-    tickets = query.order_by(models.Ticket.created_at.desc()).offset(skip).limit(limit).all()
+    tickets = query.offset(skip).limit(limit).all()
 
     # Map to brief response
     items = []

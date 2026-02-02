@@ -397,6 +397,12 @@ watch(() => [route.query.subnet, route.query.id], ([subnetQuery, idQuery]) => {
 onMounted(async () => {
   await fetchSubnets()
   openSubnetFromUrl()
+
+  // Check if action=create in query params (from Dashboard quick action)
+  if (route.query.action === 'create') {
+    showSubnetDialog.value = true
+    router.replace({ path: '/ipam', query: {} })
+  }
 })
 </script>
 

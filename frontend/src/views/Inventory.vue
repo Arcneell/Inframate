@@ -1504,6 +1504,9 @@ watch(() => [route.query.equipment, route.query.id], ([equipmentQuery, idQuery])
 });
 
 onMounted(async () => {
+  // Apply URL query params for filters
+  if (route.query.status) filterStatus.value = route.query.status;
+
   // Check if we need to open an equipment from URL (do this first, before loading data)
   // The slide-over loads its own data from the API, so no need to wait
   openEquipmentFromUrl();

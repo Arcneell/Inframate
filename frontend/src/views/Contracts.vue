@@ -493,5 +493,11 @@ onMounted(async () => {
   await loadData();
   // Check if we need to open a contract from URL
   openContractFromUrl();
+
+  // Check if action=create in query params (from Dashboard quick action)
+  if (route.query.action === 'create') {
+    openContractDialog();
+    router.replace({ path: '/contracts', query: {} });
+  }
 });
 </script>

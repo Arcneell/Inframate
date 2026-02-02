@@ -682,6 +682,17 @@ a:hover {
     color: white !important;
 }
 
+.p-paginator .p-dropdown {
+    align-items: center !important;
+}
+
+.p-paginator .p-dropdown .p-dropdown-label {
+    display: flex !important;
+    align-items: center !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
 /* === Tag === */
 .p-tag {
     font-size: 0.75rem !important;

@@ -123,8 +123,34 @@ docker-compose up --build
 | `POSTGRES_PASSWORD` | No | DB password (default: `inframatepassword`) |
 | `INITIAL_ADMIN_PASSWORD` | No | Initial admin password |
 | `ALLOWED_ORIGINS` | No | CORS origins (default: `http://localhost:3000`) |
+| `DB_POOL_SIZE` | No | Database connection pool size (default: `20`) |
+| `DB_MAX_OVERFLOW` | No | Max overflow connections (default: `40`) |
 
 For production, use Docker secrets with `*_FILE` suffix (e.g., `JWT_SECRET_KEY_FILE`).
+
+## Production Configuration
+
+The default `docker-compose.yml` is optimized for production:
+
+- **Frontend**: Nginx serving pre-built static files (multi-stage build)
+- **Backend**: Uvicorn with 4 workers (no hot-reload)
+- **Database**: Tuned connection pool (20 connections + 40 overflow)
+
+For development with hot-reload, create a `docker-compose.override.yml`:
+
+```yaml
+services:
+  frontend:
+    build:
+      target: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+  backend:
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
+```
 
 ## Development
 

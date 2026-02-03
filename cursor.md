@@ -95,6 +95,30 @@ worker/tasks.py    # Celery: scripts, scan subnet, alertes expirations, collecte
 - **Backend** : `joinedload`/`selectinload`, cache Redis (TTL 2–5 min), audit via JWT claims, `pg_advisory_xact_lock` pour ticket_number, index GIN/basiques/partiels
 - **Frontend** : lazy loading des routes, cache Pinia (TTL 2 min), invalidation aux mutations
 - **Index** : dans les modèles SQLAlchemy (`__table_args__`), créés au démarrage
+- **Middleware Audit** : opérations DB exécutées via `run_in_threadpool()` pour ne pas bloquer l'event loop asyncio
+- **Pool DB** : 20 connexions + 40 overflow par défaut pour la production
+
+## Configuration Docker
+
+Le `docker-compose.yml` est optimisé pour la **production** :
+- **Frontend** : Nginx servant des fichiers statiques pré-buildés (multi-stage build, port 80)
+- **Backend** : Uvicorn avec 4 workers, sans `--reload`
+- **Pool DB** : `DB_POOL_SIZE=20`, `DB_MAX_OVERFLOW=40`
+
+Pour le **développement** avec hot-reload, créer `docker-compose.override.yml` :
+```yaml
+services:
+  frontend:
+    build:
+      target: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+  backend:
+    command: uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
+```
 
 ## Sécurité
 
@@ -133,6 +157,8 @@ docker-compose exec db psql -U inframate inframate
 | INITIAL_ADMIN_PASSWORD / *_FILE | Admin initial |
 | ALLOWED_ORIGINS | CORS |
 | POSTGRES_PASSWORD | DB |
+| DB_POOL_SIZE | Pool connexions DB (défaut: 20) |
+| DB_MAX_OVERFLOW | Overflow connexions DB (défaut: 40) |
 | LOG_LEVEL, DOCKER_SANDBOX_*, SCRIPT_EXECUTION_TIMEOUT | Divers |
 | BACKUP_DIR, BACKUP_RETENTION_DAYS | Backups |
 

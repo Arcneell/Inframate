@@ -94,8 +94,8 @@ class Settings(BaseSettings):
         default="postgresql://inframate:inframatepassword@localhost:5432/inframate",
         description="PostgreSQL connection URL"
     )
-    db_pool_size: int = Field(default=5, ge=1, le=20)
-    db_max_overflow: int = Field(default=10, ge=0, le=50)
+    db_pool_size: int = Field(default=20, ge=1, le=50)
+    db_max_overflow: int = Field(default=40, ge=0, le=100)
 
     # Redis - stored as string to support flexibility
     redis_url: str = Field(

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 
 from fastapi import Request, Response
+from fastapi.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -283,30 +284,34 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
                     f"- Category: {operation_category or 'general'}"
                 )
 
-            # Create audit log entry
-            db = SessionLocal()
-            try:
-                audit_log = models.AuditLog(
-                    user_id=user_id,
-                    username=username or "anonymous",
-                    action=action,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    ip_address=client_ip,
-                    extra_data=extra_data
-                )
-                db.add(audit_log)
-                db.commit()
+            # Create audit log entry in a threadpool to avoid blocking the event loop
+            def _write_audit_log_sync():
+                """Synchronous function to write audit log - runs in threadpool."""
+                db = SessionLocal()
+                try:
+                    audit_log = models.AuditLog(
+                        user_id=user_id,
+                        username=username or "anonymous",
+                        action=action,
+                        resource_type=resource_type,
+                        resource_id=resource_id,
+                        ip_address=client_ip,
+                        extra_data=extra_data
+                    )
+                    db.add(audit_log)
+                    db.commit()
 
-                logger.debug(
-                    f"Audit: {action} {resource_type}/{resource_id or 'N/A'} "
-                    f"by {username or 'anonymous'} from {client_ip}"
-                )
-            except Exception as e:
-                logger.error(f"Failed to write audit log: {e}")
-                db.rollback()
-            finally:
-                db.close()
+                    logger.debug(
+                        f"Audit: {action} {resource_type}/{resource_id or 'N/A'} "
+                        f"by {username or 'anonymous'} from {client_ip}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to write audit log: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
+
+            await run_in_threadpool(_write_audit_log_sync)
 
         except Exception as e:
             # Don't let audit logging failures affect the request

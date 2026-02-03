@@ -834,13 +834,17 @@ onMounted(() => {
 }
 
 .stat-card {
-  @apply p-4 flex flex-col items-center text-center cursor-pointer transition-all hover:scale-105 hover:border-blue-500/50;
-  background: var(--bg-card);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
+  @apply p-4 flex flex-col items-center text-center cursor-pointer;
+  background: var(--bg-card-solid);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
 }
 
 .stat-icon {

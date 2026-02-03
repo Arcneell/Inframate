@@ -11,9 +11,6 @@ export default defineConfig({
       'inframate.neelx.org',
       'localhost',
       '.localhost'
-    ],
-    watch: {
-      usePolling: true
-    }
+    ]
   }
 })

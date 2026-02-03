@@ -454,7 +454,7 @@
         </div>
         <div class="form-group form-group--full">
           <label class="form-label">{{ t('tickets.resolutionCode') }}</label>
-          <Dropdown v-model="resolutionCode" :options="resolutionCodes" optionLabel="label" optionValue="value" class="w-full" />
+          <Dropdown v-model="resolutionCode" :options="resolutionCodes" optionLabel="label" optionValue="value" class="w-full transparent-dropdown" />
         </div>
       </div>
       <template #footer>
@@ -474,7 +474,7 @@
       <div class="form-group">
         <label class="form-label">{{ t('tickets.assignTo') }}</label>
         <Dropdown v-model="assignToUserId" :options="users" optionLabel="username" optionValue="id"
-                  class="w-full" :placeholder="t('tickets.selectUser')" />
+                  class="w-full transparent-dropdown" :placeholder="t('tickets.selectUser')" />
       </div>
       <template #footer>
         <div class="modal-actions">
@@ -501,7 +501,7 @@
               :options="closeReasonOptions"
               optionLabel="label"
               optionValue="value"
-              class="w-full"
+              class="w-full transparent-dropdown"
               :placeholder="t('common.select')"
             />
           </div>
@@ -545,7 +545,7 @@
         </div>
         <div v-if="showBulkAssignAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
           <Dropdown v-model="bulkAssignee" :options="usersWithUnassign" optionLabel="username" optionValue="id"
-                    :placeholder="t('tickets.assignTo')" class="w-full mb-3" />
+                    :placeholder="t('tickets.assignTo')" class="w-full mb-3 transparent-dropdown" />
           <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
                   class="w-full" @click="applyBulkAssign" :disabled="bulkAssignee === undefined" :loading="bulkLoading" />
         </div>
@@ -565,7 +565,7 @@
         </div>
         <div v-if="showBulkPriorityAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
           <Dropdown v-model="bulkPriority" :options="priorityOptions" optionLabel="label" optionValue="value"
-                    :placeholder="t('tickets.priority')" class="w-full mb-3" />
+                    :placeholder="t('tickets.priority')" class="w-full mb-3 transparent-dropdown" />
           <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
                   class="w-full" @click="applyBulkPriority" :disabled="!bulkPriority" :loading="bulkLoading" />
         </div>
@@ -585,7 +585,7 @@
         </div>
         <div v-if="showBulkStatusAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
           <Dropdown v-model="bulkStatus" :options="bulkStatusOptions" optionLabel="label" optionValue="value"
-                    :placeholder="t('tickets.status')" class="w-full mb-3" />
+                    :placeholder="t('tickets.status')" class="w-full mb-3 transparent-dropdown" />
           <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
                   class="w-full" @click="applyBulkStatus" :disabled="!bulkStatus" :loading="bulkLoading" />
         </div>
@@ -605,7 +605,7 @@
         </div>
         <div v-if="showBulkTypeAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
           <Dropdown v-model="bulkType" :options="typeOptions" optionLabel="label" optionValue="value"
-                    :placeholder="t('tickets.type')" class="w-full mb-3" />
+                    :placeholder="t('tickets.type')" class="w-full mb-3 transparent-dropdown" />
           <Button :label="t('bulk.applyToAll', { count: selectedTickets.length })" icon="pi pi-check"
                   class="w-full" @click="applyBulkType" :disabled="!bulkType" :loading="bulkLoading" />
         </div>
@@ -854,7 +854,7 @@ const formatHistoryAction = (item) => {
   return item.action;
 };
 
-// Sanitize HTML content for safe rendering (without external dependency)
+// Sanitize HTML content for safe rendering (enhanced regex-based sanitization)
 const sanitizeHtml = (html) => {
   if (!html) return '';
   // Check if content contains HTML tags
@@ -2104,6 +2104,73 @@ onUnmounted(() => {
 }
 
 .info-item :deep(.info-dropdown .p-dropdown-clear-icon:hover) {
+  color: var(--primary);
+}
+
+/* ==================== Unified Transparent Dropdown Style ==================== */
+/* Standard UI - Transparent & Minimalist dropdown style for modals and dialogs */
+/* Apply class="transparent-dropdown" to any Dropdown component */
+
+.transparent-dropdown:deep(.p-dropdown),
+:deep(.transparent-dropdown.p-dropdown) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  position: relative;
+  padding: 0 !important;
+  width: 100%;
+}
+
+.transparent-dropdown:deep(.p-dropdown.p-focus),
+.transparent-dropdown:deep(.p-dropdown:hover),
+:deep(.transparent-dropdown.p-dropdown.p-focus),
+:deep(.transparent-dropdown.p-dropdown:hover) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.transparent-dropdown:deep(.p-dropdown .p-dropdown-label),
+:deep(.transparent-dropdown.p-dropdown .p-dropdown-label) {
+  padding: 0.5rem 3.5rem 0.5rem 0.75rem !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent !important;
+}
+
+.transparent-dropdown:deep(.p-dropdown .p-dropdown-label.p-placeholder),
+:deep(.transparent-dropdown.p-dropdown .p-dropdown-label.p-placeholder) {
+  color: var(--text-secondary);
+}
+
+.transparent-dropdown:deep(.p-dropdown .p-dropdown-trigger),
+:deep(.transparent-dropdown.p-dropdown .p-dropdown-trigger) {
+  position: absolute;
+  right: 1.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  color: var(--text-muted);
+  background: transparent !important;
+}
+
+.transparent-dropdown:deep(.p-dropdown .p-dropdown-clear-icon),
+:deep(.transparent-dropdown.p-dropdown .p-dropdown-clear-icon) {
+  position: absolute;
+  right: 0.5rem;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  height: fit-content;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.transparent-dropdown:deep(.p-dropdown .p-dropdown-clear-icon:hover),
+:deep(.transparent-dropdown.p-dropdown .p-dropdown-clear-icon:hover) {
   color: var(--primary);
 }
 

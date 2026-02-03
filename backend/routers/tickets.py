@@ -36,6 +36,21 @@ def can_manage_tickets(user: models.User) -> bool:
     return user.role in ("tech", "admin", "superadmin")
 
 
+def has_tickets_admin_permission(user: models.User) -> bool:
+    """
+    Check if user has tickets_admin permission for granular access control.
+    - admin/superadmin: always have it
+    - tech: need explicit 'tickets_admin' in permissions JSON
+    - user: never have it
+    """
+    if user.role in ("admin", "superadmin"):
+        return True
+    if user.role == "tech":
+        permissions = user.permissions or []
+        return "tickets_admin" in permissions
+    return False
+
+
 # NOTE: generate_ticket_number() function removed - ticket numbers are now
 # generated exclusively by the SQLAlchemy before_insert hook in models.py
 # to ensure atomicity and proper sequential numbering.
@@ -356,15 +371,26 @@ def get_ticket(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Get ticket with full details including comments and history."""
+    """Get ticket with full details including comments, history, time entries and relations."""
     ticket = db.query(models.Ticket).options(
         joinedload(models.Ticket.requester),
         joinedload(models.Ticket.assigned_to),
         joinedload(models.Ticket.equipment),
         joinedload(models.Ticket.comments).joinedload(models.TicketComment.user),
         joinedload(models.Ticket.history).joinedload(models.TicketHistory.user),
-        joinedload(models.Ticket.attachments)
-    ).filter(models.Ticket.id == ticket_id).first()
+        joinedload(models.Ticket.attachments),
+        # Time tracking entries with user info
+        joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
+        # Relations where this ticket is the source
+        joinedload(models.Ticket.related_from).joinedload(models.TicketRelation.target_ticket),
+        joinedload(models.Ticket.related_from).joinedload(models.TicketRelation.created_by),
+        # Relations where this ticket is the target
+        joinedload(models.Ticket.related_to).joinedload(models.TicketRelation.source_ticket),
+        joinedload(models.Ticket.related_to).joinedload(models.TicketRelation.created_by)
+    ).filter(
+        models.Ticket.id == ticket_id,
+        models.Ticket.is_deleted == False  # noqa: E712
+    ).first()
 
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -420,6 +446,58 @@ def get_ticket(
         ) for a in ticket.attachments
     ]
 
+    # Build time entries list with user info
+    time_entries_list = [
+        schemas.TicketTimeEntry(
+            id=e.id,
+            ticket_id=e.ticket_id,
+            user_id=e.user_id,
+            minutes=e.minutes,
+            description=e.description,
+            work_date=e.work_date,
+            entry_type=e.entry_type,
+            is_billable=e.is_billable,
+            hourly_rate=float(e.hourly_rate) if e.hourly_rate else None,
+            created_at=e.created_at,
+            updated_at=e.updated_at
+        ) for e in ticket.time_entries
+    ]
+
+    # Build relations list (combining related_from and related_to)
+    relations_list = []
+    for r in ticket.related_from:
+        relations_list.append(schemas.TicketRelationFull(
+            id=r.id,
+            source_ticket_id=r.source_ticket_id,
+            target_ticket_id=r.target_ticket_id,
+            relation_type=r.relation_type,
+            notes=r.notes,
+            created_by_id=r.created_by_id,
+            created_at=r.created_at,
+            source_ticket_number=ticket.ticket_number,
+            source_ticket_title=ticket.title,
+            target_ticket_number=r.target_ticket.ticket_number if r.target_ticket else None,
+            target_ticket_title=r.target_ticket.title if r.target_ticket else None,
+            target_ticket_status=r.target_ticket.status if r.target_ticket else None,
+            created_by_name=r.created_by.username if r.created_by else None
+        ))
+    for r in ticket.related_to:
+        relations_list.append(schemas.TicketRelationFull(
+            id=r.id,
+            source_ticket_id=r.source_ticket_id,
+            target_ticket_id=r.target_ticket_id,
+            relation_type=r.relation_type,
+            notes=r.notes,
+            created_by_id=r.created_by_id,
+            created_at=r.created_at,
+            source_ticket_number=r.source_ticket.ticket_number if r.source_ticket else None,
+            source_ticket_title=r.source_ticket.title if r.source_ticket else None,
+            target_ticket_number=ticket.ticket_number,
+            target_ticket_title=ticket.title,
+            target_ticket_status=ticket.status,
+            created_by_name=r.created_by.username if r.created_by else None
+        ))
+
     return schemas.TicketFull(
         id=ticket.id,
         ticket_number=ticket.ticket_number,
@@ -453,7 +531,10 @@ def get_ticket(
         equipment_name=ticket.equipment.name if ticket.equipment else None,
         comments=comments_full,
         history=history_items,
-        attachments=attachments_list
+        attachments=attachments_list,
+        time_entries=time_entries_list,
+        relations=relations_list,
+        total_time_minutes=sum(e.minutes for e in ticket.time_entries)
     )
 
 
@@ -978,11 +1059,11 @@ def bulk_close_tickets(
 ):
     """
     Close multiple tickets at once.
-    Requires tech, admin or superadmin role.
+    Requires tickets_admin permission.
     Only resolved tickets can be closed.
     """
-    if not can_manage_tickets(current_user):
-        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can close tickets")
+    if not has_tickets_admin_permission(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
 
     processed = 0
     failed = 0
@@ -1046,11 +1127,11 @@ def bulk_assign_tickets(
 ):
     """
     Assign multiple tickets to a user.
-    Requires tech, admin or superadmin role.
+    Requires tickets_admin permission.
     Set assigned_to_id to null to unassign.
     """
-    if not can_manage_tickets(current_user):
-        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can assign tickets")
+    if not has_tickets_admin_permission(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
 
     # Validate assignee exists if provided
     assignee = None
@@ -1133,10 +1214,10 @@ def bulk_update_priority(
 ):
     """
     Update priority of multiple tickets at once.
-    Requires tech, admin or superadmin role.
+    Requires tickets_admin permission.
     """
-    if not can_manage_tickets(current_user):
-        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket priority")
+    if not has_tickets_admin_permission(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
 
     processed = 0
     failed = 0
@@ -1192,10 +1273,10 @@ def bulk_update_status(
 ):
     """
     Update status of multiple tickets at once.
-    Requires tech, admin or superadmin role.
+    Requires tickets_admin permission.
     """
-    if not can_manage_tickets(current_user):
-        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket status")
+    if not has_tickets_admin_permission(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
 
     processed = 0
     failed = 0
@@ -1257,10 +1338,10 @@ def bulk_update_type(
 ):
     """
     Update type of multiple tickets at once.
-    Requires tech, admin or superadmin role.
+    Requires tickets_admin permission.
     """
-    if not can_manage_tickets(current_user):
-        raise HTTPException(status_code=403, detail="Permission denied: only tech, admin or superadmin can update ticket type")
+    if not has_tickets_admin_permission(current_user):
+        raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
 
     processed = 0
     failed = 0

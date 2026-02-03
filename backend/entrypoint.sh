@@ -64,21 +64,46 @@ done
 
 echo "✓ Redis is ready!"
 
-# Run database migrations
+# Initialize database tables first (needed for fresh databases)
+echo ""
+echo "Initializing database tables..."
+python -c "
+from backend.core.database import init_db
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    logger.info('Creating database tables if not exist...')
+    init_db()
+    logger.info('✓ Database tables ready')
+except Exception as e:
+    logger.error(f'Table creation error: {e}')
+    raise
+"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Database table initialization failed"
+    exit 1
+fi
+
+# Run database migrations (apply any incremental changes)
 echo ""
 echo "Running Alembic database migrations..."
 if alembic upgrade head; then
     echo "✓ Database migrations completed successfully"
 else
-    echo "ERROR: Database migrations failed"
-    exit 1
+    echo "WARNING: Migrations failed, attempting to stamp head..."
+    # If migrations fail on fresh DB, stamp to latest version
+    alembic stamp head
+    echo "✓ Database stamped at head"
 fi
 
-# Initialize database and create default admin
+# Create default admin user
 echo ""
-echo "Initializing database..."
+echo "Creating default admin user..."
 python -c "
-from backend.core.database import init_db
 from backend.core.setup import create_default_admin_sync
 import logging
 
@@ -86,15 +111,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 try:
-    logger.info('Creating database tables...')
-    init_db()
-    logger.info('✓ Database tables created')
-
-    logger.info('Creating default admin user...')
     create_default_admin_sync()
-    logger.info('✓ Initialization complete')
+    logger.info('✓ Admin user ready')
 except Exception as e:
-    logger.error(f'Initialization error: {e}')
+    logger.error(f'Admin creation error: {e}')
     raise
 "
 

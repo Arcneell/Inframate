@@ -161,6 +161,23 @@ Settings → Security → Enable 2FA → scanner QR (Google Authenticator, Authy
 - Sidebar : 16rem, accent bar 3px
 - Transitions : cubic-bezier(0.4,0,0.2,1), hover translateY(-1px) ou translateX(2px)
 
+### Dropdown UI Standard (Transparent & Minimalist)
+Tous les composants Dropdown de l'application doivent impérativement utiliser le style "Transparent & Minimaliste". L'utilisation du style "boîte" par défaut de PrimeVue est interdite.
+
+**Spécifications CSS** (forcer via `:deep()`) :
+- `background: transparent !important`
+- `border: none !important`
+- `box-shadow: none !important`
+- Label : `font-size: 0.875rem`, `font-weight: 500`, `color: var(--text-primary)`
+- Trigger arrow : position absolute, `right: 1.75rem`, `color: var(--text-muted)`
+- Clear icon : position absolute, `right: 0.5rem`, hover `color: var(--primary)`
+
+**Classes disponibles** :
+- `transparent-dropdown` : pour modales et dialogs (pleine largeur)
+- `info-dropdown` : pour grilles d'info (100% largeur, padding réduit)
+
+**Référence** : voir `Tickets.vue` section `.toolbar-filter :deep(.p-dropdown)` pour l'implémentation canonique.
+
 ### Git
 - Messages : Add, Fix, Update. **En anglais uniquement, sans exception.** Pas de secrets. User : Arcneell (arcneel.pro@gmail.com).
 

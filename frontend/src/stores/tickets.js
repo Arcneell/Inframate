@@ -31,7 +31,55 @@ export const useTicketsStore = defineStore('tickets', () => {
     my_tickets: false
   })
 
-  // Getters
+  // ==================== Optimistic UI Helpers ====================
+
+  // Update stats optimistically based on status change
+  function updateStatsForStatusChange(oldStatus, newStatus, count = 1) {
+    if (oldStatus && stats.value[oldStatus] !== undefined) {
+      stats.value[oldStatus] = Math.max(0, stats.value[oldStatus] - count)
+    }
+    if (newStatus && stats.value[newStatus] !== undefined) {
+      stats.value[newStatus] += count
+    }
+  }
+
+  // Update stats when a new ticket is created
+  function incrementStatsForNewTicket(status = 'new', priority = 'medium', ticketType = 'incident') {
+    stats.value.total += 1
+    if (stats.value[status] !== undefined) {
+      stats.value[status] += 1
+    }
+    if (stats.value.by_priority && stats.value.by_priority[priority] !== undefined) {
+      stats.value.by_priority[priority] += 1
+    } else if (stats.value.by_priority) {
+      stats.value.by_priority[priority] = 1
+    }
+    if (stats.value.by_type && stats.value.by_type[ticketType] !== undefined) {
+      stats.value.by_type[ticketType] += 1
+    } else if (stats.value.by_type) {
+      stats.value.by_type[ticketType] = 1
+    }
+  }
+
+  // Update stats when a ticket is deleted
+  function decrementStatsForDeletedTicket(ticket) {
+    stats.value.total = Math.max(0, stats.value.total - 1)
+    if (ticket.status && stats.value[ticket.status] !== undefined) {
+      stats.value[ticket.status] = Math.max(0, stats.value[ticket.status] - 1)
+    }
+    if (ticket.priority && stats.value.by_priority && stats.value.by_priority[ticket.priority] !== undefined) {
+      stats.value.by_priority[ticket.priority] = Math.max(0, stats.value.by_priority[ticket.priority] - 1)
+    }
+    if (ticket.ticket_type && stats.value.by_type && stats.value.by_type[ticket.ticket_type] !== undefined) {
+      stats.value.by_type[ticket.ticket_type] = Math.max(0, stats.value.by_type[ticket.ticket_type] - 1)
+    }
+    if (ticket.sla_breached && stats.value.sla_breached > 0) {
+      stats.value.sla_breached -= 1
+    }
+  }
+
+  // ==================== Getters ====================
+
   const openTickets = computed(() =>
     tickets.value.filter(t => ['new', 'open', 'pending'].includes(t.status))
   )
@@ -108,7 +156,12 @@ export const useTicketsStore = defineStore('tickets', () => {
     try {
       const response = await api.post('/tickets/', ticketData)
       tickets.value.unshift(response.data)
-      await fetchTicketStats()
+      // Optimistic stats update
+      incrementStatsForNewTicket(
+        response.data.status || 'new',
+        response.data.priority || 'medium',
+        response.data.ticket_type || 'incident'
+      )
       return response.data
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to create ticket'
@@ -143,14 +196,30 @@ export const useTicketsStore = defineStore('tickets', () => {
   async function deleteTicket(id) {
     loading.value = true
     error.value = null
+
+    // Store for optimistic update and potential rollback
+    const ticketIndex = tickets.value.findIndex(t => t.id === id)
+    const removedTicket = ticketIndex !== -1 ? { ...tickets.value[ticketIndex] } : null
+
+    // Optimistic removal
+    if (ticketIndex !== -1) {
+      tickets.value.splice(ticketIndex, 1)
+    }
+
     try {
       await api.delete(`/tickets/${id}`)
-      tickets.value = tickets.value.filter(t => t.id !== id)
       if (currentTicket.value?.id === id) {
         currentTicket.value = null
       }
-      await fetchTicketStats()
+      // Optimistic stats update
+      if (removedTicket) {
+        decrementStatsForDeletedTicket(removedTicket)
+      }
     } catch (err) {
+      // Rollback on error
+      if (removedTicket && ticketIndex !== -1) {
+        tickets.value.splice(ticketIndex, 0, removedTicket)
+      }
       error.value = err.response?.data?.detail || 'Failed to delete ticket'
       throw err
     } finally {
@@ -183,12 +252,19 @@ export const useTicketsStore = defineStore('tickets', () => {
   }
 
   async function resolveTicket(ticketId, resolution, resolutionCode = 'fixed') {
+    // Store original status for optimistic update
+    const ticket = tickets.value.find(t => t.id === ticketId)
+    const originalStatus = ticket?.status
+
     try {
       const response = await api.post(
         `/tickets/${ticketId}/resolve?resolution=${encodeURIComponent(resolution)}&resolution_code=${resolutionCode}`
       )
       await fetchTicket(ticketId)
-      await fetchTicketStats()
+      // Optimistic stats update
+      if (originalStatus && originalStatus !== 'resolved') {
+        updateStatsForStatusChange(originalStatus, 'resolved')
+      }
       return response.data
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to resolve ticket'
@@ -197,10 +273,17 @@ export const useTicketsStore = defineStore('tickets', () => {
   }
 
   async function closeTicket(ticketId) {
+    // Store original status for optimistic update
+    const ticket = tickets.value.find(t => t.id === ticketId)
+    const originalStatus = ticket?.status
+
     try {
       const response = await api.post(`/tickets/${ticketId}/close`)
       await fetchTicket(ticketId)
-      await fetchTicketStats()
+      // Optimistic stats update
+      if (originalStatus && originalStatus !== 'closed') {
+        updateStatsForStatusChange(originalStatus, 'closed')
+      }
       return response.data
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to close ticket'
@@ -209,14 +292,186 @@ export const useTicketsStore = defineStore('tickets', () => {
   }
 
   async function reopenTicket(ticketId, reason = null) {
+    // Store original status for optimistic update
+    const ticket = tickets.value.find(t => t.id === ticketId)
+    const originalStatus = ticket?.status
+
     try {
       const params = reason ? `?reason=${encodeURIComponent(reason)}` : ''
       const response = await api.post(`/tickets/${ticketId}/reopen${params}`)
       await fetchTicket(ticketId)
-      await fetchTicketStats()
+      // Optimistic stats update
+      if (originalStatus && originalStatus !== 'open') {
+        updateStatsForStatusChange(originalStatus, 'open')
+      }
       return response.data
     } catch (err) {
       error.value = err.response?.data?.detail || 'Failed to reopen ticket'
+      throw err
+    }
+  }
+
+  // ==================== Bulk Operations with Optimistic Updates ====================
+
+  async function bulkCloseTickets(ticketIds) {
+    const originalStats = { ...stats.value }
+    const affectedTickets = tickets.value.filter(t =>
+      ticketIds.includes(t.id) && t.status !== 'closed'
+    )
+
+    // Optimistic update
+    affectedTickets.forEach(ticket => {
+      updateStatsForStatusChange(ticket.status, 'closed')
+    })
+
+    try {
+      const response = await api.post('/tickets/bulk-close', { ticket_ids: ticketIds })
+      // Update local ticket statuses
+      affectedTickets.forEach(ticket => {
+        const idx = tickets.value.findIndex(t => t.id === ticket.id)
+        if (idx !== -1) {
+          tickets.value[idx] = { ...tickets.value[idx], status: 'closed' }
+        }
+      })
+      return response.data
+    } catch (err) {
+      // Rollback stats on error
+      Object.assign(stats.value, originalStats)
+      error.value = err.response?.data?.detail || 'Failed to close tickets'
+      throw err
+    }
+  }
+
+  async function bulkUpdateStatus(ticketIds, newStatus) {
+    const originalStats = { ...stats.value }
+    const affectedTickets = tickets.value.filter(t =>
+      ticketIds.includes(t.id) && t.status !== newStatus
+    )
+
+    // Optimistic update
+    affectedTickets.forEach(ticket => {
+      updateStatsForStatusChange(ticket.status, newStatus)
+    })
+
+    try {
+      const response = await api.post('/tickets/bulk-status', { ticket_ids: ticketIds, status: newStatus })
+      // Update local ticket statuses
+      affectedTickets.forEach(ticket => {
+        const idx = tickets.value.findIndex(t => t.id === ticket.id)
+        if (idx !== -1) {
+          tickets.value[idx] = { ...tickets.value[idx], status: newStatus }
+        }
+      })
+      return response.data
+    } catch (err) {
+      // Rollback stats on error
+      Object.assign(stats.value, originalStats)
+      error.value = err.response?.data?.detail || 'Failed to update ticket status'
+      throw err
+    }
+  }
+
+  async function bulkAssignTickets(ticketIds, userId) {
+    const affectedTickets = tickets.value.filter(t => ticketIds.includes(t.id))
+    const originalStates = affectedTickets.map(t => ({ id: t.id, assigned_to_id: t.assigned_to_id, status: t.status }))
+
+    // Optimistic update
+    affectedTickets.forEach(ticket => {
+      const idx = tickets.value.findIndex(t => t.id === ticket.id)
+      if (idx !== -1) {
+        tickets.value[idx] = { ...tickets.value[idx], assigned_to_id: userId }
+        // Auto-open new tickets when assigned
+        if (tickets.value[idx].status === 'new') {
+          updateStatsForStatusChange('new', 'open')
+          tickets.value[idx].status = 'open'
+        }
+      }
+    })
+
+    try {
+      const response = await api.post('/tickets/bulk-assign', { ticket_ids: ticketIds, assigned_to_id: userId })
+      return response.data
+    } catch (err) {
+      // Rollback on error
+      originalStates.forEach(original => {
+        const idx = tickets.value.findIndex(t => t.id === original.id)
+        if (idx !== -1) {
+          tickets.value[idx] = { ...tickets.value[idx], assigned_to_id: original.assigned_to_id, status: original.status }
+        }
+      })
+      error.value = err.response?.data?.detail || 'Failed to assign tickets'
+      throw err
+    }
+  }
+
+  async function bulkUpdatePriority(ticketIds, newPriority) {
+    const affectedTickets = tickets.value.filter(t => ticketIds.includes(t.id))
+    const originalPriorities = affectedTickets.map(t => ({ id: t.id, priority: t.priority }))
+
+    // Optimistic update
+    affectedTickets.forEach(ticket => {
+      const idx = tickets.value.findIndex(t => t.id === ticket.id)
+      if (idx !== -1) {
+        // Update by_priority stats
+        if (stats.value.by_priority && ticket.priority && stats.value.by_priority[ticket.priority] !== undefined) {
+          stats.value.by_priority[ticket.priority] = Math.max(0, stats.value.by_priority[ticket.priority] - 1)
+        }
+        if (stats.value.by_priority) {
+          stats.value.by_priority[newPriority] = (stats.value.by_priority[newPriority] || 0) + 1
+        }
+        tickets.value[idx] = { ...tickets.value[idx], priority: newPriority }
+      }
+    })
+
+    try {
+      const response = await api.post('/tickets/bulk-priority', { ticket_ids: ticketIds, priority: newPriority })
+      return response.data
+    } catch (err) {
+      // Rollback on error
+      originalPriorities.forEach(original => {
+        const idx = tickets.value.findIndex(t => t.id === original.id)
+        if (idx !== -1) {
+          tickets.value[idx] = { ...tickets.value[idx], priority: original.priority }
+        }
+      })
+      await fetchTicketStats() // Refetch stats on error to ensure consistency
+      error.value = err.response?.data?.detail || 'Failed to update ticket priority'
+      throw err
+    }
+  }
+
+  async function bulkUpdateType(ticketIds, newType) {
+    const affectedTickets = tickets.value.filter(t => ticketIds.includes(t.id))
+    const originalTypes = affectedTickets.map(t => ({ id: t.id, ticket_type: t.ticket_type }))
+
+    // Optimistic update
+    affectedTickets.forEach(ticket => {
+      const idx = tickets.value.findIndex(t => t.id === ticket.id)
+      if (idx !== -1) {
+        // Update by_type stats
+        if (stats.value.by_type && ticket.ticket_type && stats.value.by_type[ticket.ticket_type] !== undefined) {
+          stats.value.by_type[ticket.ticket_type] = Math.max(0, stats.value.by_type[ticket.ticket_type] - 1)
+        }
+        if (stats.value.by_type) {
+          stats.value.by_type[newType] = (stats.value.by_type[newType] || 0) + 1
+        }
+        tickets.value[idx] = { ...tickets.value[idx], ticket_type: newType }
+      }
+    })
+
+    try {
+      const response = await api.post('/tickets/bulk-type', { ticket_ids: ticketIds, ticket_type: newType })
+      return response.data
+    } catch (err) {
+      // Rollback on error
+      originalTypes.forEach(original => {
+        const idx = tickets.value.findIndex(t => t.id === original.id)
+        if (idx !== -1) {
+          tickets.value[idx] = { ...tickets.value[idx], ticket_type: original.ticket_type }
+        }
+      })
+      await fetchTicketStats() // Refetch stats on error to ensure consistency
+      error.value = err.response?.data?.detail || 'Failed to update ticket type'
       throw err
     }
   }
@@ -261,6 +516,11 @@ export const useTicketsStore = defineStore('tickets', () => {
     resolveTicket,
     closeTicket,
     reopenTicket,
+    bulkCloseTickets,
+    bulkUpdateStatus,
+    bulkAssignTickets,
+    bulkUpdatePriority,
+    bulkUpdateType,
     setFilter,
     clearFilters
   }

@@ -43,6 +43,7 @@ build/
 
 # Docker (si utilisé)
 *.env.docker
+docker-compose.override.yml
 
 # Secrets/credentials
 *.pem

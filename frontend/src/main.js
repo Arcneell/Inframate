@@ -1,5 +1,6 @@
 /**
  * Vue 3 Application Entry Point
+ * Performance Optimized
  */
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -50,7 +51,7 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 app.use(i18n)
-app.use(PrimeVue, { ripple: true })
+app.use(PrimeVue, { ripple: false }) // Disable ripple for performance
 app.use(ToastService)
 
 // Initialize theme before mount (prevents flash and ensures consistent state)
@@ -65,7 +66,140 @@ const initTheme = () => {
 }
 initTheme()
 
-// Register directive
+// =============================================
+// PERFORMANCE DIRECTIVES
+// =============================================
+
+/**
+ * v-lazy-src: Lazy load images using IntersectionObserver
+ * Usage: <img v-lazy-src="imageUrl" />
+ */
+app.directive('lazy-src', {
+  mounted(el, binding) {
+    const loadImage = () => {
+      el.src = binding.value
+      el.classList.add('lazy-loaded')
+    }
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            loadImage()
+            observer.unobserve(el)
+          }
+        })
+      }, { rootMargin: '50px' })
+
+      observer.observe(el)
+      el._lazyObserver = observer
+    } else {
+      loadImage()
+    }
+  },
+  unmounted(el) {
+    if (el._lazyObserver) {
+      el._lazyObserver.disconnect()
+    }
+  }
+})
+
+/**
+ * v-click-outside: Detect clicks outside element
+ * Usage: <div v-click-outside="handleOutsideClick">
+ */
+app.directive('click-outside', {
+  mounted(el, binding) {
+    el._clickOutsideHandler = (event) => {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event)
+      }
+    }
+    document.addEventListener('click', el._clickOutsideHandler, { passive: true })
+  },
+  unmounted(el) {
+    document.removeEventListener('click', el._clickOutsideHandler)
+  }
+})
+
+/**
+ * v-debounce-input: Debounce input events
+ * Usage: <input v-debounce-input:300="handleInput" />
+ */
+app.directive('debounce-input', {
+  mounted(el, binding) {
+    const delay = parseInt(binding.arg) || 300
+    let timeout = null
+
+    el._debounceHandler = (event) => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        binding.value(event.target.value)
+      }, delay)
+    }
+
+    el.addEventListener('input', el._debounceHandler, { passive: true })
+  },
+  unmounted(el) {
+    el.removeEventListener('input', el._debounceHandler)
+  }
+})
+
+/**
+ * v-focus-trap: Trap focus within element (for modals/overlays)
+ * Usage: <div v-focus-trap>
+ */
+app.directive('focus-trap', {
+  mounted(el) {
+    const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+    el._trapFocus = (event) => {
+      if (event.key !== 'Tab') return
+
+      const focusableElements = el.querySelectorAll(focusableSelectors)
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        lastElement?.focus()
+        event.preventDefault()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        firstElement?.focus()
+        event.preventDefault()
+      }
+    }
+
+    el.addEventListener('keydown', el._trapFocus)
+
+    // Focus first element on mount
+    requestAnimationFrame(() => {
+      const firstFocusable = el.querySelector(focusableSelectors)
+      firstFocusable?.focus()
+    })
+  },
+  unmounted(el) {
+    el.removeEventListener('keydown', el._trapFocus)
+  }
+})
+
+/**
+ * v-scroll-lock: Lock body scroll when element is visible
+ * Usage: <div v-scroll-lock="isOpen">
+ */
+app.directive('scroll-lock', {
+  updated(el, binding) {
+    if (binding.value) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+  },
+  unmounted() {
+    document.body.style.overflow = ''
+  }
+})
+
+// Register PrimeVue directive
 app.directive('tooltip', Tooltip)
 
 // Register global components
@@ -93,6 +227,23 @@ app.component('Paginator', Paginator)
 
 // Initialize language
 initLang()
+
+// =============================================
+// PERFORMANCE OPTIMIZATIONS
+// =============================================
+
+// Disable Vue devtools in production for performance
+if (import.meta.env.PROD) {
+  app.config.performance = false
+  app.config.devtools = false
+}
+
+// Global error handler
+app.config.errorHandler = (err, instance, info) => {
+  console.error('Vue Error:', err)
+  console.error('Component:', instance)
+  console.error('Info:', info)
+}
 
 // Mount app
 app.mount('#app')

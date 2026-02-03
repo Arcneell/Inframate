@@ -265,8 +265,9 @@
                 :title="currentTicket?.title"
                 :subtitle="currentTicket?.ticket_number"
                 icon="pi-ticket"
-                size="xl">
-      <div v-if="currentTicket" class="detail-content">
+                size="xl"
+                @content-ready="onDetailModalReady">
+      <div v-if="currentTicket && detailContentReady" class="detail-content">
         <!-- Status Tags -->
         <div class="detail-tags">
           <Tag :value="t(`tickets.status${capitalize(currentTicket.status)}`)"
@@ -415,11 +416,29 @@
           </div>
         </div>
       </div>
+      <!-- Loading skeleton while fetching full ticket data -->
+      <div v-else class="detail-skeleton">
+        <div class="flex gap-2 mb-4">
+          <Skeleton width="5rem" height="1.5rem" borderRadius="9999px" />
+          <Skeleton width="4rem" height="1.5rem" borderRadius="9999px" />
+          <Skeleton width="5rem" height="1.5rem" borderRadius="9999px" />
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div><Skeleton height="1rem" class="mb-2" /><Skeleton width="60%" /></div>
+          <div><Skeleton height="1rem" class="mb-2" /><Skeleton width="70%" /></div>
+          <div><Skeleton height="1rem" class="mb-2" /><Skeleton width="50%" /></div>
+          <div><Skeleton height="1rem" class="mb-2" /><Skeleton width="40%" /></div>
+        </div>
+        <Skeleton height="1.5rem" width="8rem" class="mb-3" />
+        <Skeleton height="6rem" class="mb-6" />
+        <Skeleton height="1.5rem" width="10rem" class="mb-3" />
+        <Skeleton height="4rem" />
+      </div>
 
       <template #footer>
         <div class="detail-actions">
           <!-- Status Actions (Tech/Admin only) -->
-          <div v-if="canManageTickets && currentTicket" class="action-buttons">
+          <div v-if="canManageTickets && currentTicket && detailContentReady" class="action-buttons">
             <Button v-if="currentTicket.status === 'new' || currentTicket.status === 'pending'"
                     :label="t('tickets.markOpen')" icon="pi pi-play" size="small"
                     @click="updateStatus('open')" />
@@ -629,18 +648,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch, defineAsyncComponent, markRaw } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import { useTicketsStore } from '../stores/tickets';
 import { useAuthStore } from '../stores/auth';
+import { useUIStore } from '../stores/ui';
 import Breadcrumbs from '../components/shared/Breadcrumbs.vue';
 import BulkActionsSlideOver from '../components/shared/BulkActionsSlideOver.vue';
 import ModalPanel from '../components/shared/ModalPanel.vue';
-import RichTextEditor from '../components/shared/RichTextEditor.vue';
-import FileDropZone from '../components/shared/FileDropZone.vue';
 import api from '../api';
+
+// Lazy-loaded heavy components (only loaded when needed)
+const RichTextEditor = defineAsyncComponent(() =>
+  import('../components/shared/RichTextEditor.vue')
+);
+const FileDropZone = defineAsyncComponent(() =>
+  import('../components/shared/FileDropZone.vue')
+);
 
 const route = useRoute();
 const router = useRouter();
@@ -649,6 +675,7 @@ const { t } = useI18n();
 const toast = useToast();
 const ticketsStore = useTicketsStore();
 const authStore = useAuthStore();
+const uiStore = useUIStore();
 
 // User info for permission checks
 const currentUser = computed(() => authStore.user);
@@ -674,14 +701,18 @@ const canManageTickets = computed(() => {
   return false;
 });
 
-// State
-const tickets = ref([]);
+// State - using shallowRef for large lists to improve performance
+const tickets = shallowRef([]);
 const stats = ref({ total: 0, new: 0, open: 0, pending: 0, resolved: 0, closed: 0, sla_breached: 0 });
-const currentTicket = ref(null);
-const users = ref([]);
-const equipment = ref([]);
+const currentTicket = shallowRef(null);
+const users = shallowRef([]);
+const equipment = shallowRef([]);
 const loading = ref(false);
 const saving = ref(false);
+
+// Lazy loading state for modals
+const detailContentReady = ref(false);
+const createContentReady = ref(false);
 
 // Pagination state
 const ticketsTotal = ref(0);
@@ -1089,34 +1120,51 @@ const onTicketDialogEnter = (event) => {
   }
 };
 
-// Ticket detail
+// Ticket detail - lazy loading pattern: open modal first, load data after animation
 const openTicketDetail = async (event) => {
+  // Set basic info immediately for skeleton display
+  currentTicket.value = { id: event.data.id, title: event.data.title, ticket_number: event.data.ticket_number };
+  detailContentReady.value = false;
+  showDetailDialog.value = true;
+};
+
+// Load full ticket data after modal animation completes
+const onDetailModalReady = async () => {
+  if (!currentTicket.value?.id) return;
   try {
-    const response = await api.get(`/tickets/${event.data.id}`);
-    currentTicket.value = response.data;
-    showDetailDialog.value = true;
+    // Check UI cache first
+    const cacheKey = `ticket_${currentTicket.value.id}`;
+    const cached = uiStore.getCachedData(cacheKey);
+    if (cached) {
+      currentTicket.value = markRaw(cached);
+    } else {
+      const response = await api.get(`/tickets/${currentTicket.value.id}`);
+      currentTicket.value = markRaw(response.data);
+      uiStore.setCachedData(cacheKey, response.data);
+    }
+    detailContentReady.value = true;
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || 'Failed to load ticket' });
+    showDetailDialog.value = false;
   }
 };
 
 // Open ticket by ID (used when coming from notifications)
 const openTicketById = async (ticketId) => {
-  try {
-    const response = await api.get(`/tickets/${ticketId}`);
-    currentTicket.value = response.data;
-    showDetailDialog.value = true;
-    // Clear the query param after opening
-    router.replace({ path: '/tickets', query: {} });
-  } catch (e) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || 'Failed to load ticket' });
-  }
+  // Set minimal info and open modal
+  currentTicket.value = { id: ticketId };
+  detailContentReady.value = false;
+  showDetailDialog.value = true;
+  // Clear the query param after opening
+  router.replace({ path: '/tickets', query: {} });
 };
 
 const refreshCurrentTicket = async () => {
   if (currentTicket.value) {
     const response = await api.get(`/tickets/${currentTicket.value.id}`);
-    currentTicket.value = response.data;
+    currentTicket.value = markRaw(response.data);
+    // Update cache
+    uiStore.setCachedData(`ticket_${currentTicket.value.id}`, response.data);
   }
 };
 

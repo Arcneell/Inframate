@@ -157,9 +157,9 @@ Settings → Security → Enable 2FA → scanner QR (Google Authenticator, Authy
 ### Design System (Modern Slate)
 - Light : Zinc 50/900 + Electric Blue #0ea5e9
 - Dark : Slate 950/50 + Electric Blue
-- Cards/dialogs : rounded-xl, backdrop-blur
+- Cards/dialogs : rounded-xl, solid backgrounds (performance-optimized, no backdrop-blur)
 - Sidebar : 16rem, accent bar 3px
-- Transitions : cubic-bezier(0.4,0,0.2,1), hover translateY(-1px) ou translateX(2px)
+- Transitions : cubic-bezier(0.4,0,0.2,1), transitions limitées aux propriétés performantes (opacity, transform)
 
 ### Dropdown UI Standard (Transparent & Minimalist)
 Tous les composants Dropdown de l'application doivent impérativement utiliser le style "Transparent & Minimaliste". L'utilisation du style "boîte" par défaut de PrimeVue est interdite.
@@ -180,6 +180,39 @@ Tous les composants Dropdown de l'application doivent impérativement utiliser l
 
 ### Git
 - Messages : Add, Fix, Update. **En anglais uniquement, sans exception.** Pas de secrets. User : Arcneell (arcneel.pro@gmail.com).
+
+### Performance UI (60 FPS Standard)
+
+**Architecture "Lazy & Lightweight"** pour overlays et modals :
+
+**SlideOver.vue & ModalPanel.vue** :
+- `v-show` pour le conteneur (structure pré-calculée)
+- `v-if` interne pour le contenu lourd (lazy render après animation)
+- Transitions GPU-accelerated : `transform: translate3d()`, `will-change: transform`
+- Skeleton screens automatiques pendant le chargement
+- Prop `@content-ready` pour déclencher le chargement des données APRÈS l'animation
+- Système de "freeze" pour menus imbriqués via `uiStore`
+
+**Chargement des données** :
+- **JAMAIS** charger les données avant la fin de l'animation d'ouverture
+- Utiliser le cache `uiStore.getCachedData(key)` / `setCachedData(key, data)` (TTL 30s)
+- Pattern : ouvrir modal → afficher skeleton → `@content-ready` → fetch data → render content
+
+**Réactivité Pinia** :
+- `shallowRef` pour les grosses listes (tickets, logs, equipment)
+- `markRaw()` pour les données provenant d'API (éviter réactivité profonde)
+
+**Composants asynchrones** :
+- `defineAsyncComponent()` pour les composants lourds (RichTextEditor, FileDropZone)
+- Charger uniquement si/quand nécessaire
+
+**Directives globales** (main.js) :
+- `v-lazy-src` : lazy load images via IntersectionObserver
+- `v-debounce-input:300` : debounce inputs
+- `v-focus-trap` : trap focus dans modals
+- `v-scroll-lock` : lock body scroll
+
+**Référence** : `Tickets.vue` pour l'implémentation du pattern lazy loading sur modals.
 
 ## Structure Base de Données
 

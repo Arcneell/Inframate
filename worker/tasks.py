@@ -1691,6 +1691,16 @@ celery_app.conf.beat_schedule = {
         'task': 'worker.tasks.check_sla_breaches_task',
         'schedule': crontab(minute='*/15', hour='6-22'),
     },
+    # Check SLA warnings every 15 minutes during business hours
+    'check-sla-warnings': {
+        'task': 'worker.tasks.check_sla_warnings_task',
+        'schedule': crontab(minute='*/15', hour='6-22'),
+    },
+    # Poll email inbox every minute
+    'poll-email-inbox': {
+        'task': 'worker.tasks.poll_email_inbox_task',
+        'schedule': crontab(minute='*'),
+    },
 }
 
 celery_app.conf.timezone = 'UTC'
@@ -1753,6 +1763,569 @@ def check_sla_breaches_task(self):
             error_message=str(e)
         )
         return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+
+# ==================== EMAIL NOTIFICATION TASKS ====================
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
+def send_ticket_email_task(
+    self,
+    email_type: str,
+    ticket_id: int,
+    recipients: list,
+    extra_data: dict = None
+):
+    """
+    Send email notification for ticket events.
+
+    Args:
+        email_type: Type of email (ticket_created, ticket_assigned, comment_added, ticket_resolved, sla_warning, sla_breach)
+        ticket_id: Ticket ID
+        recipients: List of recipient email addresses
+        extra_data: Additional data (e.g., comment_id for comment notifications)
+    """
+    from backend.core.database import SessionLocal
+    from backend.models import Ticket, User, TicketComment, SentEmail, EmailConfiguration
+    from backend.core.email.sender import get_active_email_config, EmailSender
+    from backend.core.email.templates import render_email_template, get_email_subject
+    from backend.routers.settings import get_setting_value
+    import asyncio
+
+    db: Session = SessionLocal()
+    try:
+        # Check if this email type is enabled
+        setting_key = f"email_notify_{email_type}"
+        if get_setting_value(db, setting_key, "true").lower() != "true":
+            log_event("email_notification_skipped", email_type=email_type, reason="disabled")
+            return {"status": "skipped", "reason": "notification type disabled"}
+
+        # Check if email notifications are globally enabled
+        if get_setting_value(db, "email_notifications_enabled", "false").lower() != "true":
+            log_event("email_notification_skipped", email_type=email_type, reason="globally_disabled")
+            return {"status": "skipped", "reason": "email notifications disabled"}
+
+        # Get ticket
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            return {"status": "error", "message": f"Ticket {ticket_id} not found"}
+
+        # Get email configuration
+        config = get_active_email_config(db, ticket.entity_id)
+        if not config:
+            log_event("email_notification_skipped", email_type=email_type, reason="no_config")
+            return {"status": "skipped", "reason": "no email configuration"}
+
+        # Build context for template
+        context = {
+            "ticket": ticket,
+            "requester": ticket.requester,
+            "assigned_to": ticket.assigned_to
+        }
+
+        # Add comment if applicable
+        if extra_data and extra_data.get("comment_id"):
+            comment = db.query(TicketComment).filter(
+                TicketComment.id == extra_data["comment_id"]
+            ).first()
+            if comment:
+                context["comment"] = comment
+                context["comment_author"] = comment.user
+
+        # Get site settings for template
+        site_name = get_setting_value(db, "site_name", "Inframate")
+        site_url = get_setting_value(db, "site_url", "http://localhost:3000")
+
+        # Render template
+        html_content, text_content = render_email_template(
+            email_type,
+            context,
+            site_name=site_name,
+            site_url=site_url
+        )
+
+        # Get subject
+        subject = get_email_subject(email_type, ticket.ticket_number, ticket.title)
+
+        # Get previous message ID for threading
+        in_reply_to = None
+        references = None
+        last_sent = db.query(SentEmail).filter(
+            SentEmail.ticket_id == ticket_id
+        ).order_by(SentEmail.created_at.desc()).first()
+
+        if last_sent:
+            in_reply_to = last_sent.message_id
+            references = last_sent.message_id
+
+        # Send to each recipient
+        sender = EmailSender(config)
+        sent_count = 0
+        errors = []
+
+        for recipient_email in recipients:
+            try:
+                # Send email
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    message_id = loop.run_until_complete(sender.send(
+                        to_email=recipient_email,
+                        subject=subject,
+                        body_html=html_content,
+                        body_text=text_content,
+                        ticket_id=ticket_id,
+                        ticket_number=ticket.ticket_number,
+                        in_reply_to=in_reply_to,
+                        references=references
+                    ))
+                finally:
+                    loop.close()
+
+                # Find recipient user ID
+                recipient_user = db.query(User).filter(User.email == recipient_email).first()
+
+                # Track sent email
+                sent_email = SentEmail(
+                    email_config_id=config.id,
+                    ticket_id=ticket_id,
+                    comment_id=extra_data.get("comment_id") if extra_data else None,
+                    message_id=message_id,
+                    in_reply_to=in_reply_to,
+                    references=references,
+                    recipient_email=recipient_email,
+                    recipient_user_id=recipient_user.id if recipient_user else None,
+                    subject=subject,
+                    body_text=text_content,
+                    body_html=html_content,
+                    email_type=email_type,
+                    status="sent",
+                    sent_at=datetime.now(timezone.utc)
+                )
+                db.add(sent_email)
+                sent_count += 1
+
+            except Exception as e:
+                errors.append(f"{recipient_email}: {str(e)}")
+                # Track failed email
+                sent_email = SentEmail(
+                    email_config_id=config.id,
+                    ticket_id=ticket_id,
+                    message_id=f"<failed-{uuid.uuid4().hex[:8]}@inframate.local>",
+                    recipient_email=recipient_email,
+                    subject=subject,
+                    body_text=text_content,
+                    email_type=email_type,
+                    status="failed",
+                    error_message=str(e)
+                )
+                db.add(sent_email)
+
+        db.commit()
+
+        log_event(
+            "email_notification_sent",
+            email_type=email_type,
+            ticket_id=ticket_id,
+            sent_count=sent_count,
+            error_count=len(errors)
+        )
+
+        if errors and sent_count == 0:
+            raise Exception(f"All emails failed: {'; '.join(errors)}")
+
+        return {
+            "status": "success",
+            "sent_count": sent_count,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        db.rollback()
+        log_event(
+            "email_notification_error",
+            email_type=email_type,
+            ticket_id=ticket_id,
+            error=str(e)
+        )
+        raise self.retry(exc=e)
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True)
+def check_sla_warnings_task(self):
+    """
+    Check for tickets approaching SLA deadline (80% of time elapsed).
+    Sends warning emails to assigned users.
+    """
+    from backend.core.database import SessionLocal
+    from backend.models import Ticket, User
+    from backend.routers.settings import get_setting_value
+
+    db: Session = SessionLocal()
+    try:
+        # Check if SLA warning emails are enabled
+        if get_setting_value(db, "email_notify_sla_warning", "true").lower() != "true":
+            return {"status": "skipped", "reason": "SLA warnings disabled"}
+
+        now = datetime.now(timezone.utc)
+
+        # Find open tickets with SLA due date
+        tickets = db.query(Ticket).filter(
+            Ticket.status.in_(["new", "open", "pending"]),
+            Ticket.sla_breached == False,
+            Ticket.sla_warning_sent == False,
+            Ticket.sla_due_date.isnot(None)
+        ).all()
+
+        warning_count = 0
+        for ticket in tickets:
+            # Calculate elapsed percentage
+            if ticket.created_at and ticket.sla_due_date:
+                total_time = (ticket.sla_due_date - ticket.created_at).total_seconds()
+                elapsed_time = (now - ticket.created_at).total_seconds()
+
+                if total_time > 0:
+                    elapsed_percentage = (elapsed_time / total_time) * 100
+
+                    # Send warning at 80%
+                    if elapsed_percentage >= 80:
+                        # Get recipient email
+                        recipient = ticket.assigned_to or ticket.requester
+                        if recipient and recipient.email:
+                            # Queue email task
+                            send_ticket_email_task.delay(
+                                email_type="sla_warning",
+                                ticket_id=ticket.id,
+                                recipients=[recipient.email]
+                            )
+                            ticket.sla_warning_sent = True
+                            warning_count += 1
+
+        db.commit()
+
+        log_event(
+            "sla_warnings_checked",
+            warning_count=warning_count
+        )
+
+        return {
+            "status": "success",
+            "warning_count": warning_count
+        }
+
+    except Exception as e:
+        db.rollback()
+        log_event(
+            "sla_warnings_error",
+            error=str(e)
+        )
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True)
+def poll_email_inbox_task(self):
+    """
+    Poll configured email inboxes for new messages.
+    Creates InboundEmail records for processing.
+    """
+    from backend.core.database import SessionLocal
+    from backend.models import EmailConfiguration, InboundEmail
+    from backend.core.email.receiver import EmailReceiver
+    from backend.routers.settings import get_setting_value
+    import asyncio
+
+    db: Session = SessionLocal()
+    try:
+        # Check if inbound email is enabled
+        if get_setting_value(db, "email_inbound_enabled", "false").lower() != "true":
+            return {"status": "skipped", "reason": "inbound email disabled"}
+
+        # Get all active inbound configurations
+        configs = db.query(EmailConfiguration).filter(
+            EmailConfiguration.is_active == True,
+            EmailConfiguration.is_inbound_enabled == True
+        ).all()
+
+        if not configs:
+            return {"status": "skipped", "reason": "no inbound configurations"}
+
+        total_fetched = 0
+        errors = []
+
+        for config in configs:
+            try:
+                receiver = EmailReceiver(config)
+
+                # Fetch emails
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    emails = loop.run_until_complete(receiver.fetch_new_emails())
+                finally:
+                    loop.close()
+
+                # Store each email for processing
+                for email_data in emails:
+                    # Check if already processed (by message_id)
+                    existing = db.query(InboundEmail).filter(
+                        InboundEmail.message_id == email_data["message_id"]
+                    ).first()
+
+                    if existing:
+                        continue
+
+                    # Check allowed domains
+                    allowed_domains = get_setting_value(db, "email_inbound_allowed_domains", "")
+                    if allowed_domains:
+                        sender_domain = email_data["from_email"].split("@")[-1].lower()
+                        allowed_list = [d.strip().lower() for d in allowed_domains.split(",") if d.strip()]
+                        if sender_domain not in allowed_list:
+                            # Store as ignored
+                            inbound = InboundEmail(
+                                email_config_id=config.id,
+                                message_id=email_data["message_id"],
+                                in_reply_to=email_data.get("in_reply_to"),
+                                references=email_data.get("references"),
+                                from_email=email_data["from_email"],
+                                from_name=email_data.get("from_name"),
+                                to_email=email_data["to_email"],
+                                subject=email_data["subject"],
+                                body_text=email_data.get("body_text"),
+                                body_html=email_data.get("body_html"),
+                                raw_headers=email_data.get("raw_headers"),
+                                processing_status="ignored",
+                                error_message=f"Sender domain not in allowed list"
+                            )
+                            db.add(inbound)
+                            continue
+
+                    # Create inbound email record
+                    inbound = InboundEmail(
+                        email_config_id=config.id,
+                        message_id=email_data["message_id"],
+                        in_reply_to=email_data.get("in_reply_to"),
+                        references=email_data.get("references"),
+                        from_email=email_data["from_email"],
+                        from_name=email_data.get("from_name"),
+                        to_email=email_data["to_email"],
+                        subject=email_data["subject"],
+                        body_text=email_data.get("body_text"),
+                        body_html=email_data.get("body_html"),
+                        raw_headers=email_data.get("raw_headers"),
+                        processing_status="pending"
+                    )
+                    db.add(inbound)
+                    db.flush()
+
+                    # Queue processing task
+                    process_inbound_email_task.delay(inbound.id)
+                    total_fetched += 1
+
+            except Exception as e:
+                errors.append(f"Config {config.id}: {str(e)}")
+                log_event(
+                    "inbox_poll_error",
+                    config_id=config.id,
+                    error=str(e)
+                )
+
+        db.commit()
+
+        log_event(
+            "inbox_poll_completed",
+            total_fetched=total_fetched,
+            error_count=len(errors)
+        )
+
+        return {
+            "status": "success",
+            "fetched_count": total_fetched,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        db.rollback()
+        log_event(
+            "inbox_poll_error",
+            error=str(e)
+        )
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30)
+def process_inbound_email_task(self, inbound_email_id: int):
+    """
+    Process a single inbound email.
+
+    1. Parse email content
+    2. Detect thread (existing ticket)
+    3. Create ticket or add comment
+    """
+    from backend.core.database import SessionLocal
+    from backend.models import InboundEmail, Ticket, TicketComment, User, Notification
+    from backend.core.email.parser import detect_ticket_from_email, EmailParser
+    from backend.routers.settings import get_setting_value
+
+    db: Session = SessionLocal()
+    try:
+        # Get inbound email
+        inbound = db.query(InboundEmail).filter(
+            InboundEmail.id == inbound_email_id
+        ).first()
+
+        if not inbound:
+            return {"status": "error", "message": "Inbound email not found"}
+
+        if inbound.processing_status != "pending":
+            return {"status": "skipped", "reason": "already processed"}
+
+        # Prepare email data dict for parser
+        email_data = {
+            "message_id": inbound.message_id,
+            "in_reply_to": inbound.in_reply_to,
+            "references": inbound.references,
+            "subject": inbound.subject,
+            "body_text": inbound.body_text,
+            "body_html": inbound.body_html,
+            "raw_headers": inbound.raw_headers or {}
+        }
+
+        # Detect if this is a reply to existing ticket
+        ticket_id, is_reply, clean_content = detect_ticket_from_email(db, email_data)
+
+        # Find or create user based on sender email
+        parser = EmailParser(db)
+        user_id = parser.find_user_by_email(inbound.from_email)
+
+        result = {}
+
+        if is_reply and ticket_id:
+            # Add comment to existing ticket
+            ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+            if ticket and not ticket.is_deleted:
+                comment = TicketComment(
+                    ticket_id=ticket_id,
+                    user_id=user_id,
+                    content=clean_content or "(No content)",
+                    is_internal=False,
+                    is_email_reply=True,
+                    email_message_id=inbound.message_id
+                )
+                db.add(comment)
+                db.flush()
+
+                result = {
+                    "action": "comment_added",
+                    "ticket_id": ticket_id,
+                    "comment_id": comment.id
+                }
+
+                # Notify assigned user
+                if ticket.assigned_to_id and ticket.assigned_to_id != user_id:
+                    notification = Notification(
+                        user_id=ticket.assigned_to_id,
+                        title=f"Email reply on {ticket.ticket_number}",
+                        message=f"New email reply from {inbound.from_name or inbound.from_email}",
+                        notification_type="ticket",
+                        link_type="ticket",
+                        link_id=ticket_id
+                    )
+                    db.add(notification)
+
+                # Send email notification to requester (if not the sender)
+                if ticket.requester and ticket.requester.email and ticket.requester.email != inbound.from_email:
+                    send_ticket_email_task.delay(
+                        email_type="comment_added",
+                        ticket_id=ticket_id,
+                        recipients=[ticket.requester.email],
+                        extra_data={"comment_id": comment.id}
+                    )
+            else:
+                # Ticket not found or deleted, create new
+                is_reply = False
+
+        if not is_reply:
+            # Create new ticket from email
+            parser_obj = EmailParser(db)
+            clean_subject = parser_obj.clean_subject(inbound.subject)
+
+            ticket = Ticket(
+                title=clean_subject or "Email Support Request",
+                description=clean_content or "(No content)",
+                ticket_type="incident",
+                status="new",
+                priority="medium",
+                requester_id=user_id,
+                email_message_id=inbound.message_id
+            )
+            db.add(ticket)
+            db.flush()  # Get ticket ID
+
+            result = {
+                "action": "ticket_created",
+                "ticket_id": ticket.id
+            }
+
+            # Notify admins about new ticket
+            from backend.models import User
+            admins = db.query(User).filter(
+                User.role.in_(["admin", "superadmin"]),
+                User.is_active == True
+            ).all()
+
+            for admin in admins:
+                if admin.email:
+                    send_ticket_email_task.delay(
+                        email_type="ticket_created",
+                        ticket_id=ticket.id,
+                        recipients=[admin.email]
+                    )
+
+        # Update inbound email status
+        inbound.processing_status = "processed"
+        inbound.processed_at = datetime.now(timezone.utc)
+        inbound.processing_result = result
+
+        db.commit()
+
+        log_event(
+            "inbound_email_processed",
+            inbound_email_id=inbound_email_id,
+            action=result.get("action"),
+            ticket_id=result.get("ticket_id")
+        )
+
+        return {"status": "success", **result}
+
+    except Exception as e:
+        db.rollback()
+
+        # Update status to error
+        try:
+            inbound = db.query(InboundEmail).filter(
+                InboundEmail.id == inbound_email_id
+            ).first()
+            if inbound:
+                inbound.processing_status = "error"
+                inbound.error_message = str(e)
+                db.commit()
+        except Exception:
+            pass
+
+        log_event(
+            "inbound_email_error",
+            inbound_email_id=inbound_email_id,
+            error=str(e)
+        )
+        raise self.retry(exc=e)
     finally:
         db.close()
 

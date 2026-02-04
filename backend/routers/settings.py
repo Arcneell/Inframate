@@ -227,6 +227,79 @@ DEFAULT_SETTINGS = [
         "value_type": "integer",
         "is_sensitive": False
     },
+    # Email Notification Settings
+    {
+        "key": "email_notify_ticket_created",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a ticket is created",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_notify_ticket_assigned",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a ticket is assigned",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_notify_comment_added",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a non-internal comment is added",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_notify_ticket_resolved",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a ticket is resolved",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_notify_sla_warning",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a ticket approaches SLA deadline (80%)",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_notify_sla_breach",
+        "value": "true",
+        "category": "email_notifications",
+        "description": "Send email when a ticket breaches SLA",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_inbound_enabled",
+        "value": "false",
+        "category": "email_notifications",
+        "description": "Enable inbound email processing to create tickets",
+        "value_type": "boolean",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_inbound_poll_interval",
+        "value": "60",
+        "category": "email_notifications",
+        "description": "Interval in seconds between inbox polling",
+        "value_type": "integer",
+        "is_sensitive": False
+    },
+    {
+        "key": "email_inbound_allowed_domains",
+        "value": "",
+        "category": "email_notifications",
+        "description": "Comma-separated list of allowed sender domains (empty = all allowed)",
+        "value_type": "string",
+        "is_sensitive": False
+    },
     # Maintenance Settings
     {
         "key": "maintenance_mode",

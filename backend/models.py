@@ -630,6 +630,10 @@ class Ticket(Base):
     rating_comment = Column(Text, nullable=True)  # Optional feedback text
     rating_submitted_at = Column(DateTime, nullable=True)  # When the rating was submitted
 
+    # Email integration - for threading inbound emails to this ticket
+    email_message_id = Column(String, nullable=True, index=True)  # Original email Message-ID that created this ticket
+    sla_warning_sent = Column(Boolean, default=False)  # Track if SLA warning email was sent
+
     # Relationships
     requester = relationship("User", foreign_keys=[requester_id], backref="requested_tickets")
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], backref="assigned_tickets")
@@ -658,6 +662,10 @@ class TicketComment(Base):
     is_internal = Column(Boolean, default=False)  # Internal note vs public reply
     is_resolution = Column(Boolean, default=False)  # Marked as resolution
     created_at = Column(DateTime, default=utc_now)
+
+    # Email integration
+    email_message_id = Column(String, nullable=True, index=True)  # Email Message-ID if created from inbound email
+    is_email_reply = Column(Boolean, default=False)  # True if this comment was created from an email reply
 
     ticket = relationship("Ticket", back_populates="comments")
     user = relationship("User", backref="ticket_comments")
@@ -1104,6 +1112,145 @@ class WebhookDelivery(Base):
     created_at = Column(DateTime, default=utc_now, index=True)
 
     webhook = relationship("Webhook", back_populates="deliveries")
+
+
+# ==================== EMAIL INTEGRATION MODELS ====================
+
+class EmailConfiguration(Base):
+    """
+    Email configuration for inbound/outbound email integration.
+    Supports SMTP/IMAP and Microsoft 365 (Graph API) providers.
+    Entity-scoped for multi-tenant support.
+    """
+    __tablename__ = "email_configurations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    entity_id = Column(Integer, ForeignKey("entities.id", ondelete="SET NULL"), nullable=True)
+    provider_type = Column(String, nullable=False)  # smtp_imap, microsoft_365
+    is_active = Column(Boolean, default=True)
+    is_inbound_enabled = Column(Boolean, default=False)
+    is_outbound_enabled = Column(Boolean, default=True)
+
+    # SMTP settings (outbound)
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, default=587)
+    smtp_username = Column(String, nullable=True)
+    smtp_password = Column(EncryptedString, nullable=True)
+    smtp_use_tls = Column(Boolean, default=True)
+
+    # IMAP settings (inbound)
+    imap_host = Column(String, nullable=True)
+    imap_port = Column(Integer, default=993)
+    imap_username = Column(String, nullable=True)
+    imap_password = Column(EncryptedString, nullable=True)
+    imap_use_ssl = Column(Boolean, default=True)
+    imap_folder = Column(String, default="INBOX")
+
+    # Microsoft 365 settings
+    m365_tenant_id = Column(String, nullable=True)
+    m365_client_id = Column(String, nullable=True)
+    m365_client_secret = Column(EncryptedString, nullable=True)
+    m365_user_email = Column(String, nullable=True)  # Service account email with access to shared mailboxes
+    m365_mailbox = Column(String, nullable=True)  # Shared mailbox email address
+    m365_folder_id = Column(String, nullable=True)  # Folder ID to monitor for inbound emails
+
+    # Common settings
+    from_email = Column(String, nullable=True)
+    from_name = Column(String, default="Inframate")
+    reply_to_email = Column(String, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    entity = relationship("Entity", backref="email_configurations")
+    sent_emails = relationship("SentEmail", back_populates="email_config", cascade="all, delete-orphan")
+    inbound_emails = relationship("InboundEmail", back_populates="email_config", cascade="all, delete-orphan")
+
+
+class SentEmail(Base):
+    """
+    Tracking for outbound email notifications.
+    Records all sent emails for delivery status and threading.
+    """
+    __tablename__ = "sent_emails"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email_config_id = Column(Integer, ForeignKey("email_configurations.id", ondelete="SET NULL"), nullable=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="SET NULL"), nullable=True, index=True)
+    comment_id = Column(Integer, ForeignKey("ticket_comments.id", ondelete="SET NULL"), nullable=True)
+
+    # RFC 5322 headers for threading
+    message_id = Column(String, unique=True, nullable=False, index=True)  # <ticket-123-abc@inframate.local>
+    in_reply_to = Column(String, nullable=True)
+    references = Column(Text, nullable=True)  # Space-separated list of Message-IDs
+
+    # Recipient info
+    recipient_email = Column(String, nullable=False)
+    recipient_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Email content
+    subject = Column(String, nullable=False)
+    body_text = Column(Text, nullable=True)
+    body_html = Column(Text, nullable=True)
+
+    # Classification
+    email_type = Column(String, nullable=False, index=True)  # ticket_created, ticket_assigned, comment_added, ticket_resolved, sla_warning, sla_breach
+
+    # Status tracking
+    status = Column(String, default="pending", index=True)  # pending, sent, failed
+    error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime, default=utc_now)
+    sent_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    email_config = relationship("EmailConfiguration", back_populates="sent_emails")
+    ticket = relationship("Ticket", backref="sent_emails")
+    recipient_user = relationship("User", backref="received_emails")
+
+
+class InboundEmail(Base):
+    """
+    Log of received emails for ticket creation and comment threading.
+    Stores raw email data for audit and debugging.
+    """
+    __tablename__ = "inbound_emails"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email_config_id = Column(Integer, ForeignKey("email_configurations.id", ondelete="SET NULL"), nullable=True)
+
+    # RFC 5322 headers
+    message_id = Column(String, unique=True, nullable=False, index=True)
+    in_reply_to = Column(String, nullable=True, index=True)
+    references = Column(Text, nullable=True)
+
+    # Sender/recipient
+    from_email = Column(String, nullable=False, index=True)
+    from_name = Column(String, nullable=True)
+    to_email = Column(String, nullable=False)
+
+    # Content
+    subject = Column(String, nullable=False)
+    body_text = Column(Text, nullable=True)
+    body_html = Column(Text, nullable=True)
+    raw_headers = Column(JSONB, nullable=True)
+
+    # Processing status
+    processing_status = Column(String, default="pending", index=True)  # pending, processed, ignored, error
+    processing_result = Column(JSONB, nullable=True)  # {"ticket_id": 123, "comment_id": 456, "action": "created|commented"}
+    error_message = Column(Text, nullable=True)
+
+    # Timestamps
+    received_at = Column(DateTime, default=utc_now)
+    processed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    email_config = relationship("EmailConfiguration", back_populates="inbound_emails")
 
 
 # ==================== SYSTEM SETTINGS MODEL ====================

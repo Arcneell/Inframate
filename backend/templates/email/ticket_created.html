@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block header_subtitle %}<p class="header-subtitle">New Ticket Created</p>{% endblock %}
+
+{% block content %}
+<h2>New Ticket Created</h2>
+
+<p>A new support ticket has been submitted and requires your attention.</p>
+
+<div class="ticket-info">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Ticket</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.ticket_number }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Title</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.title }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Priority</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="priority-badge priority-{{ ticket.priority }}">{{ ticket.priority }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Type</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.ticket_type | capitalize }}</span>
+            </td>
+        </tr>
+        {% if ticket.category %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Category</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.category }}</span>
+            </td>
+        </tr>
+        {% endif %}
+        {% if requester %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Requester</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ requester.username }}{% if requester.email %} ({{ requester.email }}){% endif %}</span>
+            </td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Created</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.created_at | format_datetime }}</span>
+            </td>
+        </tr>
+        {% if ticket.sla_due_date %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">SLA Due</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.sla_due_date | format_datetime }}</span>
+            </td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+
+{% if ticket.description %}
+<h3 style="margin: 24px 0 12px 0; font-size: 16px; color: #374151;">Description</h3>
+<div class="comment-box">
+    <div class="comment-content">{{ ticket.description | truncate_text(500) }}</div>
+</div>
+{% endif %}
+
+<div class="button-container">
+    <a href="{{ site_url }}/tickets?id={{ ticket.id }}" class="button">View Ticket</a>
+</div>
+{% endblock %}

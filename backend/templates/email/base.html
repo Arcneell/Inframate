@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    <style>
+        /* Reset styles */
+        body, table, td, p, a, li, blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        /* Base styles */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #1e293b;
+        }
+
+        /* Container */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* Content */
+        .content {
+            padding: 40px;
+            background-color: #ffffff;
+        }
+        .content h2 {
+            margin: 0 0 20px 0;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 600;
+        }
+        .content p {
+            margin: 0 0 16px 0;
+            color: #475569;
+        }
+
+        /* Ticket info box */
+        .ticket-info {
+            background-color: #f8fafc;
+            border-left: 4px solid #0ea5e9;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .ticket-info-row {
+            display: flex;
+            margin-bottom: 12px;
+        }
+        .ticket-info-row:last-child {
+            margin-bottom: 0;
+        }
+        .ticket-info-label {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 100px;
+        }
+        .ticket-info-value {
+            color: #0f172a;
+            font-weight: 500;
+        }
+
+        /* Priority badges */
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .priority-critical { background-color: #fef2f2; color: #dc2626; }
+        .priority-high { background-color: #fff7ed; color: #ea580c; }
+        .priority-medium { background-color: #fefce8; color: #ca8a04; }
+        .priority-low { background-color: #f0fdf4; color: #16a34a; }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-new { background-color: #dbeafe; color: #2563eb; }
+        .status-open { background-color: #fef3c7; color: #d97706; }
+        .status-pending { background-color: #f3e8ff; color: #9333ea; }
+        .status-resolved { background-color: #dcfce7; color: #16a34a; }
+        .status-closed { background-color: #f1f5f9; color: #64748b; }
+
+        /* Button */
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #ffffff !important;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.3);
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+
+        /* Comment box */
+        .comment-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .comment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .comment-author {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .comment-date {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-left: 12px;
+        }
+        .comment-content {
+            color: #475569;
+            white-space: pre-wrap;
+        }
+
+        /* Alert boxes */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .alert-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+        }
+        .alert-danger {
+            background-color: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+        .alert-success {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px 40px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 0 0 8px 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .footer a {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+        .footer-reply-note {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+
+        /* Responsive */
+        @media screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 24px !important;
+            }
+            .ticket-info {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="email-container" style="margin: 0 auto; max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td class="header">
+                            <h1>{{ site_name }}</h1>
+                            {% block header_subtitle %}<p class="header-subtitle">Your Infrastructure Companion</p>{% endblock %}
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td class="content">
+                            {% block content %}{% endblock %}
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td class="footer">
+                            {% block footer %}
+                            <p>This email was sent by <strong>{{ site_name }}</strong></p>
+                            <p><a href="{{ site_url }}">{{ site_url }}</a></p>
+                            <div class="footer-reply-note">
+                                To reply to this ticket, simply reply to this email.
+                            </div>
+                            {% endblock %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

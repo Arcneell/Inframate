@@ -155,6 +155,79 @@ def create_notification(
     db.add(notification)
 
 
+def trigger_ticket_email(
+    db: Session,
+    email_type: str,
+    ticket: models.Ticket,
+    comment_id: int = None
+):
+    """
+    Trigger email notification for ticket events.
+    Emails are sent asynchronously via Celery.
+
+    Args:
+        db: Database session
+        email_type: Type of email (ticket_created, ticket_assigned, comment_added, ticket_resolved)
+        ticket: Ticket model instance
+        comment_id: Optional comment ID for comment notifications
+    """
+    try:
+        from worker.tasks import send_ticket_email_task
+
+        # Collect recipient emails based on event type
+        recipients = []
+
+        if email_type == "ticket_created":
+            # Notify assigned user (if any) and admins
+            if ticket.assigned_to and ticket.assigned_to.email:
+                recipients.append(ticket.assigned_to.email)
+            # Also notify admins
+            admins = db.query(models.User).filter(
+                models.User.role.in_(["admin", "superadmin"]),
+                models.User.is_active == True,
+                models.User.email.isnot(None)
+            ).all()
+            for admin in admins:
+                if admin.email and admin.email not in recipients:
+                    recipients.append(admin.email)
+
+        elif email_type == "ticket_assigned":
+            # Notify newly assigned user
+            if ticket.assigned_to and ticket.assigned_to.email:
+                recipients.append(ticket.assigned_to.email)
+
+        elif email_type == "comment_added":
+            # Notify requester and assigned user (except commenter)
+            if ticket.requester and ticket.requester.email:
+                recipients.append(ticket.requester.email)
+            if ticket.assigned_to and ticket.assigned_to.email:
+                if ticket.assigned_to.email not in recipients:
+                    recipients.append(ticket.assigned_to.email)
+
+        elif email_type == "ticket_resolved":
+            # Notify requester
+            if ticket.requester and ticket.requester.email:
+                recipients.append(ticket.requester.email)
+
+        # Queue email task if we have recipients
+        if recipients:
+            extra_data = {"comment_id": comment_id} if comment_id else None
+            send_ticket_email_task.delay(
+                email_type=email_type,
+                ticket_id=ticket.id,
+                recipients=recipients,
+                extra_data=extra_data
+            )
+            logger.debug(f"Email task queued: {email_type} for ticket {ticket.ticket_number} to {len(recipients)} recipients")
+
+    except ImportError:
+        # Celery not available (e.g., during testing)
+        logger.warning("Celery not available, skipping email notification")
+    except Exception as e:
+        # Don't fail the main operation if email fails
+        logger.error(f"Failed to queue email notification: {e}")
+
+
 # ==================== TICKET CRUD ====================
 
 @router.get("/", response_model=schemas.PaginatedTicketResponse)
@@ -592,6 +665,9 @@ def create_ticket(
         )
         db.commit()
 
+    # Trigger email notification for ticket creation
+    trigger_ticket_email(db, "ticket_created", ticket)
+
     logger.info(f"Ticket {ticket.ticket_number} created by {current_user.username}")
     return ticket
 
@@ -655,6 +731,12 @@ def update_ticket(
                     "ticket",
                     ticket.id
                 )
+                # Trigger email notification
+                setattr(ticket, field, new_value)  # Set first so ticket.assigned_to is available
+                db.flush()  # Ensure relationship is loaded
+                db.refresh(ticket)
+                trigger_ticket_email(db, "ticket_assigned", ticket)
+                continue  # Skip the setattr below since we already set it
 
             setattr(ticket, field, new_value)
 
@@ -799,6 +881,14 @@ def add_comment(
         )
     db.commit()
 
+    # Trigger email notification for non-internal comments
+    if not comment_data.is_internal:
+        trigger_ticket_email(db, "comment_added", ticket, comment_id=comment.id)
+
+    # Trigger resolved email if this comment resolves the ticket
+    if comment_data.is_resolution:
+        trigger_ticket_email(db, "ticket_resolved", ticket)
+
     return comment
 
 
@@ -916,6 +1006,11 @@ def assign_ticket(
     )
 
     db.commit()
+    db.refresh(ticket)
+
+    # Trigger email notification
+    trigger_ticket_email(db, "ticket_assigned", ticket)
+
     return {"message": f"Ticket assigned to {assignee.username}"}
 
 
@@ -956,6 +1051,11 @@ def resolve_ticket(
         )
 
     db.commit()
+    db.refresh(ticket)
+
+    # Trigger email notification
+    trigger_ticket_email(db, "ticket_resolved", ticket)
+
     return {"message": "Ticket resolved"}
 
 
@@ -2002,3 +2102,136 @@ def submit_ticket_rating(
         rating_comment=ticket.rating_comment,
         rating_submitted_at=ticket.rating_submitted_at
     )
+
+
+# ==================== SLA POLICY MANAGEMENT ====================
+
+@router.get("/sla-policies", response_model=List[schemas.SLAPolicy])
+def list_sla_policies(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """List all SLA policies. Requires admin or superadmin role."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    policies = db.query(models.SLAPolicy).filter(
+        models.SLAPolicy.is_active == True  # noqa: E712
+    ).order_by(models.SLAPolicy.name).all()
+
+    return policies
+
+
+@router.get("/sla-policies/{policy_id}", response_model=schemas.SLAPolicy)
+def get_sla_policy(
+    policy_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get a specific SLA policy by ID. Requires admin or superadmin role."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    policy = db.query(models.SLAPolicy).filter(models.SLAPolicy.id == policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="SLA policy not found")
+
+    return policy
+
+
+@router.post("/sla-policies", response_model=schemas.SLAPolicy)
+def create_sla_policy(
+    policy_data: schemas.SLAPolicyCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Create a new SLA policy. Requires admin or superadmin role."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Check for duplicate name
+    existing = db.query(models.SLAPolicy).filter(
+        models.SLAPolicy.name == policy_data.name
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="SLA policy with this name already exists")
+
+    # If this policy is default, unset any existing default
+    if policy_data.is_default:
+        db.query(models.SLAPolicy).filter(
+            models.SLAPolicy.is_default == True  # noqa: E712
+        ).update({"is_default": False})
+
+    policy = models.SLAPolicy(**policy_data.model_dump())
+    db.add(policy)
+    db.commit()
+    db.refresh(policy)
+
+    logger.info(f"SLA policy '{policy.name}' created by {current_user.username}")
+    return policy
+
+
+@router.put("/sla-policies/{policy_id}", response_model=schemas.SLAPolicy)
+def update_sla_policy(
+    policy_id: int,
+    policy_data: schemas.SLAPolicyUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Update an SLA policy. Requires admin or superadmin role."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    policy = db.query(models.SLAPolicy).filter(models.SLAPolicy.id == policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="SLA policy not found")
+
+    # Check for duplicate name if name is being changed
+    if policy_data.name and policy_data.name != policy.name:
+        existing = db.query(models.SLAPolicy).filter(
+            models.SLAPolicy.name == policy_data.name
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="SLA policy with this name already exists")
+
+    # If setting this policy as default, unset any existing default
+    if policy_data.is_default and not policy.is_default:
+        db.query(models.SLAPolicy).filter(
+            models.SLAPolicy.is_default == True,  # noqa: E712
+            models.SLAPolicy.id != policy_id
+        ).update({"is_default": False})
+
+    # Update fields
+    for key, value in policy_data.model_dump(exclude_unset=True).items():
+        setattr(policy, key, value)
+
+    db.commit()
+    db.refresh(policy)
+
+    logger.info(f"SLA policy '{policy.name}' updated by {current_user.username}")
+    return policy
+
+
+@router.delete("/sla-policies/{policy_id}")
+def delete_sla_policy(
+    policy_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete an SLA policy. Requires admin or superadmin role. Cannot delete default policy."""
+    if current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    policy = db.query(models.SLAPolicy).filter(models.SLAPolicy.id == policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="SLA policy not found")
+
+    if policy.is_default:
+        raise HTTPException(status_code=400, detail="Cannot delete the default SLA policy")
+
+    policy_name = policy.name
+    db.delete(policy)
+    db.commit()
+
+    logger.info(f"SLA policy '{policy_name}' deleted by {current_user.username}")
+    return {"message": "SLA policy deleted"}

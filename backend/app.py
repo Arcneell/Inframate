@@ -45,6 +45,7 @@ from backend.routers.export import router as export_router
 from backend.routers.search import router as search_router
 from backend.routers.webhooks import router as webhooks_router
 from backend.routers.settings import router as settings_router
+from backend.routers.email import router as email_router
 
 # Setup logging
 setup_logging()
@@ -175,6 +176,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router, prefix=api_prefix)
     app.include_router(webhooks_router, prefix=api_prefix)
     app.include_router(settings_router, prefix=api_prefix)
+    app.include_router(email_router, prefix=api_prefix)
 
     @app.get("/health")
     async def health_check():

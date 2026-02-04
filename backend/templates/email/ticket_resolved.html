@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block header_subtitle %}<p class="header-subtitle">Ticket Resolved</p>{% endblock %}
+
+{% block content %}
+<h2>Your Ticket Has Been Resolved</h2>
+
+<div class="alert alert-success">
+    <strong>Good news!</strong> Your ticket <strong>{{ ticket.ticket_number }}</strong> has been resolved.
+</div>
+
+<div class="ticket-info">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Ticket</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.ticket_number }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Title</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.title }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Status</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="status-badge status-resolved">Resolved</span>
+            </td>
+        </tr>
+        {% if ticket.resolved_at %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Resolved</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.resolved_at | format_datetime }}</span>
+            </td>
+        </tr>
+        {% endif %}
+        {% if assigned_to %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Resolved By</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ assigned_to.username }}</span>
+            </td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+
+{% if ticket.resolution %}
+<h3 style="margin: 24px 0 12px 0; font-size: 16px; color: #374151;">Resolution</h3>
+<div class="comment-box">
+    <div class="comment-content">{{ ticket.resolution }}</div>
+</div>
+{% endif %}
+
+<p style="margin-top: 24px; color: #64748b; font-size: 14px;">
+    If this issue has not been fully resolved, please reply to this email or reopen the ticket through the portal.
+</p>
+
+<div class="button-container">
+    <a href="{{ site_url }}/tickets?id={{ ticket.id }}" class="button">View Ticket</a>
+</div>
+{% endblock %}

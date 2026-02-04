@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block header_subtitle %}<p class="header-subtitle">SLA Breach Alert</p>{% endblock %}
+
+{% block content %}
+<h2>SLA Breach Alert</h2>
+
+<div class="alert alert-danger">
+    <strong>Critical!</strong> Ticket <strong>{{ ticket.ticket_number }}</strong> has exceeded its SLA deadline.
+</div>
+
+<p>This ticket has breached its Service Level Agreement and requires immediate escalation.</p>
+
+<div class="ticket-info">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Ticket</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.ticket_number }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Title</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.title }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Status</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="status-badge status-{{ ticket.status }}">{{ ticket.status }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Priority</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="priority-badge priority-{{ ticket.priority }}">{{ ticket.priority }}</span>
+            </td>
+        </tr>
+        {% if ticket.sla_due_date %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">SLA Due</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value" style="color: #dc2626; font-weight: 600; text-decoration: line-through;">{{ ticket.sla_due_date | format_datetime }}</span>
+            </td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">SLA Status</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span style="color: #dc2626; font-weight: 700;">BREACHED</span>
+            </td>
+        </tr>
+        {% if assigned_to %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Assigned To</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ assigned_to.username }}</span>
+            </td>
+        </tr>
+        {% endif %}
+        {% if requester %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Requester</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ requester.username }}</span>
+            </td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Created</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.created_at | format_datetime }}</span>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="button-container">
+    <a href="{{ site_url }}/tickets?id={{ ticket.id }}" class="button" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.3);">Take Action Now</a>
+</div>
+{% endblock %}

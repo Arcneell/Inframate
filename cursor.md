@@ -279,6 +279,7 @@ Tous les composants Dropdown de l'application doivent impérativement utiliser l
 | /api/v1/search/ | Recherche globale |
 | /api/v1/webhooks/, /{id}, /test, /deliveries, /events | Webhooks |
 | /api/v1/settings/, /by-category, /{key}, /test-smtp | Paramètres système (superadmin) |
+| /api/v1/email/configurations, /{id}/m365-folders, /{id}/imap-folders | Configs email, dossiers M365/IMAP |
 
 ## Troubleshooting
 

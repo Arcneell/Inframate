@@ -1164,6 +1164,26 @@ class SLAPolicyCreate(SLAPolicyBase):
     entity_id: Optional[int] = None
 
 
+class SLAPolicyUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    critical_response_time: Optional[int] = None
+    critical_resolution_time: Optional[int] = None
+    high_response_time: Optional[int] = None
+    high_resolution_time: Optional[int] = None
+    medium_response_time: Optional[int] = None
+    medium_resolution_time: Optional[int] = None
+    low_response_time: Optional[int] = None
+    low_resolution_time: Optional[int] = None
+    business_hours_only: Optional[bool] = None
+    business_start: Optional[str] = None
+    business_end: Optional[str] = None
+    business_days: Optional[List[int]] = None
+    is_default: Optional[bool] = None
+    is_active: Optional[bool] = None
+    entity_id: Optional[int] = None
+
+
 class SLAPolicy(SLAPolicyBase):
     id: int
     is_default: bool

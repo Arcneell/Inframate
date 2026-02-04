@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block header_subtitle %}<p class="header-subtitle">New Comment</p>{% endblock %}
+
+{% block content %}
+<h2>New Comment Added</h2>
+
+<p>A new comment has been added to ticket <strong>{{ ticket.ticket_number }}</strong>.</p>
+
+<div class="ticket-info">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Ticket</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.ticket_number }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Title</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-value">{{ ticket.title }}</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 0;">
+                <span class="ticket-info-label">Status</span>
+            </td>
+            <td style="padding: 8px 0;">
+                <span class="status-badge status-{{ ticket.status }}">{{ ticket.status }}</span>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<h3 style="margin: 24px 0 12px 0; font-size: 16px; color: #374151;">Comment</h3>
+<div class="comment-box">
+    <div class="comment-header">
+        <span class="comment-author">{{ comment_author.username if comment_author else 'Unknown' }}</span>
+        <span class="comment-date">{{ comment.created_at | format_datetime }}</span>
+    </div>
+    <div class="comment-content">{{ comment.content }}</div>
+</div>
+
+<div class="button-container">
+    <a href="{{ site_url }}/tickets?id={{ ticket.id }}" class="button">View Ticket</a>
+</div>
+{% endblock %}
+
+{% block footer %}
+<p>This email was sent by <strong>{{ site_name }}</strong></p>
+<p><a href="{{ site_url }}">{{ site_url }}</a></p>
+<div class="footer-reply-note">
+    <strong>Reply directly to this email</strong> to add your response to the ticket.
+</div>
+{% endblock %}

@@ -477,7 +477,10 @@
     "icon": "Icône",
     "color": "Couleur",
     "description": "Description",
-    "remove": "Retirer"
+    "remove": "Retirer",
+    "createdAt": "Créé le",
+    "updatedAt": "Mis à jour le",
+    "entity": "Entité"
   },
   "dcim": {
     "title": "DCIM",
@@ -792,7 +795,11 @@
     "closeReasonWithdrawn": "Demande retirée",
     "closeReasonNoResponse": "Pas de réponse du demandeur",
     "closeReasonOutOfScope": "Hors périmètre",
-    "replyClosed": "Ce ticket est clos. Rouvrez-le pour ajouter une réponse."
+    "replyClosed": "Ce ticket est clos. Rouvrez-le pour ajouter une réponse.",
+    "equipment": "Équipement",
+    "resolvedAt": "Résolu le",
+    "closedAt": "Clos le",
+    "slaDueDate": "Échéance SLA"
   },
   "notifications": {
     "title": "Notifications",
@@ -1091,7 +1098,17 @@
     "confirmAction": "Confirmer l'action",
     "applyToAll": "Appliquer à {count} éléments",
     "actionSuccess": "Action effectuée avec succès",
-    "actionPartial": "{processed} traités, {failed} échoués"
+    "actionPartial": "{processed} traités, {failed} échoués",
+    "exportToCsv": "Exporter les données",
+    "exportToCsvDesc": "Exporter les éléments sélectionnés en Excel ou CSV",
+    "selectColumns": "Sélectionner les colonnes à exporter",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "exportFormat": "Format d'export",
+    "exportSelected": "Exporter {count} éléments",
+    "exportSuccess": "{count} éléments exportés avec succès",
+    "requesterEmail": "Email demandeur",
+    "assignedEmail": "Email assigné"
   },
   "editor": {
     "placeholder": "Commencez à écrire...",

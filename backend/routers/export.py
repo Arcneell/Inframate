@@ -6,11 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime, timezone
 import csv
 import io
+import re
+import html
 import logging
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 from backend.core.database import get_db
 from backend.core.security import get_current_user, get_current_admin_user
@@ -42,6 +47,96 @@ def generate_csv(data: List[dict], filename: str) -> StreamingResponse:
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+def strip_html(text: str) -> str:
+    """Remove HTML tags and clean up text for CSV export."""
+    if not text:
+        return ""
+    # Remove img tags completely (they contain base64 data)
+    text = re.sub(r'<img[^>]*>', '', text)
+    # Replace common block elements with newlines
+    text = re.sub(r'</?(p|div|h[1-6]|li|tr|br)[^>]*>', '\n', text, flags=re.IGNORECASE)
+    # Remove all remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Decode HTML entities
+    text = html.unescape(text)
+    # Clean up whitespace: multiple newlines to single, trim lines
+    text = re.sub(r'\n\s*\n', '\n', text)
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+    return text.strip()
+
+
+def generate_xlsx(data: List[dict], filename: str, column_labels: dict = None) -> StreamingResponse:
+    """Generate an Excel XLSX file from a list of dictionaries with formatting."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Export"
+
+    if not data:
+        ws['A1'] = "No data to export"
+    else:
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell_alignment = Alignment(vertical="top", wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin', color='E5E7EB'),
+            right=Side(style='thin', color='E5E7EB'),
+            top=Side(style='thin', color='E5E7EB'),
+            bottom=Side(style='thin', color='E5E7EB')
+        )
+        alt_fill = PatternFill(start_color="F9FAFB", end_color="F9FAFB", fill_type="solid")
+
+        # Get column keys
+        columns = list(data[0].keys())
+
+        # Write headers with labels if provided
+        for col_idx, col_key in enumerate(columns, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.value = column_labels.get(col_key, col_key) if column_labels else col_key
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        # Write data rows
+        for row_idx, row_data in enumerate(data, 2):
+            for col_idx, col_key in enumerate(columns, 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.value = row_data.get(col_key, "")
+                cell.alignment = cell_alignment
+                cell.border = thin_border
+                # Alternate row colors
+                if row_idx % 2 == 0:
+                    cell.fill = alt_fill
+
+        # Auto-adjust column widths
+        for col_idx, col_key in enumerate(columns, 1):
+            max_length = len(column_labels.get(col_key, col_key) if column_labels else col_key)
+            for row in ws.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    if cell.value:
+                        # For multiline text, get the longest line
+                        lines = str(cell.value).split('\n')
+                        cell_max = max(len(line) for line in lines)
+                        max_length = max(max_length, min(cell_max, 50))  # Cap at 50 chars
+            ws.column_dimensions[get_column_letter(col_idx)].width = max_length + 2
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
@@ -159,7 +254,7 @@ def export_tickets(
         data.append({
             "ticket_number": t.ticket_number,
             "title": t.title,
-            "description": t.description or "",
+            "description": strip_html(t.description) if t.description else "",
             "type": t.ticket_type,
             "category": t.category or "",
             "status": t.status,
@@ -169,7 +264,7 @@ def export_tickets(
             "equipment": t.equipment.name if t.equipment else "",
             "sla_due_date": t.sla_due_date.isoformat() if t.sla_due_date else "",
             "sla_breached": "Yes" if t.sla_breached else "No",
-            "resolution": t.resolution or "",
+            "resolution": strip_html(t.resolution) if t.resolution else "",
             "created_at": t.created_at.isoformat() if t.created_at else "",
             "resolved_at": t.resolved_at.isoformat() if t.resolved_at else "",
             "closed_at": t.closed_at.isoformat() if t.closed_at else ""
@@ -180,6 +275,109 @@ def export_tickets(
 
     logger.info(f"Tickets export generated by {current_user.username}: {len(data)} items")
     return generate_csv(data, filename)
+
+
+@router.post("/tickets/bulk")
+def export_tickets_bulk(
+    request: schemas.BulkTicketExport,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Export selected tickets with specific columns to CSV."""
+    # Define all available columns and their mapping functions
+    # Note: description and resolution use strip_html to remove HTML formatting
+    column_mapping = {
+        "ticket_number": lambda t: t.ticket_number,
+        "title": lambda t: t.title,
+        "description": lambda t: strip_html(t.description) if t.description else "",
+        "type": lambda t: t.ticket_type,
+        "category": lambda t: t.category or "",
+        "status": lambda t: t.status,
+        "priority": lambda t: t.priority,
+        "requester": lambda t: t.requester.username if t.requester else "",
+        "requester_email": lambda t: t.requester.email if t.requester else "",
+        "assigned_to": lambda t: t.assigned_to.username if t.assigned_to else "",
+        "assigned_email": lambda t: t.assigned_to.email if t.assigned_to else "",
+        "equipment": lambda t: t.equipment.name if t.equipment else "",
+        "entity": lambda t: t.entity.name if t.entity else "",
+        "sla_due_date": lambda t: t.sla_due_date.isoformat() if t.sla_due_date else "",
+        "sla_breached": lambda t: "Yes" if t.sla_breached else "No",
+        "resolution": lambda t: strip_html(t.resolution) if t.resolution else "",
+        "created_at": lambda t: t.created_at.isoformat() if t.created_at else "",
+        "updated_at": lambda t: t.updated_at.isoformat() if t.updated_at else "",
+        "resolved_at": lambda t: t.resolved_at.isoformat() if t.resolved_at else "",
+        "closed_at": lambda t: t.closed_at.isoformat() if t.closed_at else ""
+    }
+
+    # Validate columns
+    invalid_columns = [col for col in request.columns if col not in column_mapping]
+    if invalid_columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid columns: {', '.join(invalid_columns)}. Valid columns: {', '.join(column_mapping.keys())}"
+        )
+
+    # Fetch tickets by IDs
+    query = db.query(models.Ticket).options(
+        joinedload(models.Ticket.requester),
+        joinedload(models.Ticket.assigned_to),
+        joinedload(models.Ticket.equipment),
+        joinedload(models.Ticket.entity)
+    ).filter(models.Ticket.id.in_(request.ticket_ids))
+
+    # Access control
+    if current_user.role not in ("tech", "admin", "superadmin"):
+        query = query.filter(models.Ticket.requester_id == current_user.id)
+    elif current_user.entity_id:
+        query = query.filter(models.Ticket.entity_id == current_user.entity_id)
+
+    tickets = query.order_by(models.Ticket.created_at.desc()).all()
+
+    if not tickets:
+        raise HTTPException(status_code=404, detail="No tickets found matching the selection")
+
+    # Build export data with only selected columns
+    data = []
+    for t in tickets:
+        row = {}
+        for col in request.columns:
+            row[col] = column_mapping[col](t)
+        data.append(row)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    # Column labels for nice headers
+    column_labels = {
+        "ticket_number": "Ticket #",
+        "title": "Title",
+        "description": "Description",
+        "type": "Type",
+        "category": "Category",
+        "status": "Status",
+        "priority": "Priority",
+        "requester": "Requester",
+        "requester_email": "Requester Email",
+        "assigned_to": "Assigned To",
+        "assigned_email": "Assigned Email",
+        "equipment": "Equipment",
+        "entity": "Entity",
+        "sla_due_date": "SLA Due Date",
+        "sla_breached": "SLA Breached",
+        "resolution": "Resolution",
+        "created_at": "Created At",
+        "updated_at": "Updated At",
+        "resolved_at": "Resolved At",
+        "closed_at": "Closed At"
+    }
+
+    logger.info(f"Bulk tickets export generated by {current_user.username}: {len(data)} items, format: {request.format}")
+
+    if request.format == "xlsx":
+        filename = f"tickets_export_{timestamp}.xlsx"
+        return generate_xlsx(data, filename, column_labels)
+    else:
+        filename = f"tickets_export_{timestamp}.csv"
+        return generate_csv(data, filename)
 
 
 # ==================== CONTRACTS EXPORT ====================

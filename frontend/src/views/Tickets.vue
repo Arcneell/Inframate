@@ -647,6 +647,48 @@
           <i class="pi pi-chevron-right"></i>
         </div>
       </div>
+
+      <!-- Export Action -->
+      <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkExportAction = !showBulkExportAction">
+        <div class="flex items-center gap-4">
+          <div class="action-icon action-icon-export">
+            <i class="pi pi-download"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold action-title">{{ t('bulk.exportToCsv') }}</div>
+            <div class="text-sm action-desc">{{ t('bulk.exportToCsvDesc') }}</div>
+          </div>
+          <i :class="['pi transition-transform', showBulkExportAction ? 'pi-chevron-up' : 'pi-chevron-down']"></i>
+        </div>
+        <div v-if="showBulkExportAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
+          <div class="mb-3">
+            <label class="block text-sm font-medium mb-2 action-desc">{{ t('bulk.selectColumns') }}</label>
+            <div class="export-columns-grid">
+              <div v-for="col in exportColumnOptions" :key="col.value" class="flex items-center gap-2">
+                <Checkbox v-model="exportColumns" :inputId="col.value" :value="col.value" />
+                <label :for="col.value" class="text-sm cursor-pointer action-desc">{{ col.label }}</label>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 mb-3">
+            <Button :label="t('bulk.selectAll')" text size="small" @click="exportColumns = exportColumnOptions.map(c => c.value)" />
+            <Button :label="t('bulk.deselectAll')" text size="small" @click="exportColumns = []" />
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium mb-2 action-desc">{{ t('bulk.exportFormat') }}</label>
+            <div class="export-format-selector">
+              <div v-for="fmt in exportFormatOptions" :key="fmt.value"
+                   class="format-option" :class="{ active: exportFormat === fmt.value }"
+                   @click="exportFormat = fmt.value">
+                <i :class="fmt.icon"></i>
+                <span>{{ fmt.label }}</span>
+              </div>
+            </div>
+          </div>
+          <Button :label="t('bulk.exportSelected', { count: selectedTickets.length })" icon="pi pi-download"
+                  class="w-full" @click="applyBulkExport" :disabled="exportColumns.length === 0" :loading="bulkLoading" />
+        </div>
+      </div>
     </BulkActionsSlideOver>
   </div>
 </template>
@@ -783,6 +825,9 @@ const showBulkAssignAction = ref(false);
 const showBulkPriorityAction = ref(false);
 const showBulkStatusAction = ref(false);
 const showBulkTypeAction = ref(false);
+const showBulkExportAction = ref(false);
+const exportColumns = ref([]);
+const exportFormat = ref('xlsx');
 
 // Users with unassign option for bulk operations
 const usersWithUnassign = computed(() => {
@@ -826,6 +871,35 @@ const impactOptions = computed(() => [
   { label: t('tickets.impactMedium'), value: 'medium' },
   { label: t('tickets.impactLow'), value: 'low' }
 ]);
+
+// Export column options
+const exportColumnOptions = computed(() => [
+  { label: t('tickets.ticketNumber'), value: 'ticket_number' },
+  { label: t('tickets.ticketTitle'), value: 'title' },
+  { label: t('tickets.description'), value: 'description' },
+  { label: t('tickets.type'), value: 'type' },
+  { label: t('tickets.category'), value: 'category' },
+  { label: t('tickets.status'), value: 'status' },
+  { label: t('tickets.priority'), value: 'priority' },
+  { label: t('tickets.requester'), value: 'requester' },
+  { label: t('bulk.requesterEmail'), value: 'requester_email' },
+  { label: t('tickets.assignedTo'), value: 'assigned_to' },
+  { label: t('bulk.assignedEmail'), value: 'assigned_email' },
+  { label: t('tickets.equipment'), value: 'equipment' },
+  { label: t('common.entity'), value: 'entity' },
+  { label: t('tickets.slaDueDate'), value: 'sla_due_date' },
+  { label: t('tickets.slaBreached'), value: 'sla_breached' },
+  { label: t('tickets.resolution'), value: 'resolution' },
+  { label: t('common.createdAt'), value: 'created_at' },
+  { label: t('common.updatedAt'), value: 'updated_at' },
+  { label: t('tickets.resolvedAt'), value: 'resolved_at' },
+  { label: t('tickets.closedAt'), value: 'closed_at' }
+]);
+
+const exportFormatOptions = [
+  { label: 'Excel (.xlsx)', value: 'xlsx', icon: 'pi pi-file-excel' },
+  { label: 'CSV (.csv)', value: 'csv', icon: 'pi pi-file' }
+];
 
 const resolutionCodes = computed(() => [
   { label: t('tickets.codeFixed'), value: 'fixed' },
@@ -1386,6 +1460,39 @@ const applyBulkType = async () => {
     showBulkSlideOver.value = false;
     showBulkTypeAction.value = false;
     loadTickets();
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
+  } finally {
+    bulkLoading.value = false;
+  }
+};
+
+const applyBulkExport = async () => {
+  if (selectedTickets.value.length === 0 || exportColumns.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const response = await api.post('/export/tickets/bulk', {
+      ticket_ids: selectedTickets.value.map(t => t.id),
+      columns: exportColumns.value,
+      format: exportFormat.value
+    }, { responseType: 'blob' });
+
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const extension = exportFormat.value === 'xlsx' ? 'xlsx' : 'csv';
+    link.setAttribute('download', `tickets_export_${timestamp}.${extension}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('bulk.exportSuccess', { count: selectedTickets.value.length }) });
+    exportColumns.value = [];
+    showBulkSlideOver.value = false;
+    showBulkExportAction.value = false;
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') });
   } finally {
@@ -2757,6 +2864,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-default);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 0.75rem;
+  overflow: hidden;
 }
 
 .action-card:hover {
@@ -2802,6 +2910,67 @@ onUnmounted(() => {
 
 .action-icon-info i {
   color: var(--info);
+}
+
+.action-icon-export {
+  background: var(--primary-light);
+}
+
+.action-icon-export i {
+  color: var(--primary);
+}
+
+.export-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+}
+
+.export-columns-grid label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-format-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.format-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 2px solid var(--border-default);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.format-option:hover {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.format-option.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.format-option i {
+  font-size: 1.25rem;
 }
 
 .action-card .action-title {

@@ -477,7 +477,10 @@
     "icon": "Icon",
     "color": "Color",
     "description": "Description",
-    "remove": "Remove"
+    "remove": "Remove",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At",
+    "entity": "Entity"
   },
   "dcim": {
     "title": "DCIM",
@@ -792,7 +795,11 @@
     "closeReasonWithdrawn": "Request Withdrawn",
     "closeReasonNoResponse": "No Response from Requester",
     "closeReasonOutOfScope": "Out of Scope",
-    "replyClosed": "This ticket is closed. Reopen it to add a reply."
+    "replyClosed": "This ticket is closed. Reopen it to add a reply.",
+    "equipment": "Equipment",
+    "resolvedAt": "Resolved At",
+    "closedAt": "Closed At",
+    "slaDueDate": "SLA Due Date"
   },
   "notifications": {
     "title": "Notifications",
@@ -1091,7 +1098,17 @@
     "confirmAction": "Confirm Action",
     "applyToAll": "Apply to {count} items",
     "actionSuccess": "Action completed successfully",
-    "actionPartial": "{processed} processed, {failed} failed"
+    "actionPartial": "{processed} processed, {failed} failed",
+    "exportToCsv": "Export Data",
+    "exportToCsvDesc": "Export selected items to Excel or CSV file",
+    "selectColumns": "Select columns to export",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "exportFormat": "Export format",
+    "exportSelected": "Export {count} items",
+    "exportSuccess": "{count} items exported successfully",
+    "requesterEmail": "Requester Email",
+    "assignedEmail": "Assigned Email"
   },
   "editor": {
     "placeholder": "Start typing...",

@@ -1576,6 +1576,14 @@ onMounted(async () => {
   }
 });
 
+// Watch for pending ticket from UI store (notification click when already on Tickets page)
+watch(() => uiStore.pendingTicketId, (ticketId) => {
+  if (ticketId) {
+    openTicketById(ticketId);
+    uiStore.clearPendingTicket();
+  }
+});
+
 // Cleanup debounce timer on unmount to prevent memory leaks
 onUnmounted(() => {
   if (searchTimeout) {

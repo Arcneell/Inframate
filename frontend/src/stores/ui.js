@@ -23,6 +23,11 @@ export const useUIStore = defineStore('ui', () => {
   const loadingMessage = ref('')
 
   // =============================================
+  // DEEP LINK STATE (for opening items from notifications)
+  // =============================================
+  const pendingTicketId = ref(null)
+
+  // =============================================
   // OVERLAY MANAGEMENT (for nested menus)
   // =============================================
   // Stack of active overlays with their close handlers
@@ -241,6 +246,17 @@ export const useUIStore = defineStore('ui', () => {
   }
 
   // =============================================
+  // DEEP LINK FUNCTIONS
+  // =============================================
+  function requestOpenTicket(ticketId) {
+    pendingTicketId.value = ticketId
+  }
+
+  function clearPendingTicket() {
+    pendingTicketId.value = null
+  }
+
+  // =============================================
   // INITIALIZATION
   // =============================================
   function init() {
@@ -313,6 +329,11 @@ export const useUIStore = defineStore('ui', () => {
 
     // Loading Actions
     setLoading,
+
+    // Deep Link
+    pendingTicketId,
+    requestOpenTicket,
+    clearPendingTicket,
 
     // Overlay Management
     registerOverlay,

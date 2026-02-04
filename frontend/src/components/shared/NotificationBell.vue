@@ -54,13 +54,16 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '../../stores/notifications';
+import { useUIStore } from '../../stores/ui';
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
 const notificationsStore = useNotificationsStore();
+const uiStore = useUIStore();
 
 const showPanel = ref(false);
 
@@ -103,7 +106,12 @@ const handleNotificationClick = async (notification) => {
 
   const link = notificationsStore.getNotificationLink(notification);
   if (link) {
-    router.push(link);
+    // Check if already on the target page - use store for direct communication
+    if (notification.link_type === 'ticket' && route.path === '/tickets') {
+      uiStore.requestOpenTicket(notification.link_id);
+    } else {
+      router.push(link);
+    }
   }
 };
 

@@ -1060,7 +1060,7 @@ def bulk_close_tickets(
     """
     Close multiple tickets at once.
     Requires tickets_admin permission.
-    Only resolved tickets can be closed.
+    Tickets that are not resolved will be resolved first with a default resolution.
     """
     if not has_tickets_admin_permission(current_user):
         raise HTTPException(status_code=403, detail="Permission denied: tickets_admin permission required")
@@ -1068,6 +1068,7 @@ def bulk_close_tickets(
     processed = 0
     failed = 0
     errors = []
+    now = datetime.now(timezone.utc)
 
     for ticket_id in request.ticket_ids:
         try:
@@ -1087,19 +1088,22 @@ def bulk_close_tickets(
                 errors.append(f"Ticket {ticket_id}: access denied")
                 continue
 
-            # Only resolved tickets can be closed
-            if ticket.status not in ["resolved", "closed"]:
-                failed += 1
-                errors.append(f"Ticket {ticket.ticket_number}: only resolved tickets can be closed")
-                continue
-
             if ticket.status == "closed":
-                # Already closed, skip
+                # Already closed, skip but count as processed
                 processed += 1
                 continue
 
+            # If ticket is not resolved, resolve it first with a default resolution
+            if ticket.status != "resolved":
+                ticket.status = "resolved"
+                ticket.resolved_at = now
+                if not ticket.resolution:
+                    ticket.resolution = "Closed via bulk action"
+                add_ticket_history(db, ticket_id, current_user.id, "resolved")
+
+            # Now close the ticket
             ticket.status = "closed"
-            ticket.closed_at = datetime.now(timezone.utc)
+            ticket.closed_at = now
 
             add_ticket_history(db, ticket_id, current_user.id, "closed")
             processed += 1

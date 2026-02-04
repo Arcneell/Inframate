@@ -35,6 +35,10 @@
           <span class="stat-chip-label">{{ t('tickets.statusResolved') }}</span>
           <span class="stat-chip-count">{{ stats.resolved }}</span>
         </div>
+        <div class="stat-chip stat-chip--closed" :class="{ active: filters.status === 'closed' }" @click="setFilter('status', 'closed')">
+          <span class="stat-chip-label">{{ t('tickets.statusClosed') }}</span>
+          <span class="stat-chip-count">{{ stats.closed || 0 }}</span>
+        </div>
         <div v-if="stats.sla_breached > 0" class="stat-chip stat-chip--danger">
           <i class="pi pi-exclamation-triangle"></i>
           <span class="stat-chip-count">{{ stats.sla_breached }} SLA</span>
@@ -1594,6 +1598,10 @@ onUnmounted(() => {
 .stat-chip--resolved:not(.active) .stat-chip-label,
 .stat-chip--resolved:not(.active) .stat-chip-count { color: #22c55e; }
 
+.stat-chip--closed:not(.active) { background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.3); }
+.stat-chip--closed:not(.active) .stat-chip-label,
+.stat-chip--closed:not(.active) .stat-chip-count { color: #64748b; }
+
 .stat-chip--danger {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
@@ -2951,6 +2959,10 @@ onUnmounted(() => {
 :root.dark .stat-chip--resolved:not(.active) { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.35); }
 :root.dark .stat-chip--resolved:not(.active) .stat-chip-label,
 :root.dark .stat-chip--resolved:not(.active) .stat-chip-count { color: #4ade80; }
+
+:root.dark .stat-chip--closed:not(.active) { background: rgba(148, 163, 184, 0.15); border-color: rgba(148, 163, 184, 0.35); }
+:root.dark .stat-chip--closed:not(.active) .stat-chip-label,
+:root.dark .stat-chip--closed:not(.active) .stat-chip-count { color: #94a3b8; }
 
 /* My tickets toggle */
 :root.dark .my-tickets-toggle {

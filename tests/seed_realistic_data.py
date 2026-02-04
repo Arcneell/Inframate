@@ -1560,15 +1560,129 @@ def seed_ticket_templates(db: Session) -> None:
 
 
 def seed_tickets(db: Session, count: int = 35) -> None:
-    """Create realistic tickets with SLA breaches and varied states."""
+    """Create realistic tickets with SLA breaches, rich HTML content, and varied states."""
     print("  Creating tickets...")
+
+    # Sample SVG images as base64 for demonstration (small colored placeholder icons)
+    # Error icon (red)
+    ERROR_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2ZlZTJlMiIgcng9IjgiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSI0NSIgcj0iMjAiIGZpbGw9IiNlZjQ0NDQiLz48dGV4dCB4PSIxMDAiIHk9IjUyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPiE8L3RleHQ+PHRleHQgeD0iMTAwIiB5PSI5MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2RjMjYyNiIgZm9udC1zaXplPSIxNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPkVycm9yIFNjcmVlbnNob3Q8L3RleHQ+PC9zdmc+"
+    # Warning icon (orange)
+    WARNING_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2ZlZjNjNyIgcng9IjgiLz48cG9seWdvbiBwb2ludHM9IjEwMCwyNSAxMjUsNzAgNzUsNzAiIGZpbGw9IiNmNTllMGIiLz48dGV4dCB4PSIxMDAiIHk9IjYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPiE8L3RleHQ+PHRleHQgeD0iMTAwIiB5PSI5NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2Q5NzcwNiIgZm9udC1zaXplPSIxNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPkFsZXJ0IFNjcmVlbnNob3Q8L3RleHQ+PC9zdmc+"
+    # Network diagram (blue)
+    NETWORK_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2RiZWFmZSIgcng9IjgiLz48cmVjdCB4PSIxMDAiIHk9IjIwIiB3aWR0aD0iNTAiIGhlaWdodD0iMzAiIGZpbGw9IiMzYjgyZjYiIHJ4PSI0Ii8+PHJlY3QgeD0iMzAiIHk9IjkwIiB3aWR0aD0iNDAiIGhlaWdodD0iMjUiIGZpbGw9IiMzYjgyZjYiIHJ4PSI0Ii8+PHJlY3QgeD0iMTA1IiB5PSI5MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjI1IiBmaWxsPSIjZWY0NDQ0IiByeD0iNCIvPjxyZWN0IHg9IjE4MCIgeT0iOTAiIHdpZHRoPSI0MCIgaGVpZ2h0PSIyNSIgZmlsbD0iIzNiODJmNiIgcng9IjQiLz48bGluZSB4MT0iMTI1IiB5MT0iNTAiIHgyPSI1MCIgeTI9IjkwIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxMjUiIHkxPSI1MCIgeDI9IjEyNSIgeTI9IjkwIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNCIvPjxsaW5lIHgxPSIxMjUiIHkxPSI1MCIgeDI9IjIwMCIgeTI9IjkwIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9IjEyNSIgeT0iMTQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMWU0MGFmIiBmb250LXNpemU9IjEyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+TmV0d29yayBUb3BvbG9neTwvdGV4dD48L3N2Zz4="
+    # Server status (green/red)
+    SERVER_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTQwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2YxZjVmOSIgcng9IjgiLz48cmVjdCB4PSI0MCIgeT0iMjAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMjUiIGZpbGw9IiMxZTI5M2IiIHJ4PSIzIi8+PGNpcmNsZSBjeD0iNTUiIGN5PSIzMiIgcj0iNSIgZmlsbD0iIzIyYzU1ZSIvPjxyZWN0IHg9IjQwIiB5PSI1NSIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIyNSIgZmlsbD0iIzFlMjkzYiIgcng9IjMiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjY3IiByPSI1IiBmaWxsPSIjZWY0NDQ0Ii8+PHJlY3QgeD0iNDAiIHk9IjkwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjI1IiBmaWxsPSIjMWUyOTNiIiByeD0iMyIvPjxjaXJjbGUgY3g9IjU1IiBjeT0iMTAyIiByPSI1IiBmaWxsPSIjMjJjNTVlIi8+PHRleHQgeD0iMTAwIiB5PSIxMzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM0NzU1NjkiIGZvbnQtc2l6ZT0iMTAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5TZXJ2ZXIgU3RhdHVzPC90ZXh0Pjwvc3ZnPg=="
+    # Chart/metrics (purple)
+    CHART_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMjAiIGhlaWdodD0iMTMwIj48cmVjdCB3aWR0aD0iMjIwIiBoZWlnaHQ9IjEzMCIgZmlsbD0iI2YzZThmZiIgcng9IjgiLz48cmVjdCB4PSIzMCIgeT0iNzAiIHdpZHRoPSIyNSIgaGVpZ2h0PSIzNSIgZmlsbD0iIzhhNWNmNiIgcng9IjIiLz48cmVjdCB4PSI2NSIgeT0iNDAiIHdpZHRoPSIyNSIgaGVpZ2h0PSI2NSIgZmlsbD0iIzhhNWNmNiIgcng9IjIiLz48cmVjdCB4PSIxMDAiIHk9IjU1IiB3aWR0aD0iMjUiIGhlaWdodD0iNTAiIGZpbGw9IiM4YTVjZjYiIHJ4PSIyIi8+PHJlY3QgeD0iMTM1IiB5PSIyNSIgd2lkdGg9IjI1IiBoZWlnaHQ9IjgwIiBmaWxsPSIjZWY0NDQ0IiByeD0iMiIvPjxyZWN0IHg9IjE3MCIgeT0iNjAiIHdpZHRoPSIyNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzhhNWNmNiIgcng9IjIiLz48dGV4dCB4PSIxMTAiIHk9IjEyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZkMjhhZCIgZm9udC1zaXplPSIxMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPlBlcmZvcm1hbmNlIE1ldHJpY3M8L3RleHQ+PC9zdmc+"
+
+    # Rich HTML descriptions with images, code blocks, and formatted content
+    RICH_DESCRIPTIONS = {
+        "network_critical": f"""<h2>Critical Network Failure</h2>
+<p>Core switch <strong>CORE-SW-01</strong> is completely unresponsive. All connected devices have lost network connectivity.</p>
+
+<h3>Affected Infrastructure</h3>
+<img src="{NETWORK_IMG}" alt="Network Topology showing affected nodes">
+
+<h3>Error Details</h3>
+<p>Console connection shows the following error:</p>
+<pre><code>%SYS-2-MALLOCFAIL: Memory allocation of 65536 bytes failed
+%PLATFORM_INFRA-6-SWTCH_ALERT: Switch 1 R0/0: Temperature exceeds threshold</code></pre>
+
+<h3>Impact Assessment</h3>
+<ul>
+<li><strong>Servers affected:</strong> 12 production servers</li>
+<li><strong>Users impacted:</strong> 50+ employees</li>
+<li><strong>Services down:</strong> Web, API, Database connectivity</li>
+</ul>
+
+<blockquote>URGENT: NOC has been notified. Vendor support case opened.</blockquote>""",
+
+        "database_down": f"""<h2>Production Database Emergency</h2>
+<p>PostgreSQL cluster <code>PROD-DB-01</code> is unreachable from all application servers.</p>
+
+<h3>Server Status Dashboard</h3>
+<img src="{SERVER_IMG}" alt="Server Status showing DB node failure">
+
+<h3>Connection Errors</h3>
+<pre><code>psql: error: connection to server at "10.0.22.10", port 5432 failed:
+Connection refused
+Is the server running on that host and accepting TCP/IP connections?</code></pre>
+
+<h3>Immediate Actions Required</h3>
+<ol>
+<li>Check PostgreSQL service status on primary node</li>
+<li>Verify network connectivity to DB VLAN (22)</li>
+<li>Review pg_log for crash indicators</li>
+<li>Prepare failover to DR replica if needed</li>
+</ol>""",
+
+        "performance_issue": f"""<h2>Performance Degradation Report</h2>
+<p>Application response times have increased significantly over the past 2 hours.</p>
+
+<h3>Performance Metrics</h3>
+<img src="{CHART_IMG}" alt="Performance chart showing spike">
+
+<h3>Observed Symptoms</h3>
+<ul>
+<li>API latency increased from <strong>50ms</strong> to <strong>2500ms</strong></li>
+<li>Database query times up by 400%</li>
+<li>Memory usage on app servers at 92%</li>
+</ul>
+
+<h3>Diagnostic Commands Run</h3>
+<pre><code>$ top -b -n 1 | head -20
+$ vmstat 1 5
+$ netstat -an | grep ESTABLISHED | wc -l</code></pre>
+
+<p>Results indicate possible memory leak in the <code>payment-service</code> container.</p>""",
+
+        "security_alert": f"""<h2>Security Vulnerability Detected</h2>
+<p>Automated security scan has identified <strong>critical vulnerabilities</strong> on multiple systems.</p>
+
+<h3>Alert Screenshot</h3>
+<img src="{WARNING_IMG}" alt="Security Alert">
+
+<h3>Vulnerability Summary</h3>
+<ul>
+<li><strong>CVE-2024-1234:</strong> Remote code execution in OpenSSL (3 servers)</li>
+<li><strong>CVE-2024-5678:</strong> SQL injection in legacy app (1 server)</li>
+<li><strong>CVE-2024-9012:</strong> Privilege escalation (2 servers)</li>
+</ul>
+
+<blockquote>Immediate patching required. Change freeze exception requested.</blockquote>""",
+
+        "backup_failure": f"""<h2>Backup Job Failure</h2>
+<p>Nightly backup job for production databases failed at <strong>03:45 AM</strong>.</p>
+
+<h3>Error Log</h3>
+<img src="{ERROR_IMG}" alt="Backup Error">
+
+<pre><code>Veeam Backup Error:
+Job 'Daily-DB-Backup' failed
+Error: Unable to connect to target storage
+Repository: SAN-BACKUP-01
+Last successful backup: 2 days ago</code></pre>
+
+<h3>Recovery Priority</h3>
+<p>RPO violation imminent. Manual backup must be triggered immediately.</p>""",
+
+        "simple": """<h2>Issue Description</h2>
+<p>Standard ticket without rich content for testing basic functionality.</p>
+
+<h3>Details</h3>
+<ul>
+<li>Location: Paris DC1</li>
+<li>Priority: As marked</li>
+<li>Category: As assigned</li>
+</ul>""",
+    }
 
     # Tickets with various scenarios including SLA breaches
     ticket_scenarios = [
-        # === SLA BREACHED TICKETS ===
-        {"title": "CRITICAL: Core switch CORE-SW-01 down", "type": "incident", "priority": "critical", "category": "Network", "status": "open", "sla_breached": True, "breach_hours": 4},
-        {"title": "Production database unreachable", "type": "incident", "priority": "critical", "category": "Database", "status": "open", "sla_breached": True, "breach_hours": 3},
-        {"title": "Major network outage affecting 50+ users", "type": "incident", "priority": "high", "category": "Network", "status": "open", "sla_breached": True, "breach_hours": 8},
+        # === SLA BREACHED TICKETS (with rich content) ===
+        {"title": "CRITICAL: Core switch CORE-SW-01 down", "type": "incident", "priority": "critical", "category": "Network", "status": "open", "sla_breached": True, "breach_hours": 4, "description_key": "network_critical"},
+        {"title": "Production database unreachable", "type": "incident", "priority": "critical", "category": "Database", "status": "open", "sla_breached": True, "breach_hours": 3, "description_key": "database_down"},
+        {"title": "Major network outage affecting 50+ users", "type": "incident", "priority": "high", "category": "Network", "status": "open", "sla_breached": True, "breach_hours": 8, "description_key": "network_critical"},
         {"title": "Email server not responding", "type": "incident", "priority": "high", "category": "Infrastructure", "status": "pending", "sla_breached": True, "breach_hours": 6},
         {"title": "VPN gateway overloaded - remote workers affected", "type": "incident", "priority": "high", "category": "Network", "status": "open", "sla_breached": True, "breach_hours": 12},
 
@@ -1581,8 +1695,8 @@ def seed_tickets(db: Session, count: int = 35) -> None:
 
         # === OPEN TICKETS (at risk of SLA breach) ===
         {"title": "VPN connection timeout for remote users", "type": "incident", "priority": "high", "category": "Network", "status": "open", "at_risk": True},
-        {"title": "Backup job failed - BACKUP-APP-01", "type": "incident", "priority": "high", "category": "Backup", "status": "open"},
-        {"title": "Performance degradation on database servers", "type": "incident", "priority": "high", "category": "Database", "status": "open", "at_risk": True},
+        {"title": "Backup job failed - BACKUP-APP-01", "type": "incident", "priority": "high", "category": "Backup", "status": "open", "description_key": "backup_failure"},
+        {"title": "Performance degradation on database servers", "type": "incident", "priority": "high", "category": "Database", "status": "open", "at_risk": True, "description_key": "performance_issue"},
         {"title": "Monitoring alerts not triggering correctly", "type": "incident", "priority": "medium", "category": "Monitoring", "status": "open"},
         {"title": "Disk space critical on BACKUP-SRV-01", "type": "incident", "priority": "high", "category": "Storage", "status": "open"},
 
@@ -1606,7 +1720,7 @@ def seed_tickets(db: Session, count: int = 35) -> None:
         # === MORE INCIDENTS (various states) ===
         {"title": "WiFi dropping in conference rooms", "type": "incident", "priority": "medium", "category": "Network", "status": "open"},
         {"title": "Slow response from internal applications", "type": "incident", "priority": "medium", "category": "Infrastructure", "status": "open"},
-        {"title": "Security scan detected vulnerabilities", "type": "incident", "priority": "high", "category": "Security", "status": "open"},
+        {"title": "Security scan detected vulnerabilities", "type": "incident", "priority": "high", "category": "Security", "status": "open", "description_key": "security_alert"},
         {"title": "UPS battery warning - UPS-A1-R02", "type": "incident", "priority": "medium", "category": "Power", "status": "open"},
 
         # === CHANGE REQUESTS ===
@@ -1617,6 +1731,34 @@ def seed_tickets(db: Session, count: int = 35) -> None:
         # === PROBLEM MANAGEMENT ===
         {"title": "Recurring network drops in Building B", "type": "problem", "priority": "medium", "category": "Network", "status": "open"},
         {"title": "Root cause analysis - Recent storage failures", "type": "problem", "priority": "high", "category": "Storage", "status": "open"},
+    ]
+
+    # Rich comment templates with HTML formatting
+    RICH_COMMENTS = [
+        """<p>Initial investigation started. Checking system logs and monitoring dashboards.</p>
+<p>Current findings:</p>
+<ul>
+<li>Service logs show errors starting at 14:32</li>
+<li>No recent configuration changes detected</li>
+<li>CPU and memory within normal range</li>
+</ul>""",
+
+        """<p>Escalating to senior team for further analysis.</p>
+<blockquote>Note: This may require vendor involvement.</blockquote>
+<p>Next steps:</p>
+<ol>
+<li>Collect detailed diagnostics</li>
+<li>Open vendor support case</li>
+<li>Prepare rollback plan</li>
+</ol>""",
+
+        """<p>Temporary workaround applied. Monitoring for stability.</p>
+<pre><code>systemctl restart affected-service
+# Service restored at 15:45</code></pre>
+<p>Will continue monitoring for the next 2 hours.</p>""",
+
+        """<p>Root cause identified: <strong>memory leak</strong> in background process.</p>
+<p>Permanent fix scheduled for next maintenance window.</p>""",
     ]
 
     # Get users by role for assignment
@@ -1650,9 +1792,16 @@ def seed_tickets(db: Session, count: int = 35) -> None:
             created_at = random_datetime_past(30)
             sla_due_date = created_at + timedelta(hours=sla_hours)
 
+        # Get rich description if available, otherwise use default
+        description_key = scenario.get("description_key")
+        if description_key and description_key in RICH_DESCRIPTIONS:
+            description = RICH_DESCRIPTIONS[description_key]
+        else:
+            description = RICH_DESCRIPTIONS.get("simple", f"<h2>Issue Description</h2><p>{scenario['title']}</p>")
+
         ticket = models.Ticket(
             title=scenario["title"],
-            description=f"## Issue Description\n\n{scenario['title']}\n\n### Details\n\nThis is a test ticket generated for demonstration purposes.\n\n### Environment\n- Location: Paris DC1\n- Affected users: {'Critical - 50+' if scenario['priority'] == 'critical' else 'Multiple' if scenario['priority'] == 'high' else 'Limited'}",
+            description=description,
             ticket_type=scenario["type"],
             status=scenario["status"],
             priority=scenario["priority"],
@@ -1669,7 +1818,17 @@ def seed_tickets(db: Session, count: int = 35) -> None:
         if scenario["status"] in ["resolved", "closed"]:
             resolved_count += 1
             ticket.resolved_at = created_at + timedelta(hours=random.randint(1, sla_hours - 1))  # Resolved within SLA
-            ticket.resolution = "Issue has been resolved. Root cause identified and fix applied."
+            ticket.resolution = """<h3>Resolution Summary</h3>
+<p>Issue has been <strong>resolved successfully</strong>.</p>
+<h3>Root Cause</h3>
+<p>Identified and documented in the knowledge base.</p>
+<h3>Actions Taken</h3>
+<ul>
+<li>Applied configuration changes</li>
+<li>Verified service is operational</li>
+<li>Updated monitoring thresholds</li>
+</ul>
+<p><em>No further action required.</em></p>"""
 
         if scenario["status"] == "closed":
             ticket.closed_at = ticket.resolved_at + timedelta(hours=random.randint(1, 8))
@@ -1677,23 +1836,50 @@ def seed_tickets(db: Session, count: int = 35) -> None:
         db.add(ticket)
         db.flush()
 
-        # Add comments based on status
+        # Add comments based on status (using rich HTML content)
         if scenario["status"] not in ["new"]:
+            # First comment - initial investigation
+            first_comment_content = RICH_COMMENTS[0] if not scenario.get("sla_breached") else """<p><strong>URGENT: Escalating to senior team. SLA breach in progress.</strong></p>
+<p>Immediate action required. Management notified.</p>
+<ul>
+<li>All hands on deck</li>
+<li>War room activated</li>
+<li>Vendor escalation initiated</li>
+</ul>"""
             comment = models.TicketComment(
                 ticket_id=ticket.id,
                 user_id=(assigned_to or requester).id,
-                content="Initial investigation started. Checking system logs and monitoring dashboards." if not scenario.get("sla_breached") else "URGENT: Escalating to senior team. SLA breach in progress.",
+                content=first_comment_content,
                 is_internal=False,
                 created_at=created_at + timedelta(hours=1)
             )
             db.add(comment)
+
+            # Add additional comments for older tickets
+            if scenario["status"] in ["open", "pending", "resolved", "closed"] and random.random() > 0.5:
+                second_comment = models.TicketComment(
+                    ticket_id=ticket.id,
+                    user_id=random.choice(tech_users).id,
+                    content=random.choice(RICH_COMMENTS[1:]),
+                    is_internal=random.random() > 0.7,  # 30% internal notes
+                    created_at=created_at + timedelta(hours=random.randint(2, 8))
+                )
+                db.add(second_comment)
 
             if scenario.get("sla_breached"):
                 # Add escalation comment for breached tickets
                 escalation = models.TicketComment(
                     ticket_id=ticket.id,
                     user_id=tech_users[0].id,  # Manager
-                    content="SLA BREACH ALERT: This ticket has exceeded the SLA deadline. Management has been notified. Please prioritize resolution.",
+                    content="""<p><strong>SLA BREACH ALERT</strong></p>
+<p>This ticket has exceeded the SLA deadline. Management has been notified.</p>
+<blockquote>Immediate escalation required. All resources to be redirected to this issue.</blockquote>
+<h3>Escalation Path</h3>
+<ol>
+<li>IT Manager notified</li>
+<li>Vendor support engaged</li>
+<li>Executive briefing scheduled</li>
+</ol>""",
                     is_internal=True,
                     created_at=sla_due_date + timedelta(minutes=15)
                 )
@@ -1703,7 +1889,16 @@ def seed_tickets(db: Session, count: int = 35) -> None:
                 resolution_comment = models.TicketComment(
                     ticket_id=ticket.id,
                     user_id=(assigned_to or requester).id,
-                    content="Issue resolved. Applied configuration changes and verified service is operational.",
+                    content="""<p><strong>Issue resolved successfully.</strong></p>
+<h3>Summary</h3>
+<p>Applied configuration changes and verified service is operational.</p>
+<h3>Verification Steps</h3>
+<ul>
+<li>Service health check: <code>OK</code></li>
+<li>User connectivity test: <code>PASSED</code></li>
+<li>Monitoring alerts cleared</li>
+</ul>
+<p><em>Closing ticket. Please reopen if issue recurs.</em></p>""",
                     is_internal=False,
                     is_resolution=True,
                     created_at=ticket.resolved_at

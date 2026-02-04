@@ -316,7 +316,7 @@
             <i class="pi pi-align-left"></i>
             {{ t('tickets.description') }}
           </h4>
-          <div class="description-box">{{ currentTicket.description }}</div>
+          <div class="description-box" v-html="sanitizeHtml(currentTicket.description)"></div>
         </div>
 
         <!-- Resolution -->
@@ -325,7 +325,7 @@
             <i class="pi pi-check-circle"></i>
             {{ t('tickets.resolution') }}
           </h4>
-          <div class="resolution-box">{{ currentTicket.resolution }}</div>
+          <div class="resolution-box" v-html="sanitizeHtml(currentTicket.resolution)"></div>
         </div>
 
         <!-- Conversation -->
@@ -894,7 +894,7 @@ const sanitizeHtml = (html) => {
     return html.replace(/\n/g, '<br>');
   }
   // Simple sanitization: allow only safe tags and attributes
-  const allowedTags = ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'ul', 'ol', 'li', 'blockquote', 'a', 'h2', 'h3', 'b', 'i'];
+  const allowedTags = ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'ul', 'ol', 'li', 'blockquote', 'a', 'h2', 'h3', 'b', 'i', 'img'];
 
   // Remove script tags and event handlers
   let clean = html
@@ -2382,6 +2382,73 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 
+/* Images in description and resolution boxes */
+.description-box img,
+.resolution-box img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  display: block;
+}
+
+.description-box a,
+.resolution-box a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.description-box p,
+.resolution-box p {
+  margin: 0 0 0.75em 0;
+}
+
+.description-box p:last-child,
+.resolution-box p:last-child {
+  margin-bottom: 0;
+}
+
+.description-box ul,
+.description-box ol,
+.resolution-box ul,
+.resolution-box ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.description-box blockquote,
+.resolution-box blockquote {
+  border-left: 3px solid var(--primary);
+  margin: 0.5em 0;
+  padding-left: 1em;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.description-box code,
+.resolution-box code {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+
+.description-box pre,
+.resolution-box pre {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.description-box pre code,
+.resolution-box pre code {
+  background: none;
+  padding: 0;
+}
+
 /* Conversation */
 .conversation-container {
   display: flex;
@@ -2515,6 +2582,14 @@ onUnmounted(() => {
   padding-left: 0.75rem;
   margin: 0.5rem 0;
   color: var(--text-secondary);
+}
+
+.message-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  display: block;
 }
 
 .conversation-empty {

@@ -311,21 +311,15 @@ const handleImageUpload = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
-  // Emit event for parent to handle upload
-  emit('image-upload', file, (url) => {
-    if (url) {
-      editor.value.chain().focus().setImage({ src: url }).run()
-    }
-  })
-
-  // For demo/fallback: convert to base64
-  if (!emit('image-upload')) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      editor.value.chain().focus().setImage({ src: e.target.result }).run()
-    }
-    reader.readAsDataURL(file)
+  // Convert to base64 and insert directly
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    editor.value.chain().focus().setImage({ src: e.target.result }).run()
   }
+  reader.readAsDataURL(file)
+
+  // Also emit event for parent if they want to handle it differently (e.g., upload to server)
+  emit('image-upload', file)
 
   // Reset input
   event.target.value = ''

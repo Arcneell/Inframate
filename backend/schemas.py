@@ -530,6 +530,13 @@ class BulkTicketExport(BaseModel):
     format: str = Field(default="xlsx", pattern="^(csv|xlsx)$", description="Export format: csv or xlsx")
 
 
+class BulkIPExport(BaseModel):
+    """Request to export selected IP addresses with specific columns."""
+    ip_ids: List[int] = Field(..., min_length=1, max_length=500)
+    columns: List[str] = Field(..., min_length=1, description="Columns to include in export")
+    format: str = Field(default="xlsx", pattern="^(csv|xlsx)$", description="Export format: csv or xlsx")
+
+
 # ==================== CONTRACT SCHEMAS ====================
 
 class ContractBase(BaseModel):

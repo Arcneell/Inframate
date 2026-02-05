@@ -151,6 +151,8 @@
     "activeIps": "IPs Actives",
     "reservedIps": "IPs Réservées",
     "noSubnets": "Aucun sous-réseau trouvé",
+    "noSubnetsDesc": "Créez un sous-réseau pour commencer à gérer vos adresses IP.",
+    "namePlaceholder": "ex. LAN Management",
     "editSubnet": "Modifier le Sous-réseau",
     "subnetUpdated": "Sous-réseau modifié",
     "subnetDeleted": "Sous-réseau supprimé",

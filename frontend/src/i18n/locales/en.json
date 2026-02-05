@@ -151,6 +151,8 @@
     "activeIps": "Active IPs",
     "reservedIps": "Reserved IPs",
     "noSubnets": "No subnets found",
+    "noSubnetsDesc": "Create a subnet to start managing your IP addresses.",
+    "namePlaceholder": "e.g. Management LAN",
     "editSubnet": "Edit Subnet",
     "subnetUpdated": "Subnet updated",
     "subnetDeleted": "Subnet deleted",

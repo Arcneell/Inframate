@@ -533,6 +533,72 @@ def export_ip_addresses(
     return generate_csv(data, filename)
 
 
+@router.post("/ip-addresses/bulk")
+def export_ip_addresses_bulk(
+    request: schemas.BulkIPExport,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Export selected IP addresses to CSV or XLSX."""
+    column_mapping = {
+        "address": lambda ip: ip.address,
+        "subnet": lambda ip: ip.subnet.cidr if ip.subnet else "",
+        "status": lambda ip: ip.status,
+        "hostname": lambda ip: ip.hostname or "",
+        "mac_address": lambda ip: ip.mac_address or "",
+        "equipment": lambda ip: ip.equipment.name if ip.equipment else "",
+        "description": lambda ip: ip.description or "",
+        "last_seen": lambda ip: ip.last_seen.isoformat() if ip.last_seen else "",
+        "created_at": lambda ip: ip.created_at.isoformat() if ip.created_at else "",
+    }
+    invalid_columns = [c for c in request.columns if c not in column_mapping]
+    if invalid_columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid columns: {', '.join(invalid_columns)}. Valid: {', '.join(column_mapping.keys())}"
+        )
+
+    query = (
+        db.query(models.IPAddress)
+        .options(
+            joinedload(models.IPAddress.subnet),
+            joinedload(models.IPAddress.equipment)
+        )
+        .filter(models.IPAddress.id.in_(request.ip_ids))
+    )
+    if current_user.entity_id:
+        query = query.join(models.Subnet).filter(
+            models.Subnet.entity_id == current_user.entity_id
+        )
+    ip_addresses = query.order_by(models.IPAddress.address).all()
+
+    if not ip_addresses:
+        raise HTTPException(status_code=404, detail="No IP addresses found for the selection")
+
+    data = []
+    for ip in ip_addresses:
+        row = {col: column_mapping[col](ip) for col in request.columns}
+        data.append(row)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    column_labels = {
+        "address": "Address",
+        "subnet": "Subnet",
+        "status": "Status",
+        "hostname": "Hostname",
+        "mac_address": "MAC Address",
+        "equipment": "Equipment",
+        "description": "Description",
+        "last_seen": "Last Seen",
+        "created_at": "Created At",
+    }
+    if request.format == "xlsx":
+        filename = f"ip_addresses_export_{timestamp}.xlsx"
+        return generate_xlsx(data, filename, column_labels)
+    filename = f"ip_addresses_export_{timestamp}.csv"
+    return generate_csv(data, filename)
+
+
 # ==================== AUDIT LOGS EXPORT ====================
 
 @router.get("/audit-logs")

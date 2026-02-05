@@ -413,8 +413,9 @@ const enableMfa = async () => {
 
   enablingMfa.value = true;
   try {
-    await api.post('/mfa/enable-with-secret', null, {
-      params: { secret: mfaSecret.value, code: mfaVerificationCode.value }
+    await api.post('/mfa/enable-with-secret', {
+      secret: mfaSecret.value,
+      code: mfaVerificationCode.value
     });
     showMfaSetupDialog.value = false;
     await loadUserData();

@@ -16,7 +16,7 @@ Usage:
 Options:
     --clean     Remove existing test data before seeding
     --minimal   Generate minimal data set (single DC)
-    --massive   Generate massive data set for performance testing (~500+ equipment, 1000+ IPs, 200+ tickets)
+    --massive   Generate massive data set for performance testing (~500+ equipment, 1000+ IPs, 700+ tickets)
 
 Note: Redis cache is automatically invalidated after seeding for immediate data visibility.
 """
@@ -516,6 +516,113 @@ TICKET_TEMPLATES = [
     {"name": "Network Change Request", "title": "Network Change: {description}", "description": "## Network Change\n\n**Change Description**: {description}\n**Affected Systems**: {systems}\n**Maintenance Window**: {window}\n\n### Risk Assessment\n- Impact: Low / Medium / High\n- Rollback Plan: Yes / No", "type": "change", "priority": "high", "category": "Network"},
     {"name": "Security Incident", "title": "Security Incident: {summary}", "description": "## Security Incident Report\n\n**Incident Summary**: {summary}\n**Detection Time**: {detection_time}\n**Affected Systems**: {affected}\n\n### Immediate Actions Taken\n{actions}\n\n### Escalation Required\n- [ ] CISO notification\n- [ ] Legal notification\n- [ ] External forensics", "type": "incident", "priority": "critical", "category": "Security"},
     {"name": "Hardware Failure", "title": "Hardware Failure: {equipment}", "description": "## Hardware Failure Report\n\n**Equipment**: {equipment}\n**Serial Number**: {serial}\n**Location**: {location}\n**Symptoms**: {symptoms}\n\n### Support Case\n- Vendor: {vendor}\n- Case #: (pending)", "type": "incident", "priority": "high", "category": "Hardware"},
+]
+
+# =============================================================================
+# Massive ticket titles (realistic variety for seed_massive_tickets)
+# =============================================================================
+
+MASSIVE_TICKET_TITLES = [
+    # Incidents - Network
+    "Core switch port flapping - CORE-SW-02",
+    "BGP session down with ISP2",
+    "VLAN 40 unreachable from Paris",
+    "WiFi authentication timeout - Building C",
+    "VPN tunnel reset - site-to-site Lyon",
+    "DNS latency spike - internal resolution",
+    "Load balancer health check failing",
+    "Spanning tree topology change storm",
+    "QoS drops on voice VLAN",
+    "NTP sync failure on multiple devices",
+    "DHCP scope exhausted - Paris HQ",
+    "Routing loop detected - OSPF",
+    "Fiber link degraded - Paris-Lyon",
+    "Wireless controller failover",
+    "Firewall session table full",
+    # Incidents - Infrastructure
+    "ESXi host purple screen - ESX-PROD-03",
+    "VM snapshot consolidation failed",
+    "vCenter certificate expiring",
+    "Hyper-V cluster node evicted",
+    "SAN LUN unmapped unexpectedly",
+    "iSCSI multipath failover delay",
+    "NFS mount stale - backup server",
+    "Domain controller replication lag",
+    "WSUS sync failure",
+    "SCCM deployment stuck",
+    "Azure AD connect sync error",
+    "Exchange DAG failover",
+    "SQL Server Always On replica suspended",
+    "IIS app pool recycling",
+    "Tomcat out of memory",
+    # Incidents - Database
+    "PostgreSQL replication lag > 5 min",
+    "Oracle tablespace full",
+    "MySQL deadlock - order processing",
+    "MongoDB primary stepdown",
+    "Redis memory eviction",
+    "Elasticsearch disk watermark",
+    "Database backup verification failed",
+    "Long-running query blocking",
+    "Connection pool exhausted",
+    # Incidents - Security
+    "Brute force attempt - SSH",
+    "Malware detected - workstation",
+    "Phishing email reported",
+    "Unusual admin login - after hours",
+    "Certificate revocation check failed",
+    "IDS alert - port scan",
+    "DLP policy violation",
+    "Privileged access review overdue",
+    # Incidents - Application
+    "CRM API 500 errors",
+    "ERP batch job timeout",
+    "Web app session expiry too short",
+    "Mobile app crash - iOS",
+    "SSO redirect loop",
+    "OAuth token refresh failure",
+    "API rate limit exceeded",
+    "Static assets 404 after deploy",
+    # Incidents - Storage/Backup
+    "Backup job failed - Veeam",
+    "Tape drive not responding",
+    "Replication lag - DR site",
+    "Snapshot cleanup failed",
+    "Deduplication ratio dropped",
+    "Archive tier retrieval slow",
+    # Requests
+    "Request: New AD security group",
+    "Request: Software license - Visio",
+    "Request: Restore from backup",
+    "Request: VPN for home office",
+    "Request: Azure subscription",
+    "Request: Service account creation",
+    "Request: Firewall exception",
+    "Request: SSL certificate renewal",
+    "Request: Database restore - UAT",
+    "Request: Access to Confluence space",
+    "Request: Laptop replacement",
+    "Request: Monitor dual setup",
+    "Request: Phone forwarding",
+    "Request: MFA reset",
+    "Request: Shared mailbox access",
+    # Changes
+    "Change: Router firmware upgrade",
+    "Change: Switch config backup",
+    "Change: Patching window - Sunday",
+    "Change: DNS record update",
+    "Change: Firewall rule add",
+    "Change: Load balancer pool",
+    "Change: DB maintenance window",
+    "Change: Certificate renewal",
+    "Change: Deprecate TLS 1.1",
+    "Change: New backup schedule",
+    # Problems
+    "Problem: Intermittent packet loss",
+    "Problem: Recurring disk I/O",
+    "Problem: Memory leak - app server",
+    "Problem: RCA - last outage",
+    "Problem: Capacity planning review",
 ]
 
 # =============================================================================
@@ -1559,9 +1666,9 @@ def seed_ticket_templates(db: Session) -> None:
     print(f"    Created {len(TICKET_TEMPLATES)} ticket templates")
 
 
-def seed_tickets(db: Session, count: int = 35) -> None:
+def seed_tickets(db: Session, count: int = 120) -> None:
     """Create realistic tickets with SLA breaches, rich HTML content, and varied states."""
-    print("  Creating tickets...")
+    print(f"  Creating tickets (target: {count})...")
 
     # Sample SVG images as base64 for demonstration (small colored placeholder icons)
     # Error icon (red)
@@ -1731,6 +1838,64 @@ Last successful backup: 2 days ago</code></pre>
         # === PROBLEM MANAGEMENT ===
         {"title": "Recurring network drops in Building B", "type": "problem", "priority": "medium", "category": "Network", "status": "open"},
         {"title": "Root cause analysis - Recent storage failures", "type": "problem", "priority": "high", "category": "Storage", "status": "open"},
+
+        # === ADDITIONAL INCIDENTS (open/resolved/closed) ===
+        {"title": "Exchange server high CPU - EXCH-01", "type": "incident", "priority": "high", "category": "Infrastructure", "status": "open"},
+        {"title": "SAP timeout errors for finance users", "type": "incident", "priority": "high", "category": "Application", "status": "open"},
+        {"title": "SharePoint sync failures - multiple users", "type": "incident", "priority": "medium", "category": "Application", "status": "open"},
+        {"title": "DNS resolution failure - internal domains", "type": "incident", "priority": "critical", "category": "Network", "status": "resolved"},
+        {"title": "LDAP authentication slow - AD replica", "type": "incident", "priority": "medium", "category": "Infrastructure", "status": "resolved"},
+        {"title": "Backup tape library jam - LTO drive 2", "type": "incident", "priority": "medium", "category": "Backup", "status": "closed"},
+        {"title": "Hyper-V host memory ballooning", "type": "incident", "priority": "high", "category": "Infrastructure", "status": "resolved"},
+        {"title": "SSL certificate expired - extranet portal", "type": "incident", "priority": "critical", "category": "Security", "status": "closed"},
+        {"title": "RDP Gateway connection drops after 2 hours", "type": "incident", "priority": "medium", "category": "Network", "status": "open"},
+        {"title": "NAS quota exceeded - department share", "type": "incident", "priority": "medium", "category": "Storage", "status": "resolved"},
+        {"title": "Print server spooler crash - BUILD-A", "type": "incident", "priority": "low", "category": "Infrastructure", "status": "closed"},
+        {"title": "VoIP quality degradation - Lyon site", "type": "incident", "priority": "medium", "category": "Network", "status": "open"},
+        {"title": "Antivirus definition update failed on 12 workstations", "type": "incident", "priority": "medium", "category": "Security", "status": "pending"},
+        {"title": "SAN path failover not triggering", "type": "incident", "priority": "high", "category": "Storage", "status": "open"},
+        {"title": "Kubernetes node NotReady - prod cluster", "type": "incident", "priority": "high", "category": "DevOps", "status": "open"},
+        {"title": "GitLab CI pipeline stuck - runner offline", "type": "incident", "priority": "medium", "category": "DevOps", "status": "resolved"},
+        {"title": "Elasticsearch cluster yellow state", "type": "incident", "priority": "medium", "category": "Monitoring", "status": "open"},
+        {"title": "Grafana dashboards not loading", "type": "incident", "priority": "low", "category": "Monitoring", "status": "closed"},
+        {"title": "Jira plugin conflict after upgrade", "type": "incident", "priority": "medium", "category": "Application", "status": "pending"},
+        {"title": "Confluence attachment upload timeout", "type": "incident", "priority": "low", "category": "Application", "status": "resolved"},
+
+        # === REQUESTS (new/pending/closed) ===
+        {"title": "Request: New project in Azure DevOps", "type": "request", "priority": "medium", "category": "DevOps", "status": "new"},
+        {"title": "Request: SAP access for contractor", "type": "request", "priority": "high", "category": "Access", "status": "pending"},
+        {"title": "Request: VPN account for external partner", "type": "request", "priority": "medium", "category": "Access", "status": "new"},
+        {"title": "Request: Increase mailbox size - C. Dubois", "type": "request", "priority": "low", "category": "Infrastructure", "status": "closed"},
+        {"title": "Request: Install Python 3.11 on dev servers", "type": "request", "priority": "medium", "category": "Software", "status": "open"},
+        {"title": "Request: New shared folder - Marketing", "type": "request", "priority": "medium", "category": "Storage", "status": "pending"},
+        {"title": "Request: Restore file from backup - user folder", "type": "request", "priority": "high", "category": "Backup", "status": "open"},
+        {"title": "Request: Duplicate VM for UAT environment", "type": "request", "priority": "medium", "category": "Infrastructure", "status": "new"},
+        {"title": "Request: Firewall rule for SaaS vendor", "type": "request", "priority": "high", "category": "Security", "status": "pending"},
+        {"title": "Request: Add user to distribution list", "type": "request", "priority": "low", "category": "Access", "status": "closed"},
+        {"title": "Request: Mobile device enrollment", "type": "request", "priority": "low", "category": "Access", "status": "closed"},
+        {"title": "Request: Oracle client install - batch servers", "type": "request", "priority": "medium", "category": "Software", "status": "open"},
+        {"title": "Request: Read-only DB user for reporting", "type": "request", "priority": "medium", "category": "Database", "status": "pending"},
+        {"title": "Request: API key for integration team", "type": "request", "priority": "medium", "category": "Security", "status": "new"},
+        {"title": "Request: Offboard user - J. Martin (leaving)", "type": "request", "priority": "high", "category": "Access", "status": "open"},
+
+        # === CHANGES ===
+        {"title": "Change: Upgrade VMware Tools on all VMs", "type": "change", "priority": "medium", "category": "Infrastructure", "status": "pending"},
+        {"title": "Change: Replace expired wildcard certificate", "type": "change", "priority": "high", "category": "Security", "status": "new"},
+        {"title": "Change: Extend VLAN 30 for new floor", "type": "change", "priority": "medium", "category": "Network", "status": "open"},
+        {"title": "Change: PostgreSQL minor version upgrade", "type": "change", "priority": "high", "category": "Database", "status": "pending"},
+        {"title": "Change: BGP peering with new ISP", "type": "change", "priority": "high", "category": "Network", "status": "new"},
+        {"title": "Change: Windows Server 2019 patching - batch 2", "type": "change", "priority": "medium", "category": "Infrastructure", "status": "open"},
+        {"title": "Change: Decommission legacy file server FS-OLD", "type": "change", "priority": "medium", "category": "Storage", "status": "pending"},
+        {"title": "Change: Update DNS forwarders", "type": "change", "priority": "medium", "category": "Network", "status": "closed"},
+        {"title": "Change: Adjust backup retention policy", "type": "change", "priority": "low", "category": "Backup", "status": "resolved"},
+        {"title": "Change: Add WAF rule for new application", "type": "change", "priority": "high", "category": "Security", "status": "open"},
+
+        # === MORE PROBLEMS ===
+        {"title": "Problem: Repeated disk failures on same chassis", "type": "problem", "priority": "high", "category": "Hardware", "status": "open"},
+        {"title": "Problem: Intermittent BGP flapping", "type": "problem", "priority": "high", "category": "Network", "status": "open"},
+        {"title": "Problem: Application crash loop - unknown cause", "type": "problem", "priority": "medium", "category": "Application", "status": "pending"},
+        {"title": "Problem: Database deadlocks in payment module", "type": "problem", "priority": "high", "category": "Database", "status": "open"},
+        {"title": "Problem: High latency on backup window", "type": "problem", "priority": "medium", "category": "Backup", "status": "open"},
     ]
 
     # Rich comment templates with HTML formatting
@@ -1770,7 +1935,11 @@ Last successful backup: 2 days ago</code></pre>
     at_risk_count = 0
     resolved_count = 0
 
-    for i, scenario in enumerate(ticket_scenarios[:count]):
+    # Support count > len(scenarios): cycle through scenarios with optional title suffix
+    for i in range(count):
+        scenario = ticket_scenarios[i % len(ticket_scenarios)].copy()
+        if i >= len(ticket_scenarios):
+            scenario["title"] = scenario["title"] + f" ({i // len(ticket_scenarios) + 1})"
         requester = random.choice(all_users)
         assigned_to = random.choice(tech_users) if scenario["status"] not in ["new"] else None
 
@@ -1906,7 +2075,7 @@ Last successful backup: 2 days ago</code></pre>
                 db.add(resolution_comment)
 
     db.commit()
-    print(f"    Created {min(count, len(ticket_scenarios))} tickets:")
+    print(f"    Created {count} tickets:")
     print(f"      - SLA Breached: {sla_breached_count}")
     print(f"      - At Risk: {at_risk_count}")
     print(f"      - Resolved/Closed: {resolved_count}")
@@ -2578,62 +2747,91 @@ def seed_massive_ips(db: Session) -> None:
     print(f"    Created {ip_count} additional IP addresses")
 
 
-def seed_massive_tickets(db: Session, count: int = 200) -> None:
-    """Generate many more tickets for performance testing."""
+def seed_massive_tickets(db: Session, count: int = 600) -> None:
+    """Generate many more tickets with realistic titles and optional comments."""
     print(f"  Creating {count} additional tickets...")
 
     tech_users = [u for u in store.users if u.role in ["tech", "admin", "superadmin"]]
     all_users = store.users
 
     categories = ["Network", "Infrastructure", "Database", "Security", "Application", "Storage",
-                  "Monitoring", "DevOps", "Access", "Hardware", "Software", "Backup"]
+                  "Monitoring", "DevOps", "Access", "Hardware", "Software", "Backup", "Onboarding", "Power"]
     priorities = ["low", "medium", "high", "critical"]
     types = ["incident", "request", "change", "problem"]
     statuses = ["new", "open", "pending", "resolved", "closed"]
 
+    # Simple comment templates for massive tickets
+    _comment_templates = [
+        "<p>Investigation in progress. Checking logs and monitoring.</p>",
+        "<p>Update: Waiting for vendor response. Case ref: pending.</p>",
+        "<p>Workaround applied. Permanent fix scheduled.</p>",
+        "<p>Escalated to L2. User notified.</p>",
+        "<p>Root cause identified. Implementing fix.</p>",
+        "<p>Resolved. Closing ticket.</p>",
+    ]
+
     for i in range(count):
-        priority = random.choices(priorities, weights=[20, 40, 30, 10])[0]
-        status = random.choices(statuses, weights=[15, 25, 20, 20, 20])[0]
-        ticket_type = random.choices(types, weights=[40, 30, 20, 10])[0]
+        priority = random.choices(priorities, weights=[25, 40, 25, 10])[0]
+        status = random.choices(statuses, weights=[12, 28, 18, 22, 22])[0]
+        ticket_type = random.choices(types, weights=[45, 28, 18, 9])[0]
+        category = random.choice(categories)
+
+        title = random.choice(MASSIVE_TICKET_TITLES)
+        description = (
+            f"<h2>Description</h2><p>{title}</p>\n<p>Category: {category} | Type: {ticket_type} | "
+            f"Priority: {priority}. Reported via helpdesk.</p>"
+        )
 
         sla_hours = {"critical": 2, "high": 4, "medium": 8, "low": 24}.get(priority, 8)
-        sla_breached = random.random() < 0.15 if status in ["open", "pending"] else False
+        sla_breached = random.random() < 0.12 if status in ["open", "pending"] else False
 
-        created_at = random_datetime_past(60)
+        created_at = random_datetime_past(90)
         if sla_breached:
-            created_at = datetime.now(timezone.utc) - timedelta(hours=sla_hours + random.randint(2, 24))
-
+            created_at = datetime.now(timezone.utc) - timedelta(hours=sla_hours + random.randint(2, 20))
         sla_due_date = created_at + timedelta(hours=sla_hours)
 
+        requester = random.choice(all_users)
+        assigned_to = random.choice(tech_users) if status not in ["new"] else None
+
         ticket = models.Ticket(
-            title=f"{random.choice(['Issue', 'Problem', 'Request', 'Alert', 'Task'])}: {random.choice(categories)} - {random_string(6)}",
-            description=f"Auto-generated ticket for performance testing.\n\nCategory: {random.choice(categories)}\nType: {ticket_type}",
+            title=title,
+            description=description,
             ticket_type=ticket_type,
             status=status,
             priority=priority,
-            category=random.choice(categories),
-            requester_id=random.choice(all_users).id,
-            assigned_to_id=random.choice(tech_users).id if status not in ["new"] else None,
+            category=category,
+            requester_id=requester.id,
+            assigned_to_id=assigned_to.id if assigned_to else None,
             entity_id=store.entities[0].id if store.entities else None,
             created_at=created_at,
-            updated_at=created_at + timedelta(hours=random.randint(1, 48)),
+            updated_at=created_at + timedelta(hours=random.randint(0, 72)),
             sla_due_date=sla_due_date,
             sla_breached=sla_breached
         )
 
         if status in ["resolved", "closed"]:
-            ticket.resolved_at = created_at + timedelta(hours=random.randint(1, sla_hours - 1))
-            ticket.resolution = "Issue resolved via automated process."
-
+            ticket.resolved_at = created_at + timedelta(hours=random.randint(1, max(1, sla_hours - 1)))
+            ticket.resolution = "<p>Issue resolved. Actions documented. No further follow-up required.</p>"
         if status == "closed":
-            ticket.closed_at = ticket.resolved_at + timedelta(hours=random.randint(1, 24))
+            ticket.closed_at = (ticket.resolved_at or created_at) + timedelta(hours=random.randint(1, 24))
 
         db.add(ticket)
-        # Flush after each ticket to trigger the before_insert hook that generates ticket_number
         db.flush()
 
-        # Commit in batches
-        if (i + 1) % 50 == 0:
+        # Add 1-3 comments for ~35% of tickets (more realistic volume)
+        if random.random() < 0.35:
+            num_comments = random.randint(1, 3)
+            for c in range(num_comments):
+                comment = models.TicketComment(
+                    ticket_id=ticket.id,
+                    user_id=(assigned_to or requester).id,
+                    content=random.choice(_comment_templates),
+                    is_internal=random.random() < 0.25,
+                    created_at=created_at + timedelta(hours=c + 1, minutes=random.randint(5, 45))
+                )
+                db.add(comment)
+
+        if (i + 1) % 100 == 0:
             db.commit()
             print(f"    ... created {i + 1} tickets")
 
@@ -2811,7 +3009,7 @@ def main():
     print("TechCorp Infrastructure Seeder")
     print("=" * 70)
     if args.massive:
-        print("Mode: MASSIVE (Performance Testing - ~500+ equipment, 1000+ IPs, 200+ tickets)")
+        print("Mode: MASSIVE (Performance Testing - ~500+ equipment, 1000+ IPs, 700+ tickets)")
     elif args.minimal:
         print("Mode: Minimal (Paris DC only)")
     else:
@@ -2875,8 +3073,8 @@ def main():
             seed_massive_software(db)
             seed_massive_contracts(db)
 
-            # Additional tickets
-            seed_massive_tickets(db, count=200)
+            # Additional tickets (realistic titles + comments)
+            seed_massive_tickets(db, count=600)
 
             # Re-run PDU creation for new racks
             seed_pdus(db)

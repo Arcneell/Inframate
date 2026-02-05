@@ -216,8 +216,8 @@ def list_articles(
             )
         )
 
-    # Published filter (users see only published, tech/admin/superadmin see all)
-    if published_only and not can_manage_knowledge(current_user):
+    # Published filter: when True, return only published articles (for all roles)
+    if published_only:
         query = query.filter(models.KnowledgeArticle.is_published == True)
 
     # Internal articles only for tech/admin/superadmin

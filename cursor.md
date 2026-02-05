@@ -133,6 +133,8 @@ services:
 
 ```bash
 docker-compose up --build
+# Rebuild frontend sans cache (à utiliser après chaque modification du frontend)
+./scripts/rebuild-frontend.sh
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d  # prod + secrets
 docker-compose logs -f backend
 docker-compose logs -f worker

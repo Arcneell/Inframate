@@ -4,7 +4,7 @@
     :title="equipment?.name || ''"
     :subtitle="equipment?.serial_number || equipment?.asset_tag || ''"
     icon="pi-box"
-    size="lg"
+    size="xl"
   >
     <div v-if="loading" class="flex justify-center py-12">
       <i class="pi pi-spinner pi-spin text-3xl"></i>

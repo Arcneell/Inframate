@@ -244,7 +244,7 @@ Tous les composants Dropdown de l'application doivent impérativement utiliser l
 
 ## Structure Base de Données
 
-**Tables** : users (rôles, permissions JSON, totp_secret EncryptedString), user_tokens, entities, subnets, ip_addresses, scripts, script_executions, manufacturers, equipment_types, equipment_models, locations, suppliers, equipment (remote_password EncryptedString), racks, pdus, contracts, contract_equipment, software, software_licenses, software_installations, network_ports, attachments, audit_logs, tickets, ticket_comments, ticket_history, ticket_attachments, notifications, system_settings, knowledge_categories, knowledge_articles, sla_policies, webhooks, webhook_deliveries, ticket_templates.
+**Tables** : users (rôles, permissions JSON, totp_secret EncryptedString), user_tokens, entities, subnets, ip_addresses, scripts, script_executions, manufacturers, equipment_types, equipment_models, locations, suppliers, equipment (remote_password EncryptedString), racks, pdus, contracts, contract_equipment, software, software_licenses, software_installations, network_ports, attachments, audit_logs, tickets, ticket_comments, ticket_history, ticket_attachments, notifications, system_settings, knowledge_categories, knowledge_articles, knowledge_article_views (vues uniques par utilisateur), sla_policies, webhooks, webhook_deliveries, ticket_templates.
 
 **EncryptedString** : totp_secret, remote_password — déchiffrement auto, ne pas appeler decrypt_value.
 

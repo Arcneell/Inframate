@@ -957,6 +957,27 @@ class KnowledgeArticle(Base):
     )
 
 
+class KnowledgeArticleView(Base):
+    """
+    Tracks unique article views per user.
+    Prevents duplicate view counts when the same user views an article multiple times.
+    """
+    __tablename__ = "knowledge_article_views"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("knowledge_articles.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    viewed_at = Column(DateTime, default=utc_now)
+
+    # Unique constraint: one view record per user per article
+    __table_args__ = (
+        Index('ix_knowledge_article_views_article_user', 'article_id', 'user_id', unique=True),
+    )
+
+    article = relationship("KnowledgeArticle", backref="views")
+    user = relationship("User", backref="article_views")
+
+
 # ==================== SLA CONFIGURATION MODELS ====================
 
 class SLAPolicy(Base):

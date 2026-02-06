@@ -341,6 +341,11 @@ KB_CATEGORIES = [
     {"name": "Troubleshooting", "description": "Common issues and solutions", "icon": "pi pi-wrench", "color": "#8b5cf6", "display_order": 5},
     {"name": "Architecture", "description": "System architecture and design documents", "icon": "pi pi-sitemap", "color": "#06b6d4", "display_order": 6},
     {"name": "FAQ", "description": "Frequently asked questions", "icon": "pi pi-info-circle", "color": "#ec4899", "display_order": 7},
+    {"name": "Networking", "description": "Network configuration, VLANs, routing and switching", "icon": "pi pi-share-alt", "color": "#14b8a6", "display_order": 8},
+    {"name": "Virtualization", "description": "VMware, Hyper-V and container platforms", "icon": "pi pi-server", "color": "#6366f1", "display_order": 9},
+    {"name": "Database", "description": "Database administration and optimization", "icon": "pi pi-database", "color": "#f97316", "display_order": 10},
+    {"name": "Backup & DR", "description": "Backup strategies and disaster recovery", "icon": "pi pi-sync", "color": "#84cc16", "display_order": 11},
+    {"name": "Cloud", "description": "Cloud services and hybrid infrastructure", "icon": "pi pi-cloud", "color": "#3b82f6", "display_order": 12},
 ]
 
 # =============================================================================
@@ -502,7 +507,689 @@ All accounts must have MFA enabled:
 2. Verify identity via MFA
 3. Set new password
 """,
-        "is_internal": False
+        "is_internal": False,
+        "tags": ["security", "password", "mfa", "policy"]
+    },
+    {
+        "title": "VLAN Configuration Guide",
+        "slug": "vlan-configuration-guide",
+        "category": "Networking",
+        "summary": "Standard VLAN configuration and naming conventions",
+        "content": """# VLAN Configuration Guide
+
+## VLAN Naming Convention
+
+| Range | Purpose | Example |
+|-------|---------|---------|
+| 10-19 | Management | VLAN 10: MGMT |
+| 20-29 | Production | VLAN 20: PROD-WEB |
+| 30-39 | Development | VLAN 30: DEV |
+| 40-49 | DMZ | VLAN 40: DMZ-EXT |
+| 50-59 | Storage | VLAN 50: STORAGE-ISCSI |
+| 100-199 | User Networks | VLAN 100: USERS-HQ |
+| 200+ | Guest/IoT | VLAN 200: GUEST |
+
+## Configuration Template (Cisco)
+
+```
+vlan {id}
+  name {NAME}
+!
+interface Vlan{id}
+  description {Description}
+  ip address {gateway} {mask}
+  no shutdown
+```
+
+## Trunk Configuration
+
+```
+interface GigabitEthernet0/1
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20-29,100
+  switchport trunk native vlan 999
+```
+
+## Best Practices
+
+- Always document VLAN changes in IPAM
+- Use native VLAN 999 (unused) on trunks
+- Limit VLAN scope to prevent broadcast storms
+""",
+        "is_internal": True,
+        "tags": ["network", "vlan", "cisco", "configuration"]
+    },
+    {
+        "title": "VMware vSphere Best Practices",
+        "slug": "vmware-vsphere-best-practices",
+        "category": "Virtualization",
+        "summary": "Best practices for VMware vSphere environment management",
+        "content": """# VMware vSphere Best Practices
+
+## Resource Allocation
+
+### CPU
+- Avoid over-provisioning beyond 3:1 ratio
+- Use CPU reservations for critical VMs
+- Monitor CPU ready time (< 5%)
+
+### Memory
+- Reserve 25% of physical RAM for hypervisor
+- Enable transparent page sharing cautiously
+- Use memory reservations for production DBs
+
+### Storage
+- Use VMFS 6 for new datastores
+- Enable VAAI for SAN storage
+- Maintain 20% free space minimum
+
+## High Availability
+
+```
+HA Configuration:
+- Admission control: 25% CPU, 25% Memory
+- Host isolation response: Power off
+- Datastore heartbeating: Enabled
+```
+
+## DRS Settings
+
+- Migration threshold: 3 (moderate)
+- Enable predictive DRS if licensed
+- Create DRS rules for anti-affinity
+
+## Maintenance
+
+- Monthly: Check VMware patch releases
+- Quarterly: Review resource pools
+- Annually: Capacity planning review
+""",
+        "is_internal": True,
+        "tags": ["vmware", "vsphere", "virtualization", "best-practices"]
+    },
+    {
+        "title": "SQL Server Performance Tuning",
+        "slug": "sql-server-performance-tuning",
+        "category": "Database",
+        "summary": "Common SQL Server performance optimization techniques",
+        "content": """# SQL Server Performance Tuning
+
+## Memory Configuration
+
+```sql
+-- Set max server memory (leave 4GB+ for OS)
+EXEC sp_configure 'max server memory', 28672;
+RECONFIGURE;
+```
+
+## Index Maintenance
+
+### Weekly Job
+```sql
+-- Rebuild indexes with > 30% fragmentation
+ALTER INDEX ALL ON [Table] REBUILD;
+
+-- Reorganize indexes with 10-30% fragmentation
+ALTER INDEX ALL ON [Table] REORGANIZE;
+```
+
+## Statistics Update
+
+```sql
+-- Update statistics for all tables
+EXEC sp_updatestats;
+```
+
+## Query Store
+
+```sql
+-- Enable Query Store
+ALTER DATABASE [DBName] SET QUERY_STORE = ON;
+ALTER DATABASE [DBName] SET QUERY_STORE (
+    OPERATION_MODE = READ_WRITE,
+    CLEANUP_POLICY = (STALE_QUERY_THRESHOLD_DAYS = 30)
+);
+```
+
+## Monitoring Queries
+
+### Find Missing Indexes
+```sql
+SELECT TOP 10
+    migs.avg_user_impact * (migs.user_seeks + migs.user_scans) AS impact,
+    mid.statement AS table_name,
+    mid.equality_columns,
+    mid.inequality_columns
+FROM sys.dm_db_missing_index_groups mig
+JOIN sys.dm_db_missing_index_group_stats migs
+    ON mig.index_group_handle = migs.group_handle
+JOIN sys.dm_db_missing_index_details mid
+    ON mig.index_handle = mid.index_handle
+ORDER BY impact DESC;
+```
+""",
+        "is_internal": True,
+        "tags": ["sql-server", "database", "performance", "tuning"]
+    },
+    {
+        "title": "Backup and Recovery Procedures",
+        "slug": "backup-recovery-procedures",
+        "category": "Backup & DR",
+        "summary": "Standard backup schedules and recovery procedures",
+        "content": """# Backup and Recovery Procedures
+
+## Backup Schedule
+
+| Type | Frequency | Retention | Window |
+|------|-----------|-----------|--------|
+| Full | Weekly (Sunday) | 4 weeks | 00:00-06:00 |
+| Incremental | Daily | 7 days | 22:00-00:00 |
+| Transaction Log | 15 min | 24 hours | Continuous |
+
+## Veeam Jobs
+
+- **PROD-FULL**: Production VMs - Full weekly
+- **PROD-INCR**: Production VMs - Daily incremental
+- **DR-REPLICATION**: Real-time replication to Lyon DC2
+
+## Recovery Time Objectives
+
+| Tier | RTO | RPO | Examples |
+|------|-----|-----|----------|
+| Critical | 1 hour | 15 min | ERP, Email |
+| High | 4 hours | 1 hour | CRM, Web Apps |
+| Medium | 24 hours | 24 hours | Dev servers |
+| Low | 72 hours | 1 week | Archives |
+
+## Recovery Procedures
+
+### VM Recovery (Veeam)
+1. Open Veeam console
+2. Navigate to Backups > Disk
+3. Right-click VM > Restore entire VM
+4. Select restore point
+5. Choose target (original/different location)
+
+### File-Level Recovery
+1. Backups > Disk > Right-click VM
+2. Restore guest files > Microsoft Windows
+3. Browse and select files
+4. Restore to original or alternate location
+
+## DR Failover
+
+See: `dr-failover-procedure` for full DR runbook.
+""",
+        "is_internal": True,
+        "tags": ["backup", "veeam", "disaster-recovery", "rto", "rpo"]
+    },
+    {
+        "title": "Printer Setup Guide",
+        "slug": "printer-setup-guide",
+        "category": "How-To",
+        "summary": "How to add a network printer to your workstation",
+        "content": """# Printer Setup Guide
+
+## Windows 10/11
+
+### Option 1: Automatic Discovery
+1. Open **Settings** > **Bluetooth & devices** > **Printers & scanners**
+2. Click **Add device**
+3. Wait for printer discovery
+4. Select your printer and click **Add**
+
+### Option 2: Manual Setup
+1. Click **Add device** > **Add manually**
+2. Select **Add a printer using TCP/IP address**
+3. Enter printer IP (see list below)
+4. Windows will install drivers automatically
+
+## Printer IP Addresses
+
+| Location | Printer | IP Address |
+|----------|---------|------------|
+| Floor 15 | HP-COLOR-15A | 192.168.100.50 |
+| Floor 15 | HP-BW-15B | 192.168.100.51 |
+| Floor 8 Lyon | EPSON-LYON-8A | 192.168.101.50 |
+
+## Print Server (Alternative)
+
+Connect to print server for centrally managed printers:
+1. Press **Win + R**
+2. Type `\\\\printserver.techcorp.local`
+3. Double-click desired printer to install
+
+## Troubleshooting
+
+- **Printer offline**: Check network cable/WiFi
+- **Print jobs stuck**: Restart Print Spooler service
+- **Driver issues**: Contact helpdesk for approved drivers
+""",
+        "is_internal": False,
+        "tags": ["printer", "setup", "windows", "how-to"]
+    },
+    {
+        "title": "WiFi Connection Troubleshooting",
+        "slug": "wifi-troubleshooting",
+        "category": "Troubleshooting",
+        "summary": "Common WiFi issues and solutions",
+        "content": """# WiFi Connection Troubleshooting
+
+## Corporate WiFi: TechCorp-Secure
+
+### Cannot Connect
+1. Ensure you're using your **AD credentials** (username only, no domain)
+2. Forget the network and reconnect
+3. Check that your device certificate is valid
+
+### Slow Connection
+1. Check signal strength (at least 3 bars)
+2. Move closer to access point
+3. Switch to 5GHz network if available
+
+## Guest WiFi: TechCorp-Guest
+
+### Getting Access Code
+1. Visit reception desk
+2. Provide your name and company
+3. Receive SMS with access code (valid 24h)
+
+### Portal Not Loading
+1. Open browser manually
+2. Navigate to http://1.1.1.1
+3. Accept terms and enter code
+
+## Common Error Messages
+
+| Error | Solution |
+|-------|----------|
+| "Network security key mismatch" | Re-enter password carefully |
+| "Can't connect to this network" | Forget network, restart WiFi |
+| "Limited connectivity" | Check with IT for DHCP issues |
+| "Authentication failed" | Verify AD credentials are correct |
+
+## Escalation
+
+If issues persist after trying above steps:
+- Open helpdesk ticket
+- Include: Device type, Location, Error message, Time of issue
+""",
+        "is_internal": False,
+        "tags": ["wifi", "wireless", "troubleshooting", "network"]
+    },
+    {
+        "title": "Email Signature Setup",
+        "slug": "email-signature-setup",
+        "category": "How-To",
+        "summary": "How to configure your corporate email signature",
+        "content": """# Email Signature Setup
+
+## Standard Signature Format
+
+```
+Best regards,
+
+[Full Name]
+[Job Title]
+[Department]
+
+TechCorp | www.techcorp.com
+[Phone] | [Mobile - optional]
+[Email]
+
+[Logo - from template]
+```
+
+## Outlook Desktop
+
+1. Open Outlook
+2. Go to **File** > **Options** > **Mail**
+3. Click **Signatures...**
+4. Click **New** and name it "TechCorp"
+5. Paste template and customize
+6. Set as default for New messages and Replies
+
+## Outlook Web
+
+1. Go to outlook.office.com
+2. Click ⚙️ > **View all Outlook settings**
+3. **Mail** > **Compose and reply**
+4. Scroll to **Email signature**
+5. Paste and customize template
+6. Enable for new/replies
+
+## Mobile (iOS/Android)
+
+1. Open Outlook app
+2. Tap profile icon > ⚙️ Settings
+3. Tap your email account
+4. Scroll to **Signature**
+5. Enter mobile-friendly signature
+
+## Logo & Templates
+
+Download approved templates from:
+`\\\\fileserver\\Marketing\\Email-Signatures\\`
+
+**Important**: Do not modify logo colors or add personal images.
+""",
+        "is_internal": False,
+        "tags": ["email", "outlook", "signature", "how-to"]
+    },
+    {
+        "title": "Firewall Rule Request Process",
+        "slug": "firewall-rule-request",
+        "category": "Procedures",
+        "summary": "How to request firewall rule changes",
+        "content": """# Firewall Rule Request Process
+
+## When to Submit
+
+- New application deployment
+- Vendor remote access
+- Inter-VLAN communication needs
+- External service integration
+
+## Required Information
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| Source | IP/subnet/object | 10.0.21.0/24 |
+| Destination | IP/subnet/FQDN | api.vendor.com |
+| Port/Service | TCP/UDP + port | TCP/443 (HTTPS) |
+| Direction | Inbound/Outbound | Outbound |
+| Justification | Business reason | ERP integration |
+| Duration | Permanent/Temporary | Permanent |
+
+## Submission Process
+
+1. **Create ticket** with type "Change Request"
+2. Use template: "Network Change Request"
+3. Fill all required fields
+4. Attach any supporting documentation
+
+## Approval Workflow
+
+1. **L1 Review**: Network team validates request
+2. **Security Review**: Security team risk assessment
+3. **Change Board**: Weekly CAB for non-urgent changes
+4. **Implementation**: During maintenance window
+
+## Emergency Changes
+
+For P1/P2 incidents requiring immediate firewall changes:
+1. Contact Network Lead directly
+2. Implement temporary rule
+3. Submit formal request within 24h for documentation
+
+## SLA
+
+- Standard requests: 5 business days
+- Expedited (justified): 2 business days
+- Emergency: Same day (with approval)
+""",
+        "is_internal": True,
+        "tags": ["firewall", "security", "change-request", "procedure"]
+    },
+    {
+        "title": "Azure AD Sync Troubleshooting",
+        "slug": "azure-ad-sync-troubleshooting",
+        "category": "Troubleshooting",
+        "summary": "Troubleshooting Azure AD Connect synchronization issues",
+        "content": """# Azure AD Sync Troubleshooting
+
+## Check Sync Status
+
+### On AD Connect Server
+```powershell
+# Check last sync time
+Get-ADSyncScheduler
+
+# Force manual sync
+Start-ADSyncSyncCycle -PolicyType Delta
+
+# Full sync (use sparingly)
+Start-ADSyncSyncCycle -PolicyType Initial
+```
+
+### In Azure Portal
+1. Azure AD > Azure AD Connect
+2. Check "Sync Status" and last sync time
+
+## Common Issues
+
+### Sync Errors in Portal
+
+**ObjectTypeMismatch**
+- User exists as contact in Azure AD
+- Solution: Delete contact, wait for sync
+
+**InvalidSoftMatch**
+- SMTP address mismatch
+- Solution: Ensure proxyAddresses match
+
+**DataValidationFailed**
+- Invalid characters in attributes
+- Solution: Clean up source AD attributes
+
+### Connector Space Errors
+
+```powershell
+# View connector space errors
+Get-ADSyncConnectorRunStatus
+
+# Export detailed errors
+Get-ADSyncConnector | Get-ADSyncConnectorStatistics
+```
+
+## Service Account
+
+- Account: `MSOL_[hex]@domain.local`
+- Reset if locked: Azure AD Connect wizard > "Customize synchronization options"
+
+## Logs Location
+
+- `C:\\ProgramData\\AADConnect\\`
+- Event Viewer: Applications and Services > AADConnect
+
+## Escalation
+
+If sync is down > 3 hours:
+1. Check service `ADSync` is running
+2. Review event logs
+3. Contact Microsoft if tenant-side issue suspected
+""",
+        "is_internal": True,
+        "tags": ["azure", "active-directory", "sync", "troubleshooting"]
+    },
+    {
+        "title": "Network Architecture Overview",
+        "slug": "network-architecture-overview",
+        "category": "Architecture",
+        "summary": "High-level overview of TechCorp network architecture",
+        "content": """# Network Architecture Overview
+
+## Topology
+
+```
+                    ┌─────────────┐
+                    │   ISP 1/2   │
+                    └──────┬──────┘
+                           │
+              ┌────────────┴────────────┐
+              │     CORE-RTR-01/02      │  (Cisco ASR)
+              │     BGP, OSPF Core      │
+              └────────────┬────────────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+    ┌────┴────┐      ┌────┴────┐      ┌────┴────┐
+    │  FW-01  │      │  FW-02  │      │   DMZ   │
+    │ Primary │      │ Standby │      │ Segment │
+    └────┬────┘      └────┬────┘      └────┬────┘
+         │                │                │
+         └────────┬───────┘                │
+                  │                        │
+    ┌─────────────┴─────────────┐    ┌────┴────┐
+    │    CORE-SW-01/02          │    │ DMZ-SW  │
+    │    (Nexus 9336C)          │    └─────────┘
+    └─────────────┬─────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    │             │             │
+┌───┴───┐   ┌────┴────┐   ┌────┴────┐
+│ DIST  │   │  DIST   │   │  DIST   │
+│ DC1-1 │   │  DC1-2  │   │  LYON   │
+└───┬───┘   └────┬────┘   └────┬────┘
+    │            │             │
+┌───┴───┐   ┌────┴────┐   ┌────┴────┐
+│ Access│   │ Access  │   │ Access  │
+│Switches   │Switches │   │Switches │
+└───────┘   └─────────┘   └─────────┘
+```
+
+## Key Design Principles
+
+- **Redundancy**: Dual core routers, firewalls, and switches
+- **Segmentation**: VLANs for security zones
+- **Scalability**: Spine-leaf ready in DC core
+
+## IP Addressing
+
+| Zone | Range | Purpose |
+|------|-------|---------|
+| 10.0.0.0/16 | Production | Servers, storage |
+| 172.16.0.0/16 | DMZ | External-facing |
+| 192.168.0.0/16 | User | Workstations |
+
+## Inter-Site Connectivity
+
+- Paris-Lyon: MPLS primary, IPsec backup
+- Site-to-site VPN for remote offices
+""",
+        "is_internal": True,
+        "tags": ["network", "architecture", "topology", "design"]
+    },
+    {
+        "title": "What to Do When Locked Out",
+        "slug": "account-lockout-faq",
+        "category": "FAQ",
+        "summary": "FAQ for account lockout situations",
+        "content": """# What to Do When Locked Out
+
+## Quick Answer
+
+**Wait 30 minutes** - accounts automatically unlock after 30 minutes of no failed attempts.
+
+## Self-Service Options
+
+### Password Reset Portal
+1. Go to https://passwordreset.techcorp.com
+2. Enter your username
+3. Verify via phone or email
+4. Set new password
+
+### After Hours
+- Contact on-call IT: +33 1 XX XX XX XX
+- Available 24/7 for critical issues
+
+## Common Lockout Causes
+
+| Cause | Solution |
+|-------|----------|
+| Wrong password | Wait 30 min or reset |
+| Old password saved | Update in Credential Manager |
+| Mobile email | Re-enter password on device |
+| VPN client | Update saved credentials |
+| Mapped drives | Disconnect and reconnect |
+
+## Check for Saved Credentials
+
+### Windows
+1. Open **Control Panel** > **Credential Manager**
+2. Look for **Windows Credentials**
+3. Remove old/incorrect entries
+
+### Mac
+1. Open **Keychain Access**
+2. Search for domain entries
+3. Delete outdated items
+
+## Prevention Tips
+
+- Don't click "Remember Password" on shared devices
+- Update all devices when changing password
+- Use a password manager for complex passwords
+
+## Still Locked Out?
+
+Open a ticket or call helpdesk:
+- Provide: Username, last known good login time, error message
+""",
+        "is_internal": False,
+        "tags": ["faq", "lockout", "password", "self-service"]
+    },
+    {
+        "title": "AWS Integration Guidelines",
+        "slug": "aws-integration-guidelines",
+        "category": "Cloud",
+        "summary": "Guidelines for integrating with AWS services",
+        "content": """# AWS Integration Guidelines
+
+## Account Structure
+
+```
+TechCorp AWS Organization
+├── Management Account
+├── Production OU
+│   ├── prod-workloads
+│   └── prod-data
+├── Non-Production OU
+│   ├── dev-workloads
+│   └── staging
+└── Shared Services OU
+    └── shared-infra
+```
+
+## IAM Best Practices
+
+- Use IAM Identity Center (SSO) - integrated with Azure AD
+- Never use root account for daily operations
+- Apply least privilege principle
+- Enable MFA for all console users
+
+## Networking
+
+### VPC Design
+- Production: 10.100.0.0/16
+- Non-Prod: 10.200.0.0/16
+- Use Transit Gateway for inter-VPC routing
+
+### Connectivity
+- Direct Connect: 1Gbps to Paris DC1
+- VPN Backup: IPsec to both datacenters
+
+## Approved Services
+
+| Tier | Services |
+|------|----------|
+| Approved | EC2, S3, RDS, Lambda, EKS |
+| Requires Review | Outposts, Wavelength, Ground Station |
+| Prohibited | Mechanical Turk, non-EU regions |
+
+## Cost Management
+
+- Tag all resources: `Environment`, `CostCenter`, `Owner`
+- Use Reserved Instances for steady-state workloads
+- Enable Cost Explorer and set billing alerts
+
+## Support
+
+- AWS Enterprise Support: Case priority for production
+- Contact cloud team for account provisioning
+""",
+        "is_internal": True,
+        "tags": ["aws", "cloud", "integration", "guidelines"]
     },
 ]
 
@@ -2136,6 +2823,11 @@ def seed_knowledge_articles(db: Session, category_map: Dict[str, int] = None) ->
         category_name = article_data["category"]
         category_id = category_map.get(category_name)
 
+        # Random metrics for realism
+        view_count = random.randint(50, 1000)
+        helpful = random.randint(10, view_count // 5)
+        not_helpful = random.randint(0, helpful // 10) if helpful > 0 else 0
+
         article = models.KnowledgeArticle(
             title=article_data["title"],
             slug=article_data["slug"],
@@ -2143,13 +2835,14 @@ def seed_knowledge_articles(db: Session, category_map: Dict[str, int] = None) ->
             category_id=category_id,  # New foreign key
             summary=article_data["summary"],
             content=article_data["content"],
+            tags=article_data.get("tags", []),
             author_id=author.id,
             is_published=True,
             is_internal=article_data.get("is_internal", False),
-            view_count=random.randint(10, 500),
-            helpful_count=random.randint(5, 50),
-            not_helpful_count=random.randint(0, 5),
-            version=1,
+            view_count=view_count,
+            helpful_count=helpful,
+            not_helpful_count=not_helpful,
+            version=random.randint(1, 3),
             created_at=random_datetime_past(180),
             published_at=random_datetime_past(170)
         )
@@ -2429,6 +3122,475 @@ MASSIVE_CONTRACTS = [
     {"name": "Slack Enterprise Grid", "type": "service", "vendor": "Salesforce", "annual_cost": 38000},
     {"name": "Zoom Enterprise", "type": "service", "vendor": "Zoom", "annual_cost": 32000},
 ]
+
+# =============================================================================
+# Massive Knowledge Base Articles
+# =============================================================================
+
+MASSIVE_KB_ARTICLE_TEMPLATES = [
+    # Networking articles
+    {"title": "OSPF Configuration on Cisco Routers", "category": "Networking", "tags": ["ospf", "routing", "cisco"], "is_internal": True},
+    {"title": "BGP Peering Setup Guide", "category": "Networking", "tags": ["bgp", "routing", "peering"], "is_internal": True},
+    {"title": "STP and RSTP Best Practices", "category": "Networking", "tags": ["stp", "rstp", "switching"], "is_internal": True},
+    {"title": "QoS Configuration for VoIP", "category": "Networking", "tags": ["qos", "voip", "network"], "is_internal": True},
+    {"title": "Network Monitoring with SNMP", "category": "Networking", "tags": ["snmp", "monitoring", "network"], "is_internal": True},
+    {"title": "IPsec VPN Tunnel Configuration", "category": "Networking", "tags": ["vpn", "ipsec", "security"], "is_internal": True},
+    {"title": "Load Balancer Health Check Setup", "category": "Networking", "tags": ["load-balancer", "health-check", "ha"], "is_internal": True},
+    {"title": "DNS Zone Management", "category": "Networking", "tags": ["dns", "bind", "zone"], "is_internal": True},
+    {"title": "DHCP Server Configuration", "category": "Networking", "tags": ["dhcp", "ip", "network"], "is_internal": True},
+    {"title": "Network Segmentation Strategy", "category": "Networking", "tags": ["segmentation", "security", "vlan"], "is_internal": True},
+    # Virtualization articles
+    {"title": "vSphere HA Cluster Setup", "category": "Virtualization", "tags": ["vmware", "ha", "cluster"], "is_internal": True},
+    {"title": "vMotion Configuration Guide", "category": "Virtualization", "tags": ["vmware", "vmotion", "migration"], "is_internal": True},
+    {"title": "vSAN Storage Policies", "category": "Virtualization", "tags": ["vmware", "vsan", "storage"], "is_internal": True},
+    {"title": "NSX-T Micro-segmentation", "category": "Virtualization", "tags": ["nsx", "security", "vmware"], "is_internal": True},
+    {"title": "Hyper-V Replica Configuration", "category": "Virtualization", "tags": ["hyper-v", "replica", "dr"], "is_internal": True},
+    {"title": "Container Resource Limits in Kubernetes", "category": "Virtualization", "tags": ["kubernetes", "resources", "containers"], "is_internal": True},
+    {"title": "Docker Networking Modes", "category": "Virtualization", "tags": ["docker", "networking", "containers"], "is_internal": True},
+    {"title": "VM Template Best Practices", "category": "Virtualization", "tags": ["vmware", "templates", "automation"], "is_internal": True},
+    {"title": "ESXi Host Maintenance Mode", "category": "Virtualization", "tags": ["esxi", "maintenance", "vmware"], "is_internal": True},
+    {"title": "Proxmox VE Cluster Setup", "category": "Virtualization", "tags": ["proxmox", "cluster", "virtualization"], "is_internal": True},
+    # Database articles
+    {"title": "PostgreSQL Replication Setup", "category": "Database", "tags": ["postgresql", "replication", "ha"], "is_internal": True},
+    {"title": "MySQL InnoDB Tuning", "category": "Database", "tags": ["mysql", "innodb", "performance"], "is_internal": True},
+    {"title": "Oracle RAC Administration", "category": "Database", "tags": ["oracle", "rac", "cluster"], "is_internal": True},
+    {"title": "MongoDB Sharding Configuration", "category": "Database", "tags": ["mongodb", "sharding", "scalability"], "is_internal": True},
+    {"title": "Redis Sentinel Setup", "category": "Database", "tags": ["redis", "sentinel", "ha"], "is_internal": True},
+    {"title": "Database Backup Strategies", "category": "Database", "tags": ["backup", "database", "recovery"], "is_internal": True},
+    {"title": "Query Optimization Techniques", "category": "Database", "tags": ["query", "optimization", "performance"], "is_internal": True},
+    {"title": "Connection Pooling Best Practices", "category": "Database", "tags": ["connection-pool", "database", "performance"], "is_internal": True},
+    {"title": "Database Encryption at Rest", "category": "Database", "tags": ["encryption", "security", "database"], "is_internal": True},
+    {"title": "Elasticsearch Index Management", "category": "Database", "tags": ["elasticsearch", "indexing", "search"], "is_internal": True},
+    # Security articles
+    {"title": "SSL Certificate Renewal Process", "category": "Security", "tags": ["ssl", "certificates", "renewal"], "is_internal": True},
+    {"title": "Firewall Rule Audit Checklist", "category": "Security", "tags": ["firewall", "audit", "compliance"], "is_internal": True},
+    {"title": "Vulnerability Scanning Procedures", "category": "Security", "tags": ["vulnerability", "scanning", "security"], "is_internal": True},
+    {"title": "Incident Response Playbook", "category": "Security", "tags": ["incident", "response", "security"], "is_internal": True},
+    {"title": "SSH Key Management", "category": "Security", "tags": ["ssh", "keys", "security"], "is_internal": True},
+    {"title": "PAM Solution Configuration", "category": "Security", "tags": ["pam", "privileged-access", "security"], "is_internal": True},
+    {"title": "SIEM Alert Configuration", "category": "Security", "tags": ["siem", "alerts", "monitoring"], "is_internal": True},
+    {"title": "Zero Trust Architecture Overview", "category": "Security", "tags": ["zero-trust", "architecture", "security"], "is_internal": True},
+    {"title": "DLP Policy Configuration", "category": "Security", "tags": ["dlp", "data-protection", "security"], "is_internal": True},
+    {"title": "Security Hardening Checklist", "category": "Security", "tags": ["hardening", "security", "compliance"], "is_internal": True},
+    # Backup & DR articles
+    {"title": "Veeam Job Configuration Guide", "category": "Backup & DR", "tags": ["veeam", "backup", "configuration"], "is_internal": True},
+    {"title": "DR Site Failover Procedure", "category": "Backup & DR", "tags": ["dr", "failover", "procedure"], "is_internal": True},
+    {"title": "Backup Retention Policies", "category": "Backup & DR", "tags": ["backup", "retention", "policy"], "is_internal": True},
+    {"title": "Tape Library Management", "category": "Backup & DR", "tags": ["tape", "backup", "archive"], "is_internal": True},
+    {"title": "RPO and RTO Calculation Guide", "category": "Backup & DR", "tags": ["rpo", "rto", "planning"], "is_internal": True},
+    {"title": "Backup Verification Testing", "category": "Backup & DR", "tags": ["backup", "testing", "verification"], "is_internal": True},
+    {"title": "Cloud Backup Integration", "category": "Backup & DR", "tags": ["cloud", "backup", "s3"], "is_internal": True},
+    {"title": "Ransomware Recovery Procedures", "category": "Backup & DR", "tags": ["ransomware", "recovery", "security"], "is_internal": True},
+    {"title": "Backup Monitoring and Alerting", "category": "Backup & DR", "tags": ["backup", "monitoring", "alerts"], "is_internal": True},
+    {"title": "Application-Consistent Snapshots", "category": "Backup & DR", "tags": ["snapshot", "backup", "consistency"], "is_internal": True},
+    # Cloud articles
+    {"title": "AWS VPC Design Patterns", "category": "Cloud", "tags": ["aws", "vpc", "networking"], "is_internal": True},
+    {"title": "Azure AD Integration Guide", "category": "Cloud", "tags": ["azure", "ad", "identity"], "is_internal": True},
+    {"title": "GCP IAM Best Practices", "category": "Cloud", "tags": ["gcp", "iam", "security"], "is_internal": True},
+    {"title": "Multi-Cloud Networking Strategy", "category": "Cloud", "tags": ["multi-cloud", "networking", "strategy"], "is_internal": True},
+    {"title": "Cloud Cost Optimization Tips", "category": "Cloud", "tags": ["cloud", "cost", "optimization"], "is_internal": True},
+    {"title": "Terraform State Management", "category": "Cloud", "tags": ["terraform", "iac", "state"], "is_internal": True},
+    {"title": "Kubernetes on Cloud Providers", "category": "Cloud", "tags": ["kubernetes", "cloud", "eks"], "is_internal": True},
+    {"title": "Serverless Architecture Patterns", "category": "Cloud", "tags": ["serverless", "lambda", "architecture"], "is_internal": True},
+    {"title": "Cloud Security Posture Management", "category": "Cloud", "tags": ["cspm", "security", "cloud"], "is_internal": True},
+    {"title": "Hybrid Cloud Connectivity", "category": "Cloud", "tags": ["hybrid", "cloud", "connectivity"], "is_internal": True},
+    # Procedures
+    {"title": "Change Management Process", "category": "Procedures", "tags": ["change", "itil", "process"], "is_internal": True},
+    {"title": "Incident Escalation Matrix", "category": "Procedures", "tags": ["incident", "escalation", "process"], "is_internal": True},
+    {"title": "On-Call Rotation Guidelines", "category": "Procedures", "tags": ["on-call", "rotation", "process"], "is_internal": True},
+    {"title": "Capacity Planning Process", "category": "Procedures", "tags": ["capacity", "planning", "process"], "is_internal": True},
+    {"title": "Vendor Management Procedures", "category": "Procedures", "tags": ["vendor", "management", "process"], "is_internal": True},
+    {"title": "Asset Lifecycle Management", "category": "Procedures", "tags": ["asset", "lifecycle", "itam"], "is_internal": True},
+    {"title": "Patch Management Process", "category": "Procedures", "tags": ["patch", "management", "security"], "is_internal": True},
+    {"title": "Problem Management Workflow", "category": "Procedures", "tags": ["problem", "itil", "workflow"], "is_internal": True},
+    {"title": "Service Request Fulfillment", "category": "Procedures", "tags": ["service", "request", "itil"], "is_internal": True},
+    {"title": "Configuration Management Database", "category": "Procedures", "tags": ["cmdb", "configuration", "itil"], "is_internal": True},
+    # Standards
+    {"title": "Server Naming Convention", "category": "Standards", "tags": ["naming", "standards", "servers"], "is_internal": True},
+    {"title": "IP Address Allocation Standard", "category": "Standards", "tags": ["ip", "allocation", "ipam"], "is_internal": True},
+    {"title": "Firewall Rule Naming Standard", "category": "Standards", "tags": ["firewall", "naming", "standards"], "is_internal": True},
+    {"title": "Logging Standards and Formats", "category": "Standards", "tags": ["logging", "standards", "format"], "is_internal": True},
+    {"title": "API Design Guidelines", "category": "Standards", "tags": ["api", "design", "standards"], "is_internal": True},
+    {"title": "Documentation Standards", "category": "Standards", "tags": ["documentation", "standards", "writing"], "is_internal": True},
+    {"title": "Code Review Checklist", "category": "Standards", "tags": ["code-review", "development", "standards"], "is_internal": True},
+    {"title": "Git Branch Strategy", "category": "Standards", "tags": ["git", "branching", "development"], "is_internal": True},
+    {"title": "Monitoring Standards", "category": "Standards", "tags": ["monitoring", "standards", "metrics"], "is_internal": True},
+    {"title": "Alert Severity Definitions", "category": "Standards", "tags": ["alerts", "severity", "standards"], "is_internal": True},
+    # How-To guides
+    {"title": "How to Request Software Installation", "category": "How-To", "tags": ["software", "request", "how-to"], "is_internal": False},
+    {"title": "How to Book a Meeting Room", "category": "How-To", "tags": ["meeting", "room", "booking"], "is_internal": False},
+    {"title": "How to Submit an Expense Report", "category": "How-To", "tags": ["expense", "report", "how-to"], "is_internal": False},
+    {"title": "How to Access Remote Desktop", "category": "How-To", "tags": ["rdp", "remote", "access"], "is_internal": False},
+    {"title": "How to Use Teams for Video Calls", "category": "How-To", "tags": ["teams", "video", "call"], "is_internal": False},
+    {"title": "How to Setup Mobile Email", "category": "How-To", "tags": ["email", "mobile", "setup"], "is_internal": False},
+    {"title": "How to Map Network Drives", "category": "How-To", "tags": ["network", "drives", "mapping"], "is_internal": False},
+    {"title": "How to Use the Company Intranet", "category": "How-To", "tags": ["intranet", "sharepoint", "how-to"], "is_internal": False},
+    {"title": "How to Request Hardware Upgrade", "category": "How-To", "tags": ["hardware", "upgrade", "request"], "is_internal": False},
+    {"title": "How to Access Cloud Storage", "category": "How-To", "tags": ["cloud", "storage", "onedrive"], "is_internal": False},
+    # Troubleshooting
+    {"title": "Slow Computer Performance", "category": "Troubleshooting", "tags": ["performance", "computer", "slow"], "is_internal": False},
+    {"title": "Outlook Not Syncing", "category": "Troubleshooting", "tags": ["outlook", "sync", "email"], "is_internal": False},
+    {"title": "Teams Audio/Video Issues", "category": "Troubleshooting", "tags": ["teams", "audio", "video"], "is_internal": False},
+    {"title": "Network Drive Disconnected", "category": "Troubleshooting", "tags": ["network", "drive", "disconnected"], "is_internal": False},
+    {"title": "Application Crashes on Startup", "category": "Troubleshooting", "tags": ["application", "crash", "startup"], "is_internal": False},
+    {"title": "Blue Screen Error Resolution", "category": "Troubleshooting", "tags": ["bsod", "windows", "crash"], "is_internal": True},
+    {"title": "Linux Boot Issues", "category": "Troubleshooting", "tags": ["linux", "boot", "grub"], "is_internal": True},
+    {"title": "SSL Certificate Errors", "category": "Troubleshooting", "tags": ["ssl", "certificate", "error"], "is_internal": True},
+    {"title": "DNS Resolution Problems", "category": "Troubleshooting", "tags": ["dns", "resolution", "network"], "is_internal": True},
+    {"title": "Service Won't Start", "category": "Troubleshooting", "tags": ["service", "windows", "linux"], "is_internal": True},
+    # Architecture
+    {"title": "Microservices Architecture Overview", "category": "Architecture", "tags": ["microservices", "architecture", "design"], "is_internal": True},
+    {"title": "Event-Driven Architecture", "category": "Architecture", "tags": ["event-driven", "architecture", "kafka"], "is_internal": True},
+    {"title": "API Gateway Design", "category": "Architecture", "tags": ["api", "gateway", "architecture"], "is_internal": True},
+    {"title": "Message Queue Architecture", "category": "Architecture", "tags": ["message-queue", "rabbitmq", "architecture"], "is_internal": True},
+    {"title": "Caching Architecture Patterns", "category": "Architecture", "tags": ["caching", "redis", "architecture"], "is_internal": True},
+    {"title": "Data Lake Architecture", "category": "Architecture", "tags": ["data-lake", "analytics", "architecture"], "is_internal": True},
+    {"title": "CI/CD Pipeline Design", "category": "Architecture", "tags": ["cicd", "pipeline", "devops"], "is_internal": True},
+    {"title": "Service Mesh Overview", "category": "Architecture", "tags": ["service-mesh", "istio", "architecture"], "is_internal": True},
+    {"title": "Observability Stack Design", "category": "Architecture", "tags": ["observability", "monitoring", "tracing"], "is_internal": True},
+    {"title": "Identity Architecture Design", "category": "Architecture", "tags": ["identity", "sso", "architecture"], "is_internal": True},
+    # FAQ
+    {"title": "What Software Can I Install?", "category": "FAQ", "tags": ["software", "policy", "faq"], "is_internal": False},
+    {"title": "How Long Does IT Support Take?", "category": "FAQ", "tags": ["support", "sla", "faq"], "is_internal": False},
+    {"title": "Can I Use Personal Devices?", "category": "FAQ", "tags": ["byod", "devices", "policy"], "is_internal": False},
+    {"title": "How to Get Admin Rights?", "category": "FAQ", "tags": ["admin", "rights", "policy"], "is_internal": False},
+    {"title": "What is Our Password Policy?", "category": "FAQ", "tags": ["password", "policy", "security"], "is_internal": False},
+    {"title": "How to Report a Security Issue?", "category": "FAQ", "tags": ["security", "report", "incident"], "is_internal": False},
+    {"title": "What Browsers Are Supported?", "category": "FAQ", "tags": ["browser", "support", "compatibility"], "is_internal": False},
+    {"title": "How to Request New Equipment?", "category": "FAQ", "tags": ["equipment", "request", "process"], "is_internal": False},
+    {"title": "What Is Our Data Retention Policy?", "category": "FAQ", "tags": ["data", "retention", "policy"], "is_internal": False},
+    {"title": "How to Contact IT Support?", "category": "FAQ", "tags": ["support", "contact", "helpdesk"], "is_internal": False},
+]
+
+
+def seed_massive_knowledge_articles(db: Session, category_map: Dict[str, int] = None) -> None:
+    """Generate many knowledge base articles for performance testing."""
+    print("  Creating massive knowledge base articles...")
+
+    if not category_map:
+        # Build category map
+        categories = db.query(models.KnowledgeCategory).all()
+        category_map = {cat.name: cat.id for cat in categories}
+
+    # Get users for authoring
+    users = db.query(models.User).filter(models.User.role.in_(["tech", "admin", "superadmin"])).all()
+    if not users:
+        users = [None]
+
+    article_count = 0
+    content_templates = [
+        """# {title}
+
+## Overview
+
+This article covers the essential aspects of {topic}. Understanding these concepts is crucial for maintaining a secure and efficient infrastructure.
+
+## Prerequisites
+
+- Basic understanding of {prereq1}
+- Access to {prereq2}
+- Familiarity with command line tools
+
+## Step-by-Step Guide
+
+### Step 1: Initial Assessment
+
+Before proceeding, evaluate the current state of your environment:
+
+```bash
+# Check current configuration
+{command1}
+
+# Verify prerequisites
+{command2}
+```
+
+### Step 2: Configuration
+
+Apply the following configuration settings:
+
+| Parameter | Recommended Value | Description |
+|-----------|------------------|-------------|
+| {param1} | {value1} | {desc1} |
+| {param2} | {value2} | {desc2} |
+| {param3} | {value3} | {desc3} |
+
+### Step 3: Validation
+
+After configuration, validate the changes:
+
+```bash
+# Verify configuration
+{command3}
+
+# Test functionality
+{command4}
+```
+
+## Best Practices
+
+- Always backup before making changes
+- Test in non-production environment first
+- Document all modifications
+- Monitor for unexpected behavior post-change
+
+## Troubleshooting
+
+### Common Issue 1
+**Symptom**: Configuration not applied
+**Solution**: Restart the service and verify permissions
+
+### Common Issue 2
+**Symptom**: Performance degradation
+**Solution**: Review resource allocation and logs
+
+## Related Articles
+
+- See also: Related Topic 1
+- See also: Related Topic 2
+
+## Contact
+
+For questions, contact the relevant team or open a helpdesk ticket.
+""",
+        """# {title}
+
+## Introduction
+
+{topic} is a critical component of our infrastructure. This guide provides comprehensive documentation for proper implementation and maintenance.
+
+## Architecture
+
+The following diagram illustrates the high-level architecture:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Client    │────▶│   Gateway   │────▶│   Backend   │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   Storage   │
+                    └─────────────┘
+```
+
+## Configuration Reference
+
+### Required Settings
+
+```yaml
+# Configuration file example
+setting1: {value1}
+setting2: {value2}
+setting3: {value3}
+advanced:
+  option1: true
+  option2: "recommended"
+  timeout: 30
+```
+
+### Optional Settings
+
+These settings can be adjusted based on your requirements:
+
+- **{param1}**: {desc1}
+- **{param2}**: {desc2}
+- **{param3}**: {desc3}
+
+## Implementation Checklist
+
+- [ ] Review requirements
+- [ ] Backup current configuration
+- [ ] Apply changes in test environment
+- [ ] Validate functionality
+- [ ] Deploy to production
+- [ ] Monitor for issues
+- [ ] Document changes
+
+## Monitoring
+
+Key metrics to monitor:
+
+| Metric | Threshold | Action |
+|--------|-----------|--------|
+| CPU Usage | > 80% | Scale or optimize |
+| Memory | > 85% | Investigate leaks |
+| Latency | > 100ms | Review bottlenecks |
+
+## Maintenance
+
+### Daily Tasks
+- Review logs for errors
+- Check service health
+
+### Weekly Tasks
+- Review performance metrics
+- Update documentation
+
+### Monthly Tasks
+- Security patching
+- Capacity review
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | Initial release | Base documentation |
+| 1.1 | Update | Added troubleshooting |
+""",
+        """# {title}
+
+## Purpose
+
+This document describes {topic} procedures and policies for TechCorp infrastructure.
+
+## Scope
+
+This applies to:
+- All production systems
+- Development environments
+- Third-party integrations
+
+## Procedures
+
+### Standard Procedure
+
+1. **Initiate Request**
+   - Submit ticket through helpdesk
+   - Include all required information
+   - Specify urgency level
+
+2. **Review Process**
+   - Technical team reviews request
+   - Security assessment if required
+   - Approval workflow initiated
+
+3. **Implementation**
+   - Schedule maintenance window
+   - Execute changes per runbook
+   - Validate success
+
+4. **Documentation**
+   - Update CMDB
+   - Close ticket with resolution
+   - Update knowledge base if needed
+
+### Emergency Procedure
+
+For critical situations:
+
+1. Contact on-call engineer directly
+2. Follow incident response playbook
+3. Implement emergency change
+4. Document post-incident
+
+## Contacts
+
+| Role | Contact | Availability |
+|------|---------|--------------|
+| Primary | Team Lead | Business hours |
+| Secondary | Senior Engineer | Business hours |
+| Emergency | On-call | 24/7 |
+
+## Compliance
+
+This procedure aligns with:
+- ITIL best practices
+- Company security policy
+- Regulatory requirements
+
+## Review
+
+This document is reviewed quarterly. Last review: {date}
+
+## Appendix
+
+### A. Command Reference
+
+```bash
+# Useful commands
+{command1}
+{command2}
+{command3}
+```
+
+### B. Related Policies
+
+- Security Policy v2.3
+- Change Management Process
+- Incident Response Plan
+"""
+    ]
+
+    params = {
+        "prereq1": random.choice(["networking", "Linux administration", "Windows Server", "virtualization", "databases"]),
+        "prereq2": random.choice(["management console", "CLI tools", "admin credentials", "VPN access"]),
+        "command1": random.choice(["systemctl status service", "cat /etc/config", "Get-Service", "kubectl get pods"]),
+        "command2": random.choice(["whoami", "id", "hostname", "uname -a"]),
+        "command3": random.choice(["systemctl restart service", "service reload", "Restart-Service", "kubectl rollout"]),
+        "command4": random.choice(["curl localhost:8080/health", "ping gateway", "telnet host port", "nc -zv host port"]),
+        "param1": "max_connections", "value1": "100", "desc1": "Maximum concurrent connections",
+        "param2": "timeout", "value2": "30", "desc2": "Request timeout in seconds",
+        "param3": "log_level", "value3": "INFO", "desc3": "Logging verbosity",
+        "date": "2024-01",
+    }
+
+    for template_data in MASSIVE_KB_ARTICLE_TEMPLATES:
+        slug = template_data["title"].lower().replace(" ", "-").replace("/", "-")
+        slug = ''.join(c for c in slug if c.isalnum() or c == '-')[:60]
+
+        existing = db.query(models.KnowledgeArticle).filter(models.KnowledgeArticle.slug == slug).first()
+        if existing:
+            continue
+
+        category_name = template_data["category"]
+        category_id = category_map.get(category_name)
+
+        # Generate content
+        content_template = random.choice(content_templates)
+        params["title"] = template_data["title"]
+        params["topic"] = template_data["title"].lower()
+        content = content_template.format(**params)
+
+        # Random metrics for realism
+        view_count = random.randint(5, 500)
+        helpful = random.randint(0, view_count // 3)
+        not_helpful = random.randint(0, helpful // 5) if helpful > 0 else 0
+
+        author = random.choice(users) if users[0] else None
+        is_published = random.random() > 0.15  # 85% published
+
+        article = models.KnowledgeArticle(
+            title=template_data["title"],
+            slug=slug,
+            category=category_name,
+            category_id=category_id,
+            summary=f"Comprehensive guide for {template_data['title'].lower()}",
+            content=content,
+            tags=template_data["tags"],
+            is_published=is_published,
+            is_internal=template_data["is_internal"],
+            author_id=author.id if author else None,
+            view_count=view_count,
+            helpful_count=helpful,
+            not_helpful_count=not_helpful,
+            version=random.randint(1, 5),
+            published_at=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 365)) if is_published else None,
+            created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(30, 400)),
+        )
+        db.add(article)
+        article_count += 1
+
+        # Update category article count
+        if category_id:
+            category = db.query(models.KnowledgeCategory).filter(
+                models.KnowledgeCategory.id == category_id
+            ).first()
+            if category:
+                category.article_count = (category.article_count or 0) + 1
+
+    db.commit()
+    print(f"    Created {article_count} additional knowledge articles")
 
 
 def seed_massive_locations(db: Session) -> None:
@@ -3075,6 +4237,9 @@ def main():
 
             # Additional tickets (realistic titles + comments)
             seed_massive_tickets(db, count=600)
+
+            # Additional knowledge base articles
+            seed_massive_knowledge_articles(db)
 
             # Re-run PDU creation for new racks
             seed_pdus(db)

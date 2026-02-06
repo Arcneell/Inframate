@@ -947,12 +947,28 @@ onUnmounted(() => {
   padding: 0 !important;
 }
 
+.toolbar .toolbar-filter :deep(.p-dropdown.p-focus),
+.toolbar .toolbar-filter :deep(.p-dropdown:focus),
+.toolbar .toolbar-filter :deep(.p-dropdown:hover),
+.toolbar .toolbar-filter :deep(.p-dropdown.p-component:hover),
+.toolbar .toolbar-filter :deep(.p-dropdown.p-component.p-focus) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label) {
   padding: 0.375rem 3.5rem 0.375rem 0.75rem !important;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-primary);
   background: transparent !important;
+}
+
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label.p-placeholder) {
+  color: var(--text-secondary);
+  padding: 0.375rem 3.5rem 0.375rem 0.75rem !important;
 }
 
 .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-trigger) {
@@ -963,6 +979,23 @@ onUnmounted(() => {
   width: auto;
   color: var(--text-muted);
   background: transparent !important;
+}
+
+/* Clear icon - aligned with arrow */
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon) {
+  position: absolute;
+  right: 0.5rem;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  height: fit-content;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon:hover) {
+  color: var(--primary);
 }
 
 .my-tickets-toggle {
@@ -1233,6 +1266,8 @@ onUnmounted(() => {
 :root.dark .toolbar-search i { color: #64748b; }
 :root.dark .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label) { color: #e2e8f0 !important; }
 :root.dark .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-label.p-placeholder) { color: #64748b !important; }
+:root.dark .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-trigger),
+:root.dark .toolbar .toolbar-filter :deep(.p-dropdown .p-dropdown-clear-icon) { color: #64748b; }
 :root.dark .knowledge-header { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.06); color: #64748b; }
 :root.dark .knowledge-row { border-color: rgba(255,255,255,0.06); }
 :root.dark .knowledge-row:hover { background: rgba(255,255,255,0.03); }

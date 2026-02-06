@@ -358,9 +358,25 @@ def get_article(
         if article.entity_id and article.entity_id != current_user.entity_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    # Increment view count
-    article.view_count += 1
-    db.commit()
+    # Track unique view per user - only increment view_count if user hasn't viewed before
+    existing_view = db.query(models.KnowledgeArticleView).filter(
+        models.KnowledgeArticleView.article_id == article.id,
+        models.KnowledgeArticleView.user_id == current_user.id
+    ).first()
+
+    if not existing_view:
+        # First view by this user - record it and increment counter
+        new_view = models.KnowledgeArticleView(
+            article_id=article.id,
+            user_id=current_user.id
+        )
+        db.add(new_view)
+        article.view_count += 1
+        db.commit()
+    else:
+        # User already viewed - update timestamp but don't increment counter
+        existing_view.viewed_at = datetime.now(timezone.utc)
+        db.commit()
 
     return schemas.KnowledgeArticleFull(
         id=article.id,

@@ -340,12 +340,13 @@
     "hierarchyLevel": "Hierarchy Level",
     "hierarchyLevelHint": "Determines position in topology view (0 = top, higher = lower)",
     "hierarchyLevelOptions": {
-      "router": "Level 0 - Core/Router/Gateway",
-      "firewall": "Level 1 - Firewall/Security",
-      "switch": "Level 2 - Switch/Distribution",
-      "server": "Level 3 - Server/Compute",
-      "storage": "Level 4 - Storage/NAS/SAN",
-      "endpoint": "Level 5 - Endpoint/Workstation"
+      "physical": "Layer 1 - Physical",
+      "dataLink": "Layer 2 - Data Link",
+      "network": "Layer 3 - Network",
+      "transport": "Layer 4 - Transport",
+      "session": "Layer 5 - Session",
+      "presentation": "Layer 6 - Presentation",
+      "application": "Layer 7 - Application"
     },
     "qrCode": "QR Code",
     "generateQrCode": "Generate QR Code",
@@ -354,6 +355,8 @@
     "connections": "Connections",
     "connectedEquipment": "Connected Equipment",
     "noConnections": "No network connections",
+    "disconnectPort": "Disconnect",
+    "portDisconnected": "Port disconnected successfully",
     "changeStatus": "Change status",
     "changeLocation": "Change location",
     "clearLocation": "Clear location",

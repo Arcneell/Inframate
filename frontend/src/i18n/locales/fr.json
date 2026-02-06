@@ -340,12 +340,13 @@
     "hierarchyLevel": "Niveau Hiérarchique",
     "hierarchyLevelHint": "Détermine la position dans la vue topologie (0 = haut, plus élevé = plus bas)",
     "hierarchyLevelOptions": {
-      "router": "Niveau 0 - Cœur/Routeur/Passerelle",
-      "firewall": "Niveau 1 - Pare-feu/Sécurité",
-      "switch": "Niveau 2 - Switch/Distribution",
-      "server": "Niveau 3 - Serveur/Calcul",
-      "storage": "Niveau 4 - Stockage/NAS/SAN",
-      "endpoint": "Niveau 5 - Poste de travail"
+      "physical": "Couche 1 - Physique",
+      "dataLink": "Couche 2 - Liaison de données",
+      "network": "Couche 3 - Réseau",
+      "transport": "Couche 4 - Transport",
+      "session": "Couche 5 - Session",
+      "presentation": "Couche 6 - Présentation",
+      "application": "Couche 7 - Application"
     },
     "qrCode": "QR Code",
     "generateQrCode": "Générer QR Code",
@@ -354,6 +355,8 @@
     "connections": "Connexions",
     "connectedEquipment": "Équipements connectés",
     "noConnections": "Aucune connexion réseau",
+    "disconnectPort": "Déconnecter",
+    "portDisconnected": "Port déconnecté avec succès",
     "changeStatus": "Changer le statut",
     "changeLocation": "Changer l'emplacement",
     "clearLocation": "Retirer l'emplacement",

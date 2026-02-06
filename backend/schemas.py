@@ -537,6 +537,13 @@ class BulkIPExport(BaseModel):
     format: str = Field(default="xlsx", pattern="^(csv|xlsx)$", description="Export format: csv or xlsx")
 
 
+class BulkEquipmentExport(BaseModel):
+    """Request to export selected equipment with specific columns."""
+    equipment_ids: List[int] = Field(..., min_length=1, max_length=500)
+    columns: List[str] = Field(..., min_length=1, description="Columns to include in export")
+    format: str = Field(default="xlsx", pattern="^(csv|xlsx)$", description="Export format: csv or xlsx")
+
+
 # ==================== CONTRACT SCHEMAS ====================
 
 class ContractBase(BaseModel):

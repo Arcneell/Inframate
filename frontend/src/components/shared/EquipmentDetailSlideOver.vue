@@ -165,7 +165,10 @@
             <i class="pi pi-sitemap"></i>
             {{ t('ip.linkedIps') }}
           </span>
-          <span class="text-sm font-normal opacity-60">{{ equipment.ip_addresses?.length || 0 }}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-normal opacity-60">{{ equipment.ip_addresses?.length || 0 }}</span>
+            <Button icon="pi pi-plus" text rounded size="small" v-tooltip.top="t('ip.linkIp')" @click="openLinkIpDialog" />
+          </div>
         </h4>
         <div class="section-content">
           <div v-if="equipment.ip_addresses?.length" class="space-y-2">
@@ -178,7 +181,10 @@
                 <span class="font-mono text-sm">{{ ip.address }}</span>
                 <span v-if="ip.hostname" class="text-sm opacity-60">({{ ip.hostname }})</span>
               </div>
-              <Tag :value="ip.status" :severity="getIpStatusSeverity(ip.status)" />
+              <div class="flex items-center gap-2">
+                <Tag :value="ip.status" :severity="getIpStatusSeverity(ip.status)" />
+                <Button icon="pi pi-times" text rounded size="small" severity="danger" v-tooltip.top="t('ip.unlinkIp')" @click.stop="unlinkIp(ip.id)" />
+              </div>
             </div>
           </div>
           <div v-else class="text-sm text-muted">{{ t('ip.noIpLinked') }}</div>
@@ -209,7 +215,10 @@
                   <div class="text-sm opacity-60">{{ conn.name }} → {{ conn.connected_port_name }}</div>
                 </div>
               </div>
-              <Tag v-if="conn.speed" :value="conn.speed" severity="info" />
+              <div class="flex items-center gap-2">
+                <Tag v-if="conn.speed" :value="conn.speed" severity="info" />
+                <Button icon="pi pi-times" text rounded size="small" severity="danger" v-tooltip.top="t('inventory.disconnectPort')" @click.stop="disconnectPort(conn.id)" />
+              </div>
             </div>
           </div>
           <div v-else class="text-sm text-muted">{{ t('inventory.noConnections') }}</div>
@@ -283,6 +292,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'primevue/usetoast'
 import api from '../../api'
 import SlideOver from './SlideOver.vue'
 import ExpiryBadge from './ExpiryBadge.vue'
@@ -295,10 +305,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'edit'])
+const emit = defineEmits(['update:modelValue', 'edit', 'link-ip', 'update'])
 
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 
 // State
 const equipment = ref(null)
@@ -435,6 +446,33 @@ const downloadQrCode = async () => {
     window.URL.revokeObjectURL(url)
   } catch (error) {
     console.error('Failed to download QR code:', error)
+  }
+}
+
+// IP & Connection management
+const unlinkIp = async (ipId) => {
+  try {
+    await api.delete(`/inventory/equipment/${equipment.value.id}/unlink-ip/${ipId}`)
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('messages.ipUnlinked') })
+    await loadEquipmentDetails()
+    emit('update')
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') })
+  }
+}
+
+const openLinkIpDialog = () => {
+  emit('link-ip', equipment.value)
+}
+
+const disconnectPort = async (portId) => {
+  try {
+    await api.delete(`/network-ports/${portId}/disconnect`)
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('inventory.portDisconnected') })
+    await loadEquipmentDetails()
+    emit('update')
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') })
   }
 }
 

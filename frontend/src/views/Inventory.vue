@@ -424,6 +424,8 @@
       v-model="showDetailSlideOver"
       :equipmentId="selectedEquipmentId"
       @edit="handleEditFromSlideOver"
+      @link-ip="handleLinkIpFromSlideOver"
+      @update="loadEquipment"
     />
 
     <!-- Create/Edit Equipment Modal -->
@@ -680,6 +682,48 @@
                     :placeholder="t('inventory.changeLocation')" class="w-full mb-3" />
           <Button :label="t('bulk.applyToAll', { count: selectedEquipment.length })" icon="pi pi-check"
                   class="w-full" @click="applyBulkLocation" :disabled="bulkLocation === undefined" :loading="bulkLoading" />
+        </div>
+      </div>
+
+      <!-- Export Action -->
+      <div class="action-card p-4 rounded-xl cursor-pointer" @click="showBulkExportAction = !showBulkExportAction">
+        <div class="flex items-center gap-4">
+          <div class="action-icon action-icon-export">
+            <i class="pi pi-download"></i>
+          </div>
+          <div class="flex-1">
+            <div class="font-semibold action-title">{{ t('bulk.exportToCsv') }}</div>
+            <div class="text-sm action-desc">{{ t('bulk.exportToCsvDesc') }}</div>
+          </div>
+          <i :class="['pi transition-transform', showBulkExportAction ? 'pi-chevron-up' : 'pi-chevron-down']"></i>
+        </div>
+        <div v-if="showBulkExportAction" class="mt-4 pt-4 border-t" style="border-color: var(--border-default);" @click.stop>
+          <div class="mb-3">
+            <label class="block text-sm font-medium mb-2 action-desc">{{ t('bulk.selectColumns') }}</label>
+            <div class="export-columns-grid">
+              <div v-for="col in exportColumnOptions" :key="col.value" class="flex items-center gap-2">
+                <Checkbox v-model="exportColumns" :inputId="'exp_' + col.value" :value="col.value" />
+                <label :for="'exp_' + col.value" class="text-sm cursor-pointer action-desc">{{ col.label }}</label>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 mb-3">
+            <Button :label="t('bulk.selectAll')" text size="small" @click="exportColumns = exportColumnOptions.map(c => c.value)" />
+            <Button :label="t('bulk.deselectAll')" text size="small" @click="exportColumns = []" />
+          </div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium mb-2 action-desc">{{ t('bulk.exportFormat') }}</label>
+            <div class="export-format-selector">
+              <div v-for="fmt in exportFormatOptions" :key="fmt.value"
+                   class="format-option" :class="{ active: exportFormat === fmt.value }"
+                   @click="exportFormat = fmt.value">
+                <i :class="fmt.icon"></i>
+                <span>{{ fmt.label }}</span>
+              </div>
+            </div>
+          </div>
+          <Button :label="t('bulk.exportSelected', { count: selectedEquipment.length })" icon="pi pi-download"
+                  class="w-full" @click="applyBulkExport" :disabled="exportColumns.length === 0" :loading="bulkLoading" />
         </div>
       </div>
 
@@ -963,9 +1007,12 @@ const showBulkSlideOver = ref(false)
 const showBulkDeleteDialog = ref(false)
 const showBulkStatusAction = ref(false)
 const showBulkLocationAction = ref(false)
+const showBulkExportAction = ref(false)
 const bulkStatus = ref(null)
 const bulkLocation = ref(undefined)
 const bulkLoading = ref(false)
+const exportColumns = ref([])
+const exportFormat = ref('xlsx')
 
 // ==================== Configuration State ====================
 const manufacturers = ref([])
@@ -1061,12 +1108,13 @@ const locationOptionsWithClear = computed(() => [
 ])
 
 const hierarchyLevelOptions = computed(() => [
-  { value: 0, label: t('inventory.hierarchyLevelOptions.router'), color: '#7c3aed' },
-  { value: 1, label: t('inventory.hierarchyLevelOptions.firewall'), color: '#dc2626' },
-  { value: 2, label: t('inventory.hierarchyLevelOptions.switch'), color: '#2563eb' },
-  { value: 3, label: t('inventory.hierarchyLevelOptions.server'), color: '#059669' },
-  { value: 4, label: t('inventory.hierarchyLevelOptions.storage'), color: '#0891b2' },
-  { value: 5, label: t('inventory.hierarchyLevelOptions.endpoint'), color: '#64748b' }
+  { value: 1, label: t('inventory.hierarchyLevelOptions.physical'), color: '#64748b' },
+  { value: 2, label: t('inventory.hierarchyLevelOptions.dataLink'), color: '#2563eb' },
+  { value: 3, label: t('inventory.hierarchyLevelOptions.network'), color: '#7c3aed' },
+  { value: 4, label: t('inventory.hierarchyLevelOptions.transport'), color: '#dc2626' },
+  { value: 5, label: t('inventory.hierarchyLevelOptions.session'), color: '#ea580c' },
+  { value: 6, label: t('inventory.hierarchyLevelOptions.presentation'), color: '#0891b2' },
+  { value: 7, label: t('inventory.hierarchyLevelOptions.application'), color: '#059669' }
 ])
 
 const navTabs = computed(() => [
@@ -1077,6 +1125,29 @@ const navTabs = computed(() => [
   { key: 'locations', label: t('inventory.locations'), icon: 'pi-map-marker', count: locations.value.length },
   { key: 'suppliers', label: t('inventory.suppliers'), icon: 'pi-truck', count: suppliers.value.length }
 ])
+
+const exportColumnOptions = computed(() => [
+  { label: t('common.name'), value: 'name' },
+  { label: t('inventory.serialNumber'), value: 'serial_number' },
+  { label: t('inventory.assetTag'), value: 'asset_tag' },
+  { label: t('ipam.status'), value: 'status' },
+  { label: t('inventory.type'), value: 'type' },
+  { label: t('inventory.model'), value: 'model' },
+  { label: t('inventory.manufacturer'), value: 'manufacturer' },
+  { label: t('inventory.location'), value: 'location' },
+  { label: t('inventory.supplier'), value: 'supplier' },
+  { label: t('inventory.purchaseDate'), value: 'purchase_date' },
+  { label: t('inventory.warrantyExpiry'), value: 'warranty_expiry' },
+  { label: t('remote.remoteIp'), value: 'ip_address' },
+  { label: t('dcim.rackPlacement'), value: 'rack_position' },
+  { label: t('inventory.notes'), value: 'notes' },
+  { label: t('common.createdAt'), value: 'created_at' }
+])
+
+const exportFormatOptions = [
+  { label: 'Excel (.xlsx)', value: 'xlsx', icon: 'pi pi-file-excel' },
+  { label: 'CSV (.csv)', value: 'csv', icon: 'pi pi-file' }
+]
 
 const selectedModelSupportsRemoteExecution = computed(() => {
   if (!equipmentForm.value.model_id) return false
@@ -1101,7 +1172,7 @@ const getStatusLabel = (status) => {
 }
 
 const getHierarchyColor = (level) => {
-  const colors = ['#7c3aed', '#dc2626', '#2563eb', '#059669', '#0891b2', '#64748b']
+  const colors = { 1: '#64748b', 2: '#2563eb', 3: '#7c3aed', 4: '#dc2626', 5: '#ea580c', 6: '#0891b2', 7: '#059669' }
   return colors[level] || '#64748b'
 }
 
@@ -1265,6 +1336,10 @@ const openEquipmentDetail = (eq) => {
 const handleEditFromSlideOver = (eq) => {
   showDetailSlideOver.value = false
   openEquipmentDialog(eq)
+}
+
+const handleLinkIpFromSlideOver = (eq) => {
+  openLinkIpDialog(eq)
 }
 
 const openEquipmentDialog = (eq = null) => {
@@ -1460,6 +1535,39 @@ const applyBulkLocation = async () => {
     showBulkSlideOver.value = false
     showBulkLocationAction.value = false
     loadEquipment()
+  } catch (e) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') })
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+// ==================== Export ====================
+const applyBulkExport = async () => {
+  if (selectedEquipment.value.length === 0 || exportColumns.value.length === 0) return
+  bulkLoading.value = true
+  try {
+    const response = await api.post('/export/equipment/bulk', {
+      equipment_ids: selectedEquipment.value.map(e => e.id),
+      columns: exportColumns.value,
+      format: exportFormat.value
+    }, { responseType: 'blob' })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const extension = exportFormat.value === 'xlsx' ? 'xlsx' : 'csv'
+    link.setAttribute('download', `equipment_export_${timestamp}.${extension}`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    toast.add({ severity: 'success', summary: t('common.success'), detail: t('bulk.exportSuccess', { count: selectedEquipment.value.length }) })
+    exportColumns.value = []
+    showBulkSlideOver.value = false
+    showBulkExportAction.value = false
   } catch (e) {
     toast.add({ severity: 'error', summary: t('common.error'), detail: e.response?.data?.detail || t('common.error') })
   } finally {
@@ -1876,6 +1984,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  flex-wrap: wrap;
   gap: clamp(0.75rem, 3vw, 2rem);
   padding: 0.625rem clamp(1rem, 2vw, 1.5rem);
   background: var(--bg-card);
@@ -2723,6 +2832,47 @@ onUnmounted(() => {
 .action-card i.pi-chevron-down,
 .action-card i.pi-chevron-right {
   color: var(--text-secondary);
+}
+
+.action-icon-export { background: var(--primary-light); }
+.action-icon-export i { color: var(--primary); }
+
+.export-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.export-format-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.format-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.format-option:hover {
+  border-color: var(--border-strong);
+}
+
+.format-option.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
 }
 
 /* ==================== Dropdown Panel Overlay ==================== */

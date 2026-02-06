@@ -57,10 +57,10 @@
             {{ t('ipam.allocatedIps') }}
           </span>
           <span class="text-sm font-normal text-secondary">{{ ipData.total }} {{ t('ipam.addressesFound') }}</span>
-          <Button icon="pi pi-plus" size="small" @click="showAddIpDialog = true" v-tooltip.left="t('ipam.addIp')" />
+          <Button icon="pi pi-plus" size="small" class="add-ip-btn" @click="showAddIpDialog = true" v-tooltip.left="t('ipam.addIp')" />
         </h4>
         <div class="section-content">
-          <div class="flex gap-2 mb-4 ipam-toolbar-filters">
+          <div class="flex gap-2 mb-4 ipam-toolbar-filters flex-wrap">
             <Dropdown
               v-model="statusFilter"
               :options="statusFilterOptions"
@@ -70,15 +70,20 @@
               showClear
               class="info-dropdown w-40"
             />
-            <InputText v-model="searchQuery" :placeholder="t('search.searchIps')" class="flex-1" />
+            <InputText v-model="searchQuery" :placeholder="t('search.searchIps')" class="flex-1 min-w-[150px]" />
           </div>
 
-          <div v-if="selectedIps.length > 0" class="bulk-bar flex items-center gap-3 mb-4 p-3 rounded-lg">
-            <i class="pi pi-check-square text-primary"></i>
-            <span class="bulk-bar-selection-text">{{ selectedIps.length }} {{ t('common.selected') }}</span>
+          <div class="bulk-bar flex items-center gap-3 mb-4 p-3 rounded-lg">
+            <Checkbox :modelValue="isAllOnPageSelected" @update:modelValue="toggleSelectAllOnPage" :binary="true" class="select-all-checkbox" />
+            <span class="bulk-bar-selection-text">
+              <template v-if="selectedIps.length > 0">{{ selectedIps.length }} {{ t('common.selected') }}</template>
+              <template v-else>{{ t('common.selectAll') }}</template>
+            </span>
             <div class="flex-1"></div>
-            <Button :label="t('bulk.openBulkActions')" icon="pi pi-list-check" size="small" @click="showBulkDialog = true" />
-            <Button icon="pi pi-times" text rounded size="small" @click="selectedIps = []" v-tooltip.top="t('common.clearSelection')" />
+            <template v-if="selectedIps.length > 0">
+              <Button :label="t('bulk.openBulkActions')" icon="pi pi-list-check" size="small" @click="showBulkDialog = true" />
+              <Button icon="pi pi-times" text rounded size="small" @click="selectedIps = []" v-tooltip.top="t('common.clearSelection')" />
+            </template>
           </div>
 
           <div v-if="loadingIps" class="flex justify-center py-8">
@@ -104,18 +109,19 @@
               </div>
               <div class="flex items-center gap-3 shrink-0 ip-item-actions">
                 <span v-if="ip.mac_address" class="font-mono text-xs text-secondary">{{ ip.mac_address }}</span>
-                <Tag :value="ip.status" :severity="getStatusSeverity(ip.status)" class="ip-status-tag" />
+                <Tag :value="getStatusLabel(ip.status)" :severity="getStatusSeverity(ip.status)" class="ip-status-tag" />
                 <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click.stop="confirmDeleteIp(ip)" v-tooltip.left="t('common.delete')" />
               </div>
             </div>
 
-            <div v-if="ipData.total > pageSize" class="flex justify-center pt-4">
+            <div v-if="ipData.total > 0" class="flex justify-center pt-4">
               <Paginator
                 :rows="pageSize"
                 :totalRecords="ipData.total"
                 :first="currentPage * pageSize"
+                :rowsPerPageOptions="[25, 50, 100, 200]"
                 @page="onPageChange"
-                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
               />
             </div>
           </div>
@@ -163,7 +169,7 @@
       </div>
       <div class="flex flex-col gap-2">
         <label for="status" class="form-label">{{ t('ipam.status') }}</label>
-        <Dropdown id="status" v-model="newIp.status" :options="['available', 'active', 'reserved']" class="w-full transparent-dropdown" />
+        <Dropdown id="status" v-model="newIp.status" :options="ipStatusOptions" optionLabel="label" optionValue="value" class="w-full transparent-dropdown" />
       </div>
     </div>
     <template #footer>
@@ -348,9 +354,7 @@ const exportColumnOptions = [
   { value: 'hostname', label: 'Hostname' },
   { value: 'mac_address', label: 'MAC Address' },
   { value: 'equipment', label: 'Equipment' },
-  { value: 'description', label: 'Description' },
-  { value: 'last_seen', label: 'Last Seen' },
-  { value: 'created_at', label: 'Created At' }
+  { value: 'last_scanned_at', label: 'Last Scanned' }
 ]
 
 const exportFormatOptions = [
@@ -365,6 +369,17 @@ const bulkStatusOptions = computed(() => [
   { label: t('status.dhcp'), value: 'dhcp' }
 ])
 
+const ipStatusOptions = computed(() => [
+  { label: t('status.available'), value: 'available' },
+  { label: t('status.active'), value: 'active' },
+  { label: t('status.reserved'), value: 'reserved' }
+])
+
+const isAllOnPageSelected = computed(() => {
+  if (filteredIps.value.length === 0) return false
+  return filteredIps.value.every(ip => isIpSelected(ip))
+})
+
 const isIpSelected = (ip) => selectedIps.value.some(s => s.id === ip.id)
 
 const toggleIpSelection = (ip) => {
@@ -374,6 +389,32 @@ const toggleIpSelection = (ip) => {
   } else {
     selectedIps.value.splice(index, 1)
   }
+}
+
+const toggleSelectAllOnPage = () => {
+  if (isAllOnPageSelected.value) {
+    // Deselect all on page
+    const idsOnPage = filteredIps.value.map(ip => ip.id)
+    selectedIps.value = selectedIps.value.filter(s => !idsOnPage.includes(s.id))
+  } else {
+    // Select all on page
+    filteredIps.value.forEach(ip => {
+      if (!isIpSelected(ip)) {
+        selectedIps.value.push(ip)
+      }
+    })
+  }
+}
+
+const getStatusLabel = (status) => {
+  const statusMap = {
+    'active': t('status.active'),
+    'reserved': t('status.reserved'),
+    'available': t('status.available'),
+    'assigned': t('status.assigned'),
+    'dhcp': t('status.dhcp')
+  }
+  return statusMap[status] || status
 }
 
 // Computed
@@ -463,6 +504,9 @@ const loadIps = async () => {
 
 const onPageChange = (event) => {
   currentPage.value = event.page
+  if (event.rows !== pageSize.value) {
+    pageSize.value = event.rows
+  }
   loadIps()
 }
 
@@ -517,10 +561,13 @@ const deleteIp = async () => {
 
 const scanSubnet = async () => {
   try {
-    await api.post(`/subnets/${props.subnetId}/scan`)
-    toast.add({ severity: 'info', summary: t('ipam.scanStarted'), detail: `${t('ipam.scanningBackground')} ${subnet.value?.cidr}`, life: 5000 })
+    const response = await api.post(`/subnets/${props.subnetId}/scan`)
+    if (response.data?.message) {
+      toast.add({ severity: 'info', summary: t('ipam.scanStarted'), detail: `${t('ipam.scanningBackground')} ${subnet.value?.cidr}`, life: 5000 })
+    }
   } catch (error) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('ipam.failedStartScan'), life: 3000 })
+    const detail = error.response?.data?.detail || error.response?.data?.message || t('ipam.failedStartScan')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: detail, life: 5000 })
   }
 }
 
@@ -651,6 +698,48 @@ watch(() => [props.modelValue, props.subnetId], ([isVisible, id]) => {
 
 <style scoped>
 /* Aligné sur le thème global (TicketDetailSlideOver) */
+
+/* Bouton + visible */
+.add-ip-btn {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+
+.add-ip-btn:hover {
+  background-color: var(--primary-dark, #0284c7) !important;
+}
+
+/* Checkbox visible en dark mode */
+.select-all-checkbox :deep(.p-checkbox-box),
+.ip-item :deep(.p-checkbox-box) {
+  border-color: var(--border-strong) !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+.select-all-checkbox :deep(.p-checkbox-box.p-highlight),
+.ip-item :deep(.p-checkbox-box.p-highlight) {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+:root.dark .select-all-checkbox :deep(.p-checkbox-box),
+:root.dark .ip-item :deep(.p-checkbox-box) {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+:root.dark .select-all-checkbox :deep(.p-checkbox-box.p-highlight),
+:root.dark .ip-item :deep(.p-checkbox-box.p-highlight) {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+:root.dark .select-all-checkbox :deep(.p-checkbox-box .p-checkbox-icon),
+:root.dark .ip-item :deep(.p-checkbox-box .p-checkbox-icon) {
+  color: white !important;
+}
+
 .detail-section {
   border-bottom: 1px solid var(--border-default);
   padding-bottom: 1.5rem;
@@ -886,6 +975,9 @@ watch(() => [props.modelValue, props.subnetId], ([isVisible, id]) => {
   font-weight: 500;
   color: var(--text-primary);
   background: transparent !important;
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
 }
 
 .transparent-dropdown:deep(.p-dropdown .p-dropdown-label.p-placeholder),
@@ -938,7 +1030,8 @@ watch(() => [props.modelValue, props.subnetId], ([isVisible, id]) => {
 :root.dark .ip-item .text-primary { color: #38bdf8; }
 :root.dark .ip-item span[class*="text-secondary"] { color: #94a3b8; }
 :root.dark .ip-item span[class*="text-muted"] { color: #64748b; }
-.bulk-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-default); }
+.bulk-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-default); min-height: 48px; }
+.bulk-bar:has(.p-checkbox-box.p-highlight) { border-color: var(--primary); }
 .bulk-bar-selection-text { font-weight: 500; font-size: 0.875rem; color: var(--text-primary); }
 :root.dark .bulk-bar-selection-text,
 :root.dark .bulk-bar span,

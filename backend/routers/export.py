@@ -547,9 +547,7 @@ def export_ip_addresses_bulk(
         "hostname": lambda ip: ip.hostname or "",
         "mac_address": lambda ip: ip.mac_address or "",
         "equipment": lambda ip: ip.equipment.name if ip.equipment else "",
-        "description": lambda ip: ip.description or "",
-        "last_seen": lambda ip: ip.last_seen.isoformat() if ip.last_seen else "",
-        "created_at": lambda ip: ip.created_at.isoformat() if ip.created_at else "",
+        "last_scanned_at": lambda ip: ip.last_scanned_at.isoformat() if ip.last_scanned_at else "",
     }
     invalid_columns = [c for c in request.columns if c not in column_mapping]
     if invalid_columns:
@@ -588,9 +586,7 @@ def export_ip_addresses_bulk(
         "hostname": "Hostname",
         "mac_address": "MAC Address",
         "equipment": "Equipment",
-        "description": "Description",
-        "last_seen": "Last Seen",
-        "created_at": "Created At",
+        "last_scanned_at": "Last Scanned",
     }
     if request.format == "xlsx":
         filename = f"ip_addresses_export_{timestamp}.xlsx"
